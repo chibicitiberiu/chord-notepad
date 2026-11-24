@@ -1543,24 +1543,32 @@ examples, Android's icons the asset catalog copies (the drawables and
 `VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
 newer one doesn't cancel an older one.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
-`ios.yml` or this file. Two jobs on `macos-26` (arm64):
+`ios.yml` or this file. Four jobs at once, three of them on `macos-26`
+(arm64), so a run takes as long as its slowest job rather than the sum (it
+was 44 minutes as one app job; the iPad's screenshots alone took 16, with
+both simulators booted on one runner):
 
 - **kit:** `swift test` on the Mac host with setup-python's 3.14 (through
   `CN_PYTHON_PKGCONFIG=python3-embed`, set only for that step), the app's
   packages from `build_python_bundle.py` as `CN_SITE_PACKAGES`, and the
   macOS app's own libfluidsynth (`packaging/macos/build_fluidsynth.sh`,
   cached) as `CHORD_NOTEPAD_LIBFLUIDSYNTH`.
-- **app:** the frameworks (cached on the scripts, the pins and the Xcode
-  version), the Python bundle, XcodeGen, one `build-for-testing` for the
-  simulator, `test-without-building` on the iPhone and the iPad (the
+- **simulator** (iPhone, iPad; a matrix, each on its own runner with only
+  its simulator booted): the shared setup
+  (`.github/actions/ios-app-setup`: the frameworks, cached on the scripts,
+  the pins and the Xcode version; the Python bundle; the guide; XcodeGen),
+  a `build-for-testing` for its simulator, `test-without-building` (the
   session test with the FakePlayer, the blocking offline render and the
-  diagnostics zip; the
-  catalog on the iPhone only, since it renders both sizes anyway), the
-  real app launched on both simulators for screenshots and the self-test,
-  the live CoreAudio check (non-blocking: a runner may have no audio
-  device), and a Release `generic/platform=iOS` build with
-  `CODE_SIGNING_ALLOWED=NO`, checked for the privacy manifests, the
+  diagnostics zip; the catalog on the iPhone only, since it renders both
+  sizes anyway), the real app launched for screenshots and the self-test,
+  and the live CoreAudio check (non-blocking: a runner may have no audio
+  device). One simulator failing doesn't cancel the other.
+- **device:** the same setup, then a Release `generic/platform=iOS` build
+  with `CODE_SIGNING_ALLOWED=NO`, checked for the privacy manifests, the
   compiled icon and the stdlib.
+- **merge** (Ubuntu): joins each simulator's `ios-screenshots-<device>` and
+  `ios-results-<device>` (and the device job's build log) into
+  `ios-screenshots` and `ios-results`, the names below.
 
 | Pin | Value | Where |
 |---|---|---|

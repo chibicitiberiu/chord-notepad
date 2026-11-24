@@ -1,0 +1,91 @@
+name: iOS app setup
+description: >
+  What every job that builds the app needs (.github/workflows/ios.yml): the
+  pinned Xcode, Python, the cached FluidSynth and Python frameworks, the
+  Python bundle, the user guide's iOS edition, and the Xcode project from
+  XcodeGen. Each job runs it on its own runner, so the simulators and the
+  device build don't wait for each other.
+
+runs:
+  using: composite
+  steps:
+    # The Xcode CI builds with is pinned in ios/.xcode-version (the image
+    # carries several; its default moves).
+    - name: Select Xcode
+      shell: bash
+      run: |
+        sudo xcode-select -s "/Applications/Xcode_$(cat ios/.xcode-version).app"
+        xcodebuild -version
+
+    - name: Set up Python
+      uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+      with:
+        python-version: '3.14'
+
+    # FluidSynth.xcframework (built from the pinned source) and
+    # Python.xcframework (the pinned BeeWare package, trimmed and
+    # precompiled), rebuilt when a script, a pin or the Xcode changes.
+    - name: Cache the frameworks
+      id: frameworks
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ios/build/Frameworks
+        key: ios-frameworks-${{ hashFiles('ios/.xcode-version', 'packaging/ios/build_fluidsynth.sh', 'packaging/ios/fetch_python.sh', 'packaging/ios/compile_pyc.py', 'packaging/ios/privacy/*') }}
+
+    - name: Build FluidSynth.xcframework
+      if: steps.frameworks.outputs.cache-hit != 'true'
+      shell: bash
+      run: packaging/ios/build_fluidsynth.sh ios/build/Frameworks
+
+    - name: Fetch Python.xcframework
+      if: steps.frameworks.outputs.cache-hit != 'true'
+      shell: bash
+      run: packaging/ios/fetch_python.sh ios/build/Frameworks python
+
+    - name: Show the frameworks
+      shell: bash
+      run: |
+        ls -la ios/build/Frameworks
+        cat ios/build/Frameworks/Python.xcframework/VERSIONS
+        for slice in ios/build/Frameworks/FluidSynth.xcframework/*/FluidSynth.framework; do
+          echo "$slice"; otool -L "$slice/FluidSynth"
+        done
+
+    - name: Cache the wheels
+      uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: ios/build/wheel-cache
+        key: ios-wheels-${{ hashFiles('android/requirements.txt', 'android/tools/strip_music21.py') }}
+
+    - name: Build the Python bundle
+      shell: bash
+      run: python -I packaging/ios/build_python_bundle.py ios/build/python-bundle
+
+    # The user guide's iOS edition (sphinx -t ios, Android's pinned Sphinx
+    # stack), which the "User guide" build phase copies into the app.
+    - name: Build the user guide
+      shell: bash
+      env:
+        CN_HELP_DRAFT: '1'
+      run: |
+        python -m pip install --quiet --require-hashes -r android/docs-requirements.txt
+        PYTHON=python ios/tools/build_help.sh ios/build/help
+
+    # Pinned and hash-checked; the image has no XcodeGen.
+    - name: Install XcodeGen
+      shell: bash
+      env:
+        XCODEGEN_VERSION: '2.46.0'
+        XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
+      run: |
+        curl -fsSL --retry 3 -o "$RUNNER_TEMP/xcodegen.zip" \
+          "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+        echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+        unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+        echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+    - name: Generate the Xcode project
+      shell: bash
+      run: |
+        "$RUNNER_TEMP/xcodegen/bin/xcodegen" version
+        "$RUNNER_TEMP/xcodegen/bin/xcodegen" generate --spec ios/project.yml

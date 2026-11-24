@@ -43,6 +43,7 @@ on:
       - 'android/tools/help_shot_songs/colours.txt'
       - 'android/app/src/main/assets/licenses/components.json'
       - '.github/workflows/ios.yml'
+      - '.github/actions/ios-app-setup/**'
   workflow_dispatch:
 
 permissions:
@@ -122,168 +123,108 @@ jobs:
           path: ${{ runner.temp }}/kit-tests.log
           if-no-files-found: ignore
 
-  app:
-    name: App (simulators, device build)
+  # One job per simulator, each on its own runner with one simulator booted
+  # (with both booted on one runner the iPad's launches took three to four
+  # times as long), and the device build beside them: a run takes the
+  # longest of the three instead of their sum.
+  simulator:
+    name: App on the ${{ matrix.label }} simulator
     runs-on: macos-26
-    timeout-minutes: 75
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # The iPhone also writes the preview catalog (both sizes) and
+          # uploads the guide; the iPad skips the catalog.
+          - device: iphone
+            label: iPhone
+            catalog: true
+          - device: ipad
+            label: iPad
+            catalog: false
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - name: Select Xcode
-        run: |
-          sudo xcode-select -s "/Applications/Xcode_$(cat ios/.xcode-version).app"
-          xcodebuild -version
-          xcrun simctl list runtimes
+      - uses: ./.github/actions/ios-app-setup
 
       # Logged only: whether this runner has an audio device decides what
       # the live playback check below can show.
       - name: Audio devices (preflight)
-        run: system_profiler SPAudioDataType || true
-
-      - name: Set up Python
-        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
-        with:
-          python-version: '3.14'
-
-      # FluidSynth.xcframework (built from the pinned source) and
-      # Python.xcframework (the pinned BeeWare package, trimmed and
-      # precompiled), rebuilt when a script, a pin or the Xcode changes.
-      - name: Cache the frameworks
-        id: frameworks
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ios/build/Frameworks
-          key: ios-frameworks-${{ hashFiles('ios/.xcode-version', 'packaging/ios/build_fluidsynth.sh', 'packaging/ios/fetch_python.sh', 'packaging/ios/compile_pyc.py', 'packaging/ios/privacy/*') }}
-
-      - name: Build FluidSynth.xcframework
-        if: steps.frameworks.outputs.cache-hit != 'true'
-        run: packaging/ios/build_fluidsynth.sh ios/build/Frameworks
-
-      - name: Fetch Python.xcframework
-        if: steps.frameworks.outputs.cache-hit != 'true'
-        run: packaging/ios/fetch_python.sh ios/build/Frameworks python
-
-      - name: Show the frameworks
         run: |
-          ls -la ios/build/Frameworks
-          cat ios/build/Frameworks/Python.xcframework/VERSIONS
-          for slice in ios/build/Frameworks/FluidSynth.xcframework/*/FluidSynth.framework; do
-            echo "$slice"; otool -L "$slice/FluidSynth"
-          done
+          xcrun simctl list runtimes
+          system_profiler SPAudioDataType || true
 
-      - name: Cache the wheels
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ios/build/wheel-cache
-          key: ios-wheels-${{ hashFiles('android/requirements.txt', 'android/tools/strip_music21.py') }}
-
-      - name: Build the Python bundle
-        run: python -I packaging/ios/build_python_bundle.py ios/build/python-bundle
-
-      # The user guide's iOS edition (sphinx -t ios, Android's pinned Sphinx
-      # stack), which the "User guide" build phase copies into the app.
-      - name: Build the user guide
-        env:
-          CN_HELP_DRAFT: '1'
+      - name: Pick the simulator
         run: |
-          python -m pip install --quiet --require-hashes -r android/docs-requirements.txt
-          PYTHON=python ios/tools/build_help.sh ios/build/help
+          python3 ios/tools/ci_simulators.py >> "$GITHUB_ENV"
+          python3 ios/tools/ci_simulators.py 2>/dev/null \
+            | sed -n "s/^$(echo '${{ matrix.device }}' | tr a-z A-Z)_UDID=/UDID=/p" >> "$GITHUB_ENV"
 
-      # Pinned and hash-checked; the image has no XcodeGen.
-      - name: Install XcodeGen
-        env:
-          XCODEGEN_VERSION: '2.46.0'
-          XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
-        run: |
-          curl -fsSL --retry 3 -o "$RUNNER_TEMP/xcodegen.zip" \
-            "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
-          echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
-          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
-          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
-
-      - name: Generate the Xcode project
-        run: |
-          xcodegen version
-          xcodegen generate --spec ios/project.yml
-
-      - name: Pick the simulators
-        run: python3 ios/tools/ci_simulators.py >> "$GITHUB_ENV"
-
-      # One simulator build serves both simulators' tests. The build stamp
-      # (Info.plist CNGitCommit, CNBuildDate) and the version come from here.
+      # The build stamp (Info.plist CNGitCommit, CNBuildDate) and the version
+      # come from here.
       - name: Build for the simulator
         run: |
           set -o pipefail
           xcodebuild build-for-testing \
             -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
-            -destination "id=$IPHONE_UDID" -derivedDataPath ios/build/DerivedData \
+            -destination "id=$UDID" -derivedDataPath ios/build/DerivedData \
             MARKETING_VERSION="$(cat VERSION)" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
             CN_GIT_COMMIT="$(git rev-parse --short HEAD)" CN_BUILD_DATE="$(date -u +%Y-%m-%d)" \
-            | tee "$RUNNER_TEMP/build-simulator.log" | grep -E 'error:|\*\* ' || true
-          grep -q '\*\* TEST BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/build-simulator.log" \
-            || { tail -n 80 "$RUNNER_TEMP/build-simulator.log"; exit 1; }
+            | tee "$RUNNER_TEMP/build-simulator-${{ matrix.device }}.log" | grep -E 'error:|\*\* ' || true
+          grep -q '\*\* TEST BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/build-simulator-${{ matrix.device }}.log" \
+            || { tail -n 80 "$RUNNER_TEMP/build-simulator-${{ matrix.device }}.log"; exit 1; }
           APP=ios/build/DerivedData/Build/Products/Debug-iphonesimulator/ChordNotepad.app
           echo "SIM_APP=$APP" >> "$GITHUB_ENV"
           du -sh "$APP" "$APP/python" "$APP/Frameworks"
           ls "$APP/Frameworks" | head -20
 
-      # The app's XCTests on each simulator: the session over the bundled
-      # Python and core (FakePlayer), the offline synth render (blocking),
-      # and the preview catalog written to PNGs.
-      - name: Test on the iPhone simulator
+      # The app's XCTests: the session over the bundled Python and core
+      # (FakePlayer), the offline synth render (blocking), and on the iPhone
+      # the preview catalog written to PNGs.
+      - name: Test on the ${{ matrix.label }} simulator
         env:
           TEST_RUNNER_CN_CATALOG_DIR: ${{ github.workspace }}/ios/build/artifacts/catalog
         run: |
           set -o pipefail
+          skip=()
+          if [ "${{ matrix.catalog }}" != true ]; then skip=(-skip-testing:ChordNotepadTests/CatalogTests); fi
+          log="$RUNNER_TEMP/test-${{ matrix.device }}.log"
           xcodebuild test-without-building \
             -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
-            -destination "id=$IPHONE_UDID" -derivedDataPath ios/build/DerivedData \
-            -resultBundlePath ios/build/artifacts/results/iphone.xcresult \
-            | tee "$RUNNER_TEMP/test-iphone.log" | grep -E 'Test (Case|Suite)|error|Catalog:|\*\* ' || true
-          grep -q '\*\* TEST EXECUTE SUCCEEDED \*\*' "$RUNNER_TEMP/test-iphone.log" \
-            || { tail -n 120 "$RUNNER_TEMP/test-iphone.log"; exit 1; }
-
-      # The catalog already has both sizes; the iPad runs the session test.
-      - name: Test on the iPad simulator
-        run: |
-          set -o pipefail
-          xcodebuild test-without-building \
-            -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
-            -destination "id=$IPAD_UDID" -derivedDataPath ios/build/DerivedData \
-            -skip-testing:ChordNotepadTests/CatalogTests \
-            -resultBundlePath ios/build/artifacts/results/ipad.xcresult \
-            | tee "$RUNNER_TEMP/test-ipad.log" | grep -E 'Test (Case|Suite)|error|Catalog:|\*\* ' || true
-          grep -q '\*\* TEST EXECUTE SUCCEEDED \*\*' "$RUNNER_TEMP/test-ipad.log" \
-            || { tail -n 120 "$RUNNER_TEMP/test-ipad.log"; exit 1; }
+            -destination "id=$UDID" -derivedDataPath ios/build/DerivedData \
+            "${skip[@]}" \
+            -resultBundlePath "ios/build/artifacts/results/${{ matrix.device }}.xcresult" \
+            | tee "$log" | grep -E 'Test (Case|Suite)|error|Catalog:|\*\* ' || true
+          grep -q '\*\* TEST EXECUTE SUCCEEDED \*\*' "$log" || { tail -n 120 "$log"; exit 1; }
 
       - name: Catalog images
+        if: matrix.catalog
         run: |
           count=$(find ios/build/artifacts/catalog -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
           echo "$count catalog images"
           if [ "$count" -eq 0 ]; then
             # TEST_RUNNER_ didn't reach the test: take them from the result bundle.
-            xcrun xcresulttool export attachments --path ios/build/artifacts/results/iphone.xcresult \
+            xcrun xcresulttool export attachments \
+              --path "ios/build/artifacts/results/${{ matrix.device }}.xcresult" \
               --output-path ios/build/artifacts/catalog
             find ios/build/artifacts/catalog -name '*.png' | wc -l
           fi
 
-      # The real app on both simulators: the main screen with the quick-start
-      # song (Play), the menu, Diagnostics with the self-test and live
-      # CoreAudio playback, Play with the chord sheet, and Edit after the app
-      # typed into the editor (editor.json must say the session highlighted
-      # the typing).
+      # The real app: the main screen with the quick-start song (Play), the
+      # menu, Diagnostics with the self-test and live CoreAudio playback,
+      # Play with the chord sheet, Edit after the app typed into the editor
+      # (editor.json must say the session highlighted the typing), and the
+      # -CNScreen hooks of each slice (ios/tools/ci_screenshots.sh).
       - name: Screenshots
-        run: |
-          ios/tools/ci_screenshots.sh "$IPHONE_UDID" iphone "$SIM_APP" ios/build/artifacts/screenshots
-          ios/tools/ci_screenshots.sh "$IPAD_UDID" ipad "$SIM_APP" ios/build/artifacts/screenshots
+        run: ios/tools/ci_screenshots.sh "$UDID" ${{ matrix.device }} "$SIM_APP" ios/build/artifacts/screenshots
 
       # Not blocking: a runner may have no audio device. The offline render
       # above is the check that must pass.
       - name: Live audio (CoreAudio in the simulator)
         continue-on-error: true
         run: |
-          for label in iphone ipad; do
-            python3 - "ios/build/artifacts/screenshots/$label-diagnostics/selftest.json" "$label" <<'PY'
+          python3 - "ios/build/artifacts/screenshots/${{ matrix.device }}-diagnostics/selftest.json" "${{ matrix.device }}" <<'PY'
           import json, sys
           report = json.load(open(sys.argv[1]))
           live = report.get("liveAudio") or {}
@@ -291,10 +232,60 @@ jobs:
                 f" ({live.get('error')}); route {report.get('audioRoute')}; problems {report.get('problems')}")
           sys.exit(0 if live.get("initialized") else 1)
           PY
-          done
 
-      # Device packaging problems (the frameworks' Info.plists, the Python
-      # phase, architectures) show up only in a device build.
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p ios/build/artifacts/logs
+          cp "$RUNNER_TEMP"/*.log ios/build/artifacts/logs/ 2>/dev/null || true
+
+      - name: Upload the catalog
+        if: always() && matrix.catalog
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-catalog
+          path: ios/build/artifacts/catalog
+          if-no-files-found: ignore
+
+      - name: Upload the user guide
+        if: always() && matrix.catalog
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-help
+          path: ios/build/help
+          if-no-files-found: ignore
+
+      # Each job uploads its own part; the merge job below joins them into
+      # ios-screenshots and ios-results, as one job used to upload them.
+      - name: Upload the screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-screenshots-${{ matrix.device }}
+          path: ios/build/artifacts/screenshots
+          if-no-files-found: ignore
+
+      - name: Upload the test results and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-results-${{ matrix.device }}
+          path: |
+            ios/build/artifacts/results
+            ios/build/artifacts/logs
+          if-no-files-found: ignore
+
+  # Device packaging problems (the frameworks' Info.plists, the Python
+  # phase, architectures) show up only in a device build.
+  device:
+    name: Unsigned device build
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/ios-app-setup
+
       - name: Unsigned device build
         run: |
           set -o pipefail
@@ -325,42 +316,36 @@ jobs:
               || { echo "$framework isn't marked for iPhoneOS"; exit 1; }
           done
 
-      - name: Collect logs
-        if: always()
-        run: |
-          mkdir -p ios/build/artifacts/logs
-          cp "$RUNNER_TEMP"/*.log ios/build/artifacts/logs/ 2>/dev/null || true
-
-      - name: Upload the catalog
+      - name: Upload the build log
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: ios-catalog
-          path: ios/build/artifacts/catalog
+          name: ios-results-device
+          path: ${{ runner.temp }}/build-device.log
           if-no-files-found: ignore
 
-      - name: Upload the user guide
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ios-help
-          path: ios/build/help
-          if-no-files-found: ignore
-
-      - name: Upload the screenshots and diagnostics
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+  # The artifacts under the names one job used to upload them as
+  # (ios-screenshots, ios-results), so `gh run download -n ios-screenshots`
+  # still gets both simulators' screenshots. On Linux: no macOS runner.
+  merge:
+    name: Merge the artifacts
+    if: always()
+    needs: [simulator, device]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Merge the screenshots
+        uses: actions/upload-artifact/merge@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        continue-on-error: true
         with:
           name: ios-screenshots
-          path: ios/build/artifacts/screenshots
-          if-no-files-found: ignore
+          pattern: ios-screenshots-*
+          delete-merged: true
 
-      - name: Upload the test results and logs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+      - name: Merge the test results and logs
+        uses: actions/upload-artifact/merge@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        continue-on-error: true
         with:
           name: ios-results
-          path: |
-            ios/build/artifacts/results
-            ios/build/artifacts/logs
-          if-no-files-found: ignore
+          pattern: ios-results-*
+          delete-merged: true
