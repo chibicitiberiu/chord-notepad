@@ -170,9 +170,9 @@ final class EditorController: ObservableObject {
     }
 }
 
-/// The song text as a SwiftUI view: an ``EditorTextView`` the
-/// ``EditorController`` drives. SwiftUI only places it; its text never goes
-/// through `updateUIView`.
+/// The song text as a SwiftUI view: an ``EditorTextView`` (in its
+/// ``EditorHost``) the ``EditorController`` drives. SwiftUI only places it;
+/// its text never goes through `updateUIView`.
 struct SongEditor: UIViewRepresentable {
     let controller: EditorController
 
@@ -180,17 +180,17 @@ struct SongEditor: UIViewRepresentable {
         Coordinator(controller: controller)
     }
 
-    func makeUIView(context: Context) -> EditorTextView {
-        let view = EditorTextView()
-        view.delegate = context.coordinator
-        controller.attach(view)
-        return view
+    func makeUIView(context: Context) -> EditorHost {
+        let host = EditorHost()
+        host.textView.delegate = context.coordinator
+        controller.attach(host.textView)
+        return host
     }
 
-    func updateUIView(_ view: EditorTextView, context: Context) {}
+    func updateUIView(_ host: EditorHost, context: Context) {}
 
-    static func dismantleUIView(_ view: EditorTextView, coordinator: Coordinator) {
-        coordinator.controller.detach(view)
+    static func dismantleUIView(_ host: EditorHost, coordinator: Coordinator) {
+        coordinator.controller.detach(host.textView)
     }
 
     /// The text view's delegate: every change and selection goes to the

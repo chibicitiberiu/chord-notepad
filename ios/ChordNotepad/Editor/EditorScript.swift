@@ -92,12 +92,8 @@ enum EditorScript {
             problems.append("the text view's text differs from the model's")
         }
         // Unwrapped, the caret at the end of the long line is scrolled into view sideways.
-        if typed, let view = editor.textView, !editor.model.wordWrap, let end = view.selectedTextRange?.end {
-            let caret = view.caretRect(for: end)
-            let visible = view.contentOffset.x...(view.contentOffset.x + view.bounds.width)
-            if !(visible.contains(caret.minX) && visible.contains(caret.maxX)) {
-                problems.append("the caret (x \(Int(caret.minX))) is off screen (offset \(Int(view.contentOffset.x)))")
-            }
+        if typed, let view = editor.textView, !view.caretOnScreen {
+            problems.append("the caret is off screen: \(view.layoutDescription)")
         }
         let view = editor.textView
         return Report(ok: problems.isEmpty, typed: typed, clientToken: editor.model.identity.clientToken,

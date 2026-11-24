@@ -91,7 +91,12 @@ final class EditorTextView: UITextView {
 
     // MARK: - Wrapping
 
-    /// Wrap at the view's width (keeping chords whole at `joinPoints`) or not at all.
+    /// The sideways scroll around the text view (``EditorHost``), if any.
+    weak var host: EditorHost?
+
+    /// Wrap at the view's width (keeping chords whole at `joinPoints`) or not
+    /// at all: then the text view is as wide as the longest line, and its
+    /// ``EditorHost`` scrolls it sideways.
     func setWordWrap(_ wrap: Bool, joinPoints points: [Int]) {
         let pointsChanged = points != joinPoints
         joinPoints = points
@@ -101,12 +106,11 @@ final class EditorTextView: UITextView {
             container.widthTracksTextView = wrap
             if !wrap {
                 container.size = CGSize(width: Self.unwrappedWidth, height: CGFloat.greatestFiniteMagnitude)
-                showsHorizontalScrollIndicator = true
             } else {
                 container.size = CGSize(width: max(bounds.width - Self.horizontalInset * 2, 1),
                                         height: CGFloat.greatestFiniteMagnitude)
-                setContentOffset(CGPoint(x: -adjustedContentInset.left, y: contentOffset.y), animated: false)
             }
+            host?.wrapChanged()
             invalidateTextLayout()
         } else if wrap && pointsChanged {
             invalidateTextLayout()
@@ -119,54 +123,16 @@ final class EditorTextView: UITextView {
         textChanged()
     }
 
-    /// The text or its attributes changed: unwrapped, the content's width is
-    /// worked out again at the next layout.
+    /// The text or its attributes changed: the host measures the lines again.
     func textChanged() {
-        contentWidthStale = true
-        setNeedsLayout()
+        host?.setNeedsLayout()
     }
 
-    private var contentWidthStale = true
-    private var measuredWidth: CGFloat = 0
-
-    /// Unwrapped, the content is as wide as the longest line (UIKit keeps it
-    /// at the view's width: it doesn't always go through the setter below,
-    /// so the width is also put right after every layout).
-    override var contentSize: CGSize {
-        get { super.contentSize }
-        set {
-            var size = newValue
-            if !wordWrap { size.width = unwrappedContentWidth() }
-            super.contentSize = size
-        }
-    }
-
-    private func unwrappedContentWidth() -> CGFloat {
-        let used = layout.usedRect(for: container)
-        return max(bounds.width - adjustedContentInset.left - adjustedContentInset.right,
-                   ceil(used.maxX + textContainerInset.left + textContainerInset.right))
-    }
-
-    override func layoutSubviews() {
-        super.layoutSubviews()
-        guard !wordWrap else { return }
-        if container.widthTracksTextView || container.size.width < Self.unwrappedWidth {
-            // UIKit sized the container to the view (it may on a frame change): unwrap again.
-            container.widthTracksTextView = false
-            container.size = CGSize(width: Self.unwrappedWidth, height: CGFloat.greatestFiniteMagnitude)
-            contentWidthStale = true
-        }
-        if contentWidthStale || measuredWidth != bounds.width {
-            // The whole text, so the longest line is measured even when it is
-            // off screen (TextKit lays out lazily).
-            layout.ensureLayout(for: container)
-            contentWidthStale = false
-            measuredWidth = bounds.width
-        }
-        let width = unwrappedContentWidth()
-        if abs(super.contentSize.width - width) > 0.5 {
-            super.contentSize = CGSize(width: width, height: super.contentSize.height)
-        }
+    /// The width the unwrapped text needs: its longest line and the insets.
+    func unwrappedTextWidth() -> CGFloat {
+        // The whole text, so a long line off screen counts too (TextKit lays out lazily).
+        layout.ensureLayout(for: container)
+        return ceil(layout.usedRect(for: container).maxX + textContainerInset.left + textContainerInset.right)
     }
 
     // MARK: - Following the caret and the sounding chord
@@ -183,9 +149,10 @@ final class EditorTextView: UITextView {
         return rect
     }
 
-    /// Keep the sounding chord in view on both axes (the desktop's `see`).
+    /// Keep the sounding chord in view on both axes (the desktop's `see`):
+    /// up and down in the text view, sideways in the host.
     func follow(_ range: UTF16Range) {
-        layoutIfNeeded()  // the content's width after the latest change
+        host?.layoutIfNeeded()
         guard let rect = rect(of: range) else { return }
         let inset = adjustedContentInset
         var offset = contentOffset
@@ -195,48 +162,55 @@ final class EditorTextView: UITextView {
                                           max: Double(contentSize.height - visibleHeight)) {
             offset.y = CGFloat(y) - inset.top
         }
-        if !wordWrap {
-            let visibleWidth = bounds.width - inset.left - inset.right
+        if offset != contentOffset { setContentOffset(offset, animated: true) }
+        if !wordWrap, let host {
             if let x = TextScroll.followChord(start: Double(rect.minX), end: Double(rect.maxX),
-                                              value: Double(offset.x + inset.left), viewport: Double(visibleWidth),
-                                              max: Double(contentSize.width - visibleWidth)) {
-                offset.x = CGFloat(x) - inset.left
+                                              value: Double(host.contentOffset.x), viewport: Double(host.bounds.width),
+                                              max: Double(host.contentSize.width - host.bounds.width)) {
+                host.setContentOffset(CGPoint(x: CGFloat(x), y: 0), animated: true)
             }
         }
-        if offset != contentOffset { setContentOffset(offset, animated: true) }
     }
 
     /// Unwrapped: keep the caret in view sideways while typing or moving it
-    /// (UIKit follows it up and down).
+    /// (the text view follows it up and down itself).
     func followCaretSideways() {
-        guard !wordWrap else { return }
-        // The content must have its new width first, or a caret past the old
-        // edge has nowhere to scroll to (the iPhone stayed at 0 in run 45357633967).
-        layoutIfNeeded()
+        guard !wordWrap, let host else { return }
+        // The text view must have its new width first, or a caret past the
+        // old edge has nowhere to scroll to.
+        host.layoutIfNeeded()
         guard let end = selectedTextRange?.end else { return }
         let caret = caretRect(for: end)
         guard caret.width.isFinite, caret.minX.isFinite else { return }
-        let inset = adjustedContentInset
-        let visibleWidth = bounds.width - inset.left - inset.right
         if let x = TextScroll.followCursor(start: Double(caret.minX), end: Double(caret.maxX),
-                                           value: Double(contentOffset.x + inset.left),
-                                           viewport: Double(visibleWidth),
-                                           max: Double(contentSize.width - visibleWidth),
+                                           value: Double(host.contentOffset.x), viewport: Double(host.bounds.width),
+                                           max: Double(host.contentSize.width - host.bounds.width),
                                            margin: Double(Self.cursorMargin)) {
-            setContentOffset(CGPoint(x: CGFloat(x) - inset.left, y: contentOffset.y), animated: false)
+            host.setContentOffset(CGPoint(x: CGFloat(x), y: 0), animated: false)
         }
+    }
+
+    /// Whether the caret is inside the part of the text on screen (CI's check).
+    var caretOnScreen: Bool {
+        guard let end = selectedTextRange?.end else { return false }
+        let caret = caretRect(for: end)
+        let left = host?.contentOffset.x ?? 0
+        let width = host?.bounds.width ?? bounds.width
+        return caret.minX >= left && caret.maxX <= left + width
     }
 
     /// The text layout's state, for a failed check's message.
     var layoutDescription: String {
         "container \(container.size.width) pt (tracks \(container.widthTracksTextView)), used "
-            + "\(layout.usedRect(for: container).width) pt, content \(contentSize.width) pt, "
-            + "view \(bounds.width) pt, wrap \(wordWrap), TextKit 2 \(textLayoutManager != nil)"
+            + "\(layout.usedRect(for: container).width) pt, text view \(bounds.width) pt, "
+            + "host \(host?.bounds.width ?? 0) pt showing x \(host?.contentOffset.x ?? 0) of "
+            + "\(host?.contentSize.width ?? 0) pt, wrap \(wordWrap), TextKit 2 \(textLayoutManager != nil)"
     }
 
     /// Back to the top left (a document was opened).
     func scrollToStart() {
         setContentOffset(CGPoint(x: -adjustedContentInset.left, y: -adjustedContentInset.top), animated: false)
+        host?.setContentOffset(.zero, animated: false)
     }
 
     // MARK: - Keys and traits
@@ -271,6 +245,49 @@ final class EditorTextView: UITextView {
             || previous?.userInterfaceStyle != traitCollection.userInterfaceStyle {
             onTraitsChanged?()
         }
+    }
+}
+
+/// What SwiftUI places: the editor's text view, either as wide as the host
+/// (word wrap on) or as wide as its longest line inside this sideways scroll
+/// (word wrap off, the default), as Android puts its field in a
+/// `horizontalScroll`. The text view scrolls up and down itself and never
+/// sees content wider than itself, so UIKit's own caret scrolling can't
+/// undo the sideways offset (it kept resetting a wide text view's content
+/// width to the view's, which put the offset back to 0).
+final class EditorHost: UIScrollView {
+    let textView = EditorTextView()
+
+    init() {
+        super.init(frame: .zero)
+        contentInsetAdjustmentBehavior = .never
+        isDirectionalLockEnabled = true
+        alwaysBounceHorizontal = false
+        alwaysBounceVertical = false
+        showsVerticalScrollIndicator = false
+        textView.host = self
+        addSubview(textView)
+        wrapChanged()
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("EditorHost is made in code")
+    }
+
+    /// Word wrap was switched: only the unwrapped text scrolls sideways.
+    func wrapChanged() {
+        isScrollEnabled = !textView.wordWrap
+        if textView.wordWrap { contentOffset = .zero }
+        setNeedsLayout()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let width = textView.wordWrap ? bounds.width : max(bounds.width, textView.unwrappedTextWidth())
+        let frame = CGRect(x: 0, y: 0, width: width, height: bounds.height)
+        if textView.frame != frame { textView.frame = frame }
+        let size = CGSize(width: width, height: bounds.height)
+        if contentSize != size { contentSize = size }
     }
 }
 

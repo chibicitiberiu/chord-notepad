@@ -117,11 +117,12 @@ final class SessionTests: XCTestCase {
         let session = try XCTUnwrap(model.session)
         XCTAssertTrue(editor.model.text.contains(EditorScript.line), "the editor has the quick-start song")
         let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 600))
-        let view = EditorTextView()
+        let host = EditorHost()
+        let view = host.textView
         let coordinator = SongEditor.Coordinator(controller: editor)
         view.delegate = coordinator
-        view.frame = window.bounds
-        window.addSubview(view)
+        host.frame = window.bounds
+        window.addSubview(host)
         window.isHidden = false
         editor.attach(view)
         defer { editor.detach(view) }
@@ -137,10 +138,13 @@ final class SessionTests: XCTestCase {
         let highlighted = await EditorScript.waitForHighlight(editor, timeout: .seconds(30))
         XCTAssertTrue(highlighted, "painted \(EditorScript.paintedChords(editor)), identity \(editor.model.identity), "
                       + "highlighted \(String(describing: editor.model.highlightedIdentity))")
-        // Unwrapped, the long line makes the content wider than the view.
-        view.layoutIfNeeded()
-        XCTAssertGreaterThan(view.contentSize.width, view.bounds.width,
+        // Unwrapped, the long line makes the content wider than the view, and
+        // the caret at its end was scrolled into view sideways.
+        host.layoutIfNeeded()
+        XCTAssertGreaterThan(host.contentSize.width, host.bounds.width,
                              "the unwrapped text scrolls sideways: \(view.layoutDescription)")
+        XCTAssertGreaterThan(host.contentOffset.x, 0, view.layoutDescription)
+        XCTAssertTrue(view.caretOnScreen, view.layoutDescription)
         // The view's typing attributes are plain (not the chord's blue) after the chord line.
         let typingColor = view.typingAttributes[.foregroundColor] as? UIColor
         XCTAssertEqual(typingColor, EditorPalette.forScheme(dark: view.traitCollection.userInterfaceStyle == .dark)
