@@ -4,13 +4,14 @@
      Nothing is collected or tracked. The required-reason APIs are the ones
      the embedded CPython links and the core calls:
      - file timestamps: os.stat and friends, on files in the app's container
-       (the config, logs, caches, the bundled Python files);
+       (the config, logs, caches, the bundled Python files), and the size of
+       a song the user picked or opened from Files (3B52.1);
      - system boot time: time.monotonic() (mach_absolute_time) and Swift's
        ContinuousClock, for elapsed times inside the app;
      - disk space: os.statvfs / shutil.disk_usage are in the binary; any use
        is a check before writing files in the container.
      The shell uses no UserDefaults (launch arguments are read from
-     ProcessInfo). Add C617.1's sibling 3B52.1 with the document picker. -->
+     ProcessInfo). -->
 <plist version="1.0">
 <dict>
 	<key>NSPrivacyTracking</key>
@@ -27,6 +28,7 @@
 			<key>NSPrivacyAccessedAPITypeReasons</key>
 			<array>
 				<string>C617.1</string>
+				<string>3B52.1</string>
 			</array>
 		</dict>
 		<dict>

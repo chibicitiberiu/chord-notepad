@@ -11,6 +11,9 @@ struct ChordNotepadApp: App {
         WindowGroup {
             MainView(model: model, editor: model.editor)
                 .task { await model.launch() }
+                // A song opened from Files or another app (CFBundleDocumentTypes),
+                // in place: a security-scoped URL the store bookmarks.
+                .onOpenURL { model.openURL($0) }
         }
         .onChange(of: scenePhase) { _, phase in
             model.scenePhaseChanged(phase)

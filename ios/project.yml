@@ -52,6 +52,10 @@ targets:
         buildPhase: resources
       - path: ../examples/01_quick_start.txt
         buildPhase: resources
+      # The menu's Examples (AppDocumentStore.examples): examples/*.txt.
+      - path: ../examples
+        type: folder
+        buildPhase: resources
     dependencies:
       - package: ChordNotepadKit
       - framework: build/Frameworks/Python.xcframework
@@ -79,9 +83,18 @@ targets:
         CNBuildDate: $(CN_BUILD_DATE)
         ITSAppUsesNonExemptEncryption: false
         LSRequiresIPhoneOS: true
-        # The Diagnostics folder (and later the songs) in the Files app.
+        # The Diagnostics folder and the songs saved there in the Files app;
+        # songs opened from Files are opened in place (docs/IOS.md, "Files").
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
+        # Plain text opens in Chord Notepad from Files and other apps' Open in…
+        # (an Alternate handler: never the default for .txt).
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Song
+            CFBundleTypeRole: Editor
+            LSHandlerRank: Alternate
+            LSItemContentTypes:
+              - public.plain-text
         UILaunchScreen: {}
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false

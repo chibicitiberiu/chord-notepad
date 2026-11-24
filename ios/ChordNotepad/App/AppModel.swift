@@ -2,6 +2,7 @@ import ChordNotepadKit
 import Foundation
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 import os
 
 /// Start-up timings, in seconds from the start of ``AppModel/start(fakePlayer:)``.
@@ -49,7 +50,16 @@ final class AppModel: ObservableObject {
 
     private(set) var runtime: PythonRuntime?
     private(set) var session: Session?
-    private(set) var store: AppDocumentStore?
+    private(set) var store: FileDocumentStore?
+    /// The system's document pickers (the session test puts a stand-in here).
+    var picker: DocumentPicking = SystemDocumentPicker()
+    /// Answers the session's requests (the pickers, the unsaved-changes question).
+    private var requests: RequestController?
+    /// Files opened from Files or another app before the session ran.
+    private var waitingURLs: [URL] = []
+    /// Exports written and waiting for the export picker, oldest first.
+    private var exportsToOffer: [(id: String, file: URL)] = []
+    private var offeringExport = false
     private var reader: Task<Void, Never>?
     private var startedAt = ContinuousClock.now
     private var auditionState: OSSignpostIntervalState?
@@ -90,10 +100,26 @@ final class AppModel: ObservableObject {
             _ = try? await runtime.call("chordnotepad_ios.diagnostics", "enable_faulthandler",
                                         [Diagnostics.shared.faultLog.path])
 
-            let store = AppDocumentStore(location: AppEnvironment.storageName)
+            let store = AppDocumentStore.make()
+            store.discardAllExports()
+            store.onExportWritten { [weak self] id, file in
+                Task { @MainActor in self?.exportWritten(id: id, file: file) }
+            }
             self.store = store
             let session = try await Session.start(runtime: runtime, store: store, options: Self.launchOptions())
             self.session = session
+            requests = RequestController(
+                pending: { [weak self] in self?.snapshot.request },
+                submit: { session.submit($0) },
+                answered: { [weak self] id in self?.snapshot.requestAnswered(id) },
+                adopt: { url, _ in try store.adopt(url) },
+                prepareExport: { _, name in try store.prepareExport(named: name) },
+                runOffMain: { work, done in
+                    Task.detached {
+                        let ref = work()
+                        await MainActor.run { done(ref) }
+                    }
+                })
             editor.submit = { session.submit($0) }
             editor.playHandlers = playHandlers
             timings.sessionStart = elapsed()
@@ -106,6 +132,9 @@ final class AppModel: ObservableObject {
             chordSheet = ChordSheetSource(session: session)
             phase = .running
             openQuickStart()
+            let waiting = waitingURLs
+            waitingURLs = []
+            waiting.forEach(openURL)
             switch AppEnvironment.startScreen {
             case "chordsheet":
                 // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh): Play with the sheet.
@@ -152,16 +181,18 @@ final class AppModel: ObservableObject {
     }
 
     func openQuickStart() {
-        guard let session, let store, let url = AppPaths.quickStart,
+        guard let session, let url = AppPaths.quickStart,
               let text = try? String(contentsOf: url, encoding: .utf8) else {
             Log.ui.error("The quick-start song is missing from the bundle")
             return
         }
         // The session's start-up replay reports an empty, untitled song first:
         // the bundled song is the open that decides the tab (Play, as a saved song).
+        // It is read only, so Save asks where to save it (Save As).
         ui.modes.expectOpen()
-        session.submit(.restoreDraft(document: store.bundledRef(url.lastPathComponent), modified: false,
-                                     readOnly: false, text: text))
+        snapshot.requestAnswered(nil)
+        session.submit(.restoreDraft(document: AppDocumentStore.bundledRef(url.lastPathComponent), modified: false,
+                                     readOnly: true, text: text))
     }
 
     /// Play chord `index` of the song, as a tap on it does.
@@ -192,6 +223,8 @@ final class AppModel: ObservableObject {
             case .directiveHint(let hint):
                 hints.receive(hint)
                 showHint()
+            case .confirmDiscardRequest, .pickDocumentRequest, .insertDirectiveRequest, .paintPdfRequest:
+                requestArrived()
             default:
                 break
             }
@@ -329,8 +362,154 @@ final class AppModel: ObservableObject {
     }
 
     /// A menu entry: only what the iOS app has now (``AppMenu/available``).
+    /// The file commands send the editor's text first, as Android's do.
     func choose(_ action: MenuAction) {
-        if action == .diagnostics { ui.route = .diagnostics }
+        switch action {
+        case .diagnostics:
+            ui.route = .diagnostics
+        case .examples:
+            ui.route = .examples
+        case .newSong:
+            editor.sync()
+            ui.modes.expectNew()
+            session?.submit(.newDocument())
+        case .open:
+            editor.sync()
+            ui.modes.expectOpen()
+            session?.submit(.openDocument(readOnly: false, ref: nil))
+        case .openRecent(let ref):
+            editor.sync()
+            ui.modes.expectOpen(target: ref.id, current: snapshot.document)
+            session?.submit(.openRecent(ref: ref))
+        case .saveAs:
+            saveAs(name: nil)
+        case .exportMidi:
+            editor.sync()
+            session?.submit(.exportMidi())
+        case .exportAudio:
+            editor.sync()
+            session?.submit(.exportAudio())
+        case .exportPdf, .settings, .userGuide, .quickStart, .about:
+            break
+        }
+    }
+
+    /// Save As, suggesting `name` (typed without the extension, after a
+    /// rename the storage refused) or the document's own.
+    func saveAs(name: String?) {
+        editor.sync()
+        ui.modes.expectSave()
+        session?.submit(.saveAs(name: name))
+    }
+
+    /// The unsaved-changes question's answer (nil: dismissed, as Cancel).
+    func answerDiscard(_ choice: DiscardChoice?) {
+        guard case .confirmDiscard(let request)? = snapshot.request else { return }
+        requests?.answerDiscard(request, choice)
+    }
+
+    /// Open a copy of the bundled example `name` (Android's Examples sheet).
+    func openExample(_ name: String) {
+        guard let store else { return }
+        editor.sync()
+        // An open copy with unsaved edits must not be picked again as "identical".
+        let skip = snapshot.document.flatMap { $0.isModified ? $0.documentId : nil }
+        let library = AppDocumentStore.examples
+        Task.detached {
+            let copy = Result { try store.exampleCopy(library, name: name, skipId: skip) }
+            await MainActor.run {
+                switch copy {
+                case .success(let ref):
+                    self.ui.modes.expectOpen(target: ref.id, current: self.snapshot.document)
+                    self.session?.submit(.openDocument(readOnly: false, ref: ref))
+                case .failure(let error):
+                    Log.store.error("Copying the example \(name, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+                    self.showError("Couldn't copy the example \(name) into the app's storage.")
+                }
+            }
+        }
+    }
+
+    /// A song opened from Files or another app (`onOpenURL`): bookmarked and
+    /// opened like a picked one (the session asks about unsaved changes first).
+    func openURL(_ url: URL) {
+        guard phase == .running, let store, let session else {
+            waitingURLs.append(url)
+            return
+        }
+        editor.sync()
+        Task.detached {
+            let adopted = Result { try store.adopt(url) }
+            await MainActor.run {
+                switch adopted {
+                case .success(let ref):
+                    if self.ui.route == .menu { self.ui.route = .none }
+                    self.ui.modes.expectOpen(target: ref.id, current: self.snapshot.document)
+                    session.submit(.openDocument(readOnly: false, ref: ref))
+                case .failure(let error):
+                    Log.store.error("Can't keep \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+                    self.showError("Failed to open file: \(url.lastPathComponent)")
+                }
+            }
+        }
+    }
+
+    /// A request just arrived: the controller answers or cancels what has no
+    /// screen, and says which picker to open.
+    private func requestArrived() {
+        guard let launch = requests?.onPending(snapshot.request) else { return }
+        switch launch {
+        case .open(let types):
+            picker.pickToOpen(contentTypes: types.compactMap { UTType($0) }) { [weak self] url in
+                self?.requests?.onPicked(url)
+            }
+        case .save(let name):
+            // The export picker needs the file first: an empty one with the
+            // name, which it moves; the session then writes the song into it.
+            let folder = FileManager.default.temporaryDirectory
+                .appendingPathComponent("save-\(UUID().uuidString)", isDirectory: true)
+            let file = folder.appendingPathComponent(name)
+            do {
+                try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+                try Data().write(to: file)
+            } catch {
+                Log.store.error("Can't make the file to save: \(error.localizedDescription, privacy: .public)")
+                requests?.onPicked(nil)
+                return
+            }
+            picker.pickToMove(file) { [weak self] url in
+                try? FileManager.default.removeItem(at: folder)
+                self?.requests?.onPicked(url)
+            }
+        case .export:
+            // Answered with the store's file; offered once written (exportWritten).
+            break
+        }
+    }
+
+    /// The store wrote an export's file: offer it with the export picker, one at a time.
+    private func exportWritten(id: String, file: URL) {
+        exportsToOffer.append((id, file))
+        offerNextExport()
+    }
+
+    private func offerNextExport() {
+        guard !offeringExport, let next = exportsToOffer.first else { return }
+        offeringExport = true
+        picker.pickToExport(next.file) { [weak self] saved in
+            guard let self else { return }
+            Log.store.info("Export \(next.file.lastPathComponent, privacy: .public): \(saved == nil ? "not saved" : "saved", privacy: .public)")
+            self.store?.discardExport(next.id)
+            self.exportsToOffer.removeFirst()
+            self.offeringExport = false
+            self.offerNextExport()
+        }
+    }
+
+    /// An error of the app's own, as a snackbar.
+    private func showError(_ text: String) {
+        snackbars.error(text)
+        timeSnackbar()
     }
 
     /// A short notice (why a greyed button does nothing).
