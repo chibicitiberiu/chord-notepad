@@ -173,6 +173,30 @@ def test_a_plain_callable_works_as_the_sink_and_the_env_switch_gives_a_fake_play
         handle.shutdown()
 
 
+def test_the_env_switch_hold_gives_a_fake_player_that_keeps_a_song_playing(tmp_path, monkeypatch):
+    monkeypatch.setenv(embedded_host.FAKE_PLAYER_ENV, "hold")
+    sink = Sink()
+    handle = embedded_host.start(platform=IOS, files_dir=str(tmp_path), document_store=SwiftStore(),
+                                 event_sink=sink, configure_logging=False)
+    try:
+        sink.wait_for("EditorState")
+        player = handle._services.playback._player
+        assert isinstance(player, FakePlayer)
+        assert player.auto_play is False
+        handle.submit("set_text", json.dumps({"text": "C G\nAm F", "client_token": 1}))
+        sink.wait_for("PlaybackState", lambda d: d["playhead_offset"] == 0)
+        handle.submit("play_pause", "{}")
+        sink.wait_for("PlaybackState", lambda d: d["status"] == "playing")
+        handle.host.call(lambda: None, timeout=15)
+        assert player.is_playing and not player.played
+        # An interruption's pause (the iOS session test's): the song was still playing.
+        handle.submit("pause", "{}")
+        sink.wait_for("PlaybackState", lambda d: d["status"] == "paused")
+        assert player.is_paused
+    finally:
+        handle.shutdown()
+
+
 def test_start_refuses_an_unknown_platform(tmp_path):
     with pytest.raises(ValueError):
         embedded_host.start(platform="unknown", files_dir=str(tmp_path), document_store=SwiftStore(),

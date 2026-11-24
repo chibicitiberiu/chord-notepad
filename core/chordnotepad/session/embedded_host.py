@@ -13,7 +13,9 @@ keeps a thin wrapper that fixes what differs: Android's is
 
 Tests (Linux) may set ``CN_TEST_FAKE_PLAYER=1`` to run with
 ``session.testing.FakePlayer`` instead of starting FluidSynth, so the Swift
-kit's tests can start a real session with no audio output. This only skips
+kit's tests can start a real session with no audio output; ``hold`` makes the
+FakePlayer keep a started song playing until it is paused or stopped (the iOS
+session test pauses one by an audio interruption). This only skips
 creating the synth: importing the core still loads libfluidsynth (on Linux
 the system's), as ``services/__init__.py`` pulls ``audio.fluid_ctypes`` in.
 """
@@ -44,7 +46,8 @@ AUTOSAVE_DELAY_S = 1.5
 #: How long start() waits for the session thread to build the session.
 START_TIMEOUT_S = 120.0
 
-#: Set to ``1`` to start with a ``FakePlayer`` (tests only).
+#: Set to ``1`` to start with a ``FakePlayer`` that plays a song through at
+#: once, or to ``hold`` for one that keeps it playing (tests only).
 FAKE_PLAYER_ENV = "CN_TEST_FAKE_PLAYER"
 
 
@@ -165,7 +168,8 @@ def start(*, platform: str, files_dir: str, document_store: Any, event_sink: Any
             exceptions (Android's).
         player: A ready player instead of FluidSynth (tests only). With the
             environment variable ``CN_TEST_FAKE_PLAYER=1`` and no player, a
-            ``FakePlayer`` is used.
+            ``FakePlayer`` is used; with ``hold``, one that doesn't play a
+            started song through (``auto_play=False``).
         configure_logging: Set up the log file and console logging (tests
             turn it off).
 
@@ -177,9 +181,10 @@ def start(*, platform: str, files_dir: str, document_store: Any, event_sink: Any
         ValueError: For an unknown ``platform``.
     """
     check_platform(platform)
-    if player is None and os.environ.get(FAKE_PLAYER_ENV) == "1":
+    fake = os.environ.get(FAKE_PLAYER_ENV)
+    if player is None and fake in ("1", "hold"):
         from chordnotepad.session.testing import FakePlayer
-        player = FakePlayer()
+        player = FakePlayer(auto_play=fake != "hold")
     has_on_event = hasattr(event_sink, "onEvent")
 
     appdata = AppDataService(root=files_dir)
