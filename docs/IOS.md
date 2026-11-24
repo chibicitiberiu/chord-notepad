@@ -9,10 +9,11 @@ counterpart is `docs/ANDROID.md`; the bridge itself is specified there
 repeated here.
 
 **Status (2026-11-24):** the core knows the `ios` platform (section B of the
-plan) and `ios/ChordNotepadKit` is built and tested on Linux (section C).
-Still to come: the CI workflow with the simulator build and the bare app
-shell (D), enrollment, signing and TestFlight (A, E), then the screens (F,
-in `BACKLOG.md`).
+plan), `ios/ChordNotepadKit` is built and tested on Linux (section C), and
+CI builds the bare app shell and tests it on iPhone and iPad simulators
+with no Apple account (section D, `.github/workflows/ios.yml`). Still to
+come: enrollment, signing and TestFlight (A, E), then the screens (F, in
+`BACKLOG.md`).
 
 ## Decisions and constraints
 
@@ -47,6 +48,16 @@ in `BACKLOG.md`).
 
 ```
 ios/
+  project.yml                   XcodeGen spec of the app (the .xcodeproj isn't committed)
+  .xcode-version                the Xcode CI selects (and her MacBook should match)
+  ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
+    App/                        AppModel (the session), paths, document store,
+                                diagnostics, self-test
+    Screens/                    ShellScreen (pure), ShellView (live), self-test
+    Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
+    Assets.xcassets             the app icon (ios/tools/make_app_icon.py)
+    PrivacyInfo.xcprivacy       the app's privacy manifest
+  ChordNotepadTests/            XCTest hosted in the app: the session, the catalog
   ChordNotepadKit/              SwiftPM package, no UIKit or SwiftUI
     Package.swift
     .swift-version              the toolchain swiftly and the Makefile use
@@ -56,15 +67,27 @@ ios/
       PythonRuntime.swift       the interpreter and its bridge thread
       BridgeThread.swift        the one thread every Swift → Python call runs on
       Session.swift             start / submit / chordSheetBuffer / shutdown, events
+      SessionSnapshot.swift     the output folded into what a screen shows; Fixture
       DocumentStore.swift       the store protocol and its C callbacks
       BridgeValues.swift        JSONValue, Selection, BridgeCommand
       Generated/Bridge.swift    DTOs, enums, SessionOutput, command builders (generated)
       OffsetMapper.swift        code points <-> UTF-16
       SheetBuffer.swift         op-buffer v2 decoder (values, no drawing)
-      Python/chordnotepad_ios/  the Python glue (host.py), shipped as a resource
+      Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
-  tools/gen_swift_bridge.py     writes Generated/Bridge.swift from the schema
+  tools/
+    gen_swift_bridge.py         writes Generated/Bridge.swift from the schema
+    install_python.sh           the app's "Install Python" build phase
+    make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
+    ci_simulators.py, ci_screenshots.sh   CI helpers
+  build/                        not committed: frameworks, the Python bundle, DerivedData
+packaging/ios/
+  build_fluidsynth.sh           FluidSynth.xcframework from the pinned source
+  fetch_python.sh               Python.xcframework (pinned), trimmed and precompiled
+  build_python_bundle.py        the core and its packages, precompiled
+  compile_pyc.py                unchecked-hash .pyc files
+  privacy/                      privacy manifests for binary modules (OpenSSL)
 ```
 
 ## Setup on Linux
@@ -240,16 +263,208 @@ the scene in order, exactly as they crossed the bridge, sorted and indented,
 with the temporary files folder written `$FILES_DIR`. A normal run checks
 them; `make ios-fixtures` rewrites them. They are the same on every run.
 
+## The app
+
+### The app bundle
+
+```
+ChordNotepad.app/
+  ChordNotepad                      the Swift executable (kit linked in statically)
+  Frameworks/Python.framework       CPython 3.14 (Python.xcframework)
+  Frameworks/FluidSynth.framework   libfluidsynth 2.6.1, LGPL, loaded by path
+  Frameworks/_ssl.framework, ...    one per binary stdlib module ("Install Python")
+  python/lib/python3.14/            the standard library, .pyc next to each .py
+  python/app/                       chordnotepad (the core), chordnotepad_ios (the glue)
+  python/app_packages/              the core's packages
+  GeneralUser-GS.sf2, Fixtures/, 01_quick_start.txt, PrivacyInfo.xcprivacy
+```
+
+- **Python.xcframework** is BeeWare's support package for 3.14
+  (Python-Apple-support `3.14-b14`: CPython 3.14.10, OpenSSL 3.5.9).
+  python.org publishes iOS builds only from 3.15. It is CPython's own iOS
+  framework build with its dependencies compiled in and the App Store
+  compliance patch applied. `packaging/ios/fetch_python.sh` checks its
+  sha256, drops what the app never imports (the test suite, IDLE, Tkinter,
+  ensurepip, the test extension modules) and precompiles the stdlib.
+- **"Install Python"** (`ios/tools/install_python.sh`, the target's last
+  build phase) is CPython's "Process Python libraries" step
+  (`Doc/using/ios.rst`): it copies the stdlib for the slice and architecture
+  being built, the core and the packages, then turns every `.so` into
+  `Frameworks/<dotted.name>.framework` with a `.fwork` file in its place and
+  a `.origin` file inside, the only form in which iOS loads native code. A
+  module's `.xcprivacy` becomes its framework's privacy manifest. It signs
+  those frameworks only when the build signs, so the unsigned device build
+  works.
+- **.pyc files:** the bundle is read-only and `write_bytecode` is off, so
+  every `.py` is shipped with an unchecked-hash `.pyc`
+  (`packaging/ios/compile_pyc.py`, run with the host's 3.14). Timestamp
+  ones would go stale when a copy touches the files, and Python would then
+  compile every module at every start without saying so.
+- **Packages:** `packaging/ios/build_python_bundle.py` installs the pins of
+  `android/requirements.txt` with `pip --no-deps --target` from the
+  hash-checked wheelhouse (`android/tools/build_wheelhouse.py`): every one is
+  a pure `py3-none-any` wheel. chardet stays out (as on the desktop; requests
+  falls back to charset-normalizer) and music21 is the trimmed wheel from
+  `android/tools/strip_music21.py`. pyFluidSynth is in until section E
+  replaces it.
+- **FluidSynth.xcframework** (`packaging/ios/build_fluidsynth.sh`): 2.6.1
+  from the macOS build's pinned tarball and gcem, `CMAKE_SYSTEM_NAME=iOS`,
+  device arm64 and simulator arm64, `--target libfluidsynth`, CoreAudio on
+  (the iOS RemoteIO driver, which sets up its AVAudioSession itself),
+  CoreMIDI, libsndfile, GLib, network and signalsmith off. The script
+  fails if CMake took the macOS HAL path, if AVFoundation isn't linked, or
+  if anything outside `/usr/lib` and `/System` is. Each slice is a
+  hand-made `FluidSynth.framework` (`install_name_tool -id
+  @rpath/FluidSynth.framework/FluidSynth`, an Info.plist with the slice's
+  platform and `MinimumOSVersion` 17.0).
+- **Start:** `AppModel.start` starts Python with `home = <app>/python`,
+  `python/app` and `python/app_packages` in front of `sys.path`, and
+  `CHORD_NOTEPAD_LIBFLUIDSYNTH=<app>/Frameworks/FluidSynth.framework/FluidSynth`;
+  then the session with `files_dir` = Application Support and the bundled
+  SoundFont. The shell opens the quick-start song as a draft (store id
+  `bundle:01_quick_start.txt`).
+- **Kit headers on iOS:** `Package.swift` gives `CNBridge` `-F
+  ios/build/Frameworks/Python.xcframework/ios-arm64` for iOS (both slices
+  have the same headers); the app target links and embeds the framework.
+  The shims include `<Python/Python.h>` only when `TARGET_OS_IOS`; a Mac
+  host always uses pkg-config's `<Python.h>`, since `/Library/Frameworks`
+  is on clang's default path and may hold another version's
+  Python.framework. The kit imports `CNBridge` with `internal import`, so
+  the app and its tests never need the C module.
+
+### The shell and its diagnostics
+
+Phase 1 has one screen: the song's title, its text with the chords
+highlighted (from `HighlightState`, code points mapped with `OffsetMapper`)
+and the status line. `SessionSnapshot` (in the kit, tested on Linux) folds
+the session's output into what a screen reads; `EditorState` carries no
+text, so the text is rebuilt from `TextEdited`. Buttons: play the first
+chord, the self-test, export diagnostics.
+
+- **Logs:** `os_log` subsystem `com.tibich.chordnotepad`, categories
+  `bridge`, `python`, `audio`, `store`, `ui`. Python's own output reaches
+  the unified log through `use_system_logger`. On a Mac:
+  `log stream --predicate 'subsystem == "com.tibich.chordnotepad"'`.
+- **Signposts** (category `audio`): `audition`, from the tap to the
+  session's first output after it, with a `submitted` event when the
+  command is queued; `offline render` and `start` (category `python`). The
+  note-on and the render happen in Python's threads; signposts there need a
+  `_cnbridge` hook (`BACKLOG.md`).
+- **Files** under Application Support: the core's rotating log
+  (`data/chord-notepad/logs`) and `Diagnostics/`: `faulthandler.log`
+  (Python's tracebacks of every thread on a native crash), `metrickit/`
+  (MetricKit's metric and diagnostic payloads; a device delivers them
+  about once a day, the simulator never), `build.json`, `launch.json`
+  (start-up timings, written when the first song is on screen) and
+  `selftest.json`.
+- **Visible in Files:** Files can only see Documents
+  (`UIFileSharingEnabled`, `LSSupportsOpeningDocumentsInPlace`), so the app
+  copies all of the above into `Documents/Diagnostics` at launch, when it
+  goes to the background and before an export. "Export diagnostics" zips
+  that folder (`NSFileCoordinator`'s `.forUploading`) for the share sheet.
+- **Build stamp:** Info.plist `CNGitCommit` and `CNBuildDate`, passed by CI
+  on the xcodebuild command line, with `MARKETING_VERSION` from `VERSION`
+  and the run number as the build. The status line shows it.
+- **Self-test** (also `-CNScreen selftest` at launch): Python boot, session
+  start and first-text times; an offline render of a C major chord on a
+  FluidSynth synth with no audio driver (the core's audio export renderer,
+  `chordnotepad_ios.diagnostics.offline_render`), which must not be silent;
+  a live audition and whether FluidSynth's CoreAudio player started; the
+  AVAudioSession category, route, sample rate and buffer.
+
+### Preview catalog
+
+`PreviewCatalog.screens` lists every screen with the fixtures it is shown
+with; adding a screen is one line there. `#Preview`s use the same
+`PreviewCatalog.snapshot("<scene>")`. `CatalogTests` renders each entry with
+`ImageRenderer` at iPhone 17 (402×874 pt, @3x) and iPad Air 11-inch
+(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 40
+PNGs in phase 1 (the shell with four scenes, the self-test with a sample
+report). ImageRenderer can't draw a `ScrollView` (or other UIKit-backed
+views), so a screen takes `scrolls: false` in the catalog and draws plain
+SwiftUI.
+
+### App Store requirements already in place
+
+`ITSAppUsesNonExemptEncryption = NO` (the app uses no encryption beyond
+the system's); `PrivacyInfo.xcprivacy` with no tracking and no collected
+data, and the required-reason APIs the embedded CPython links: file
+timestamps (`C617.1`, files in the container), system boot time (`35F9.1`,
+`time.monotonic` and Swift's clocks) and disk space (`E174.1`, `statvfs` is
+in the binary). Add `3B52.1` with the document picker, and the user
+defaults category if the app ever uses them. `_ssl` and `_hashlib` (which
+link OpenSSL, on Apple's list of SDKs that need a manifest) get one each
+from `packaging/ios/privacy/`. The icon is one 1024 px PNG, flattened on the
+Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
+
+## CI
+
+`.github/workflows/ios.yml` runs on every push to main that touches `ios/`,
+`core/`, `packaging/ios/`, the schema, the Python pins or the SoundFont,
+and by hand (workflow_dispatch). A newer push cancels a running build.
+`build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
+`ios.yml` or this file. Two jobs on `macos-26` (arm64):
+
+- **kit:** `swift test` on the Mac host with setup-python's 3.14 (through
+  `CN_PYTHON_PKGCONFIG=python3-embed`, set only for that step), the app's
+  packages from `build_python_bundle.py` as `CN_SITE_PACKAGES`, and the
+  macOS app's own libfluidsynth (`packaging/macos/build_fluidsynth.sh`,
+  cached) as `CHORD_NOTEPAD_LIBFLUIDSYNTH`.
+- **app:** the frameworks (cached on the scripts, the pins and the Xcode
+  version), the Python bundle, XcodeGen, one `build-for-testing` for the
+  simulator, `test-without-building` on the iPhone and the iPad (the
+  session test with the FakePlayer and the blocking offline render; the
+  catalog on the iPhone only, since it renders both sizes anyway), the
+  real app launched on both simulators for screenshots and the self-test,
+  the live CoreAudio check (non-blocking: a runner may have no audio
+  device), and a Release `generic/platform=iOS` build with
+  `CODE_SIGNING_ALLOWED=NO`.
+
+| Pin | Value | Where |
+|---|---|---|
+| Xcode | 26.5 (the image's iOS 26.5 runtime matches its SDK) | `ios/.xcode-version` |
+| Runner | `macos-26` | `ios.yml` |
+| Python.xcframework | BeeWare Python-Apple-support `3.14-b14` (3.14.10), sha256 `703ff822…c1ee` | `packaging/ios/fetch_python.sh` |
+| FluidSynth | 2.6.1 + gcem `012ae73`, the macOS build's hashes | `packaging/ios/build_fluidsynth.sh` |
+| XcodeGen | 2.46.0, `xcodegen.zip` sha256 `4d9e34b6…6806` | `ios.yml` |
+| Simulators | iPhone 17 and iPad Air 11-inch (M4), newest runtime | `ios/tools/ci_simulators.py` |
+
+Artifacts of each run:
+
+- `ios-catalog`: the catalog PNGs,
+  `<screen>-<scene>-<iphone|ipad>-<light|dark>-<default|large>.png`.
+- `ios-screenshots`: `<iphone|ipad>-shell.png` (the quick-start song with
+  its status line), `<iphone|ipad>-selftest.png`, the app's Diagnostics
+  folder from each simulator (`launch.json`, `selftest.json` with the live
+  audio result, the core's log) and `<device>-app.log` (the unified log of
+  the app's process).
+- `ios-results`: the `.xcresult` bundles (open in Xcode, or
+  `xcrun xcresulttool` on a Mac; the catalog PNGs and the test's
+  `selftest.json` are attached) and the xcodebuild logs.
+- `ios-kit-tests`: the kit's `swift test` output on macOS.
+
+`gh run download <run> -n ios-screenshots` fetches one on Linux.
+
+To build the same on a Mac (S0's `mac_bootstrap.sh` will do this):
+
+```sh
+packaging/ios/build_fluidsynth.sh ios/build/Frameworks
+packaging/ios/fetch_python.sh ios/build/Frameworks python3.14
+python3.14 -I packaging/ios/build_python_bundle.py ios/build/python-bundle
+xcodegen generate --spec ios/project.yml
+open ios/ChordNotepad.xcodeproj
+```
+
 ## Development loops
 
 1. **Linux, every change:** `make ios-kit-test`. Everything below the UI
    (the interpreter, the bridge, offsets, the buffer decoder, the core's
    output) is tested here against the real core.
 2. **CI, every push to `ios/**`, `core/**`, `packaging/ios/**` or the
-   schema** (section D, not built yet): kit tests on macOS, `xcodebuild
+   schema** (`ios.yml`, "CI" below): kit tests on a Mac host, `xcodebuild
    test` on an iPhone and an iPad simulator with an offline synth render,
-   an unsigned device build, and the preview catalog rendered to PNGs in
-   phone and tablet sizes, light and dark, default and large text.
+   the preview catalog rendered to PNGs, screenshots of the running app and
+   an unsigned device build.
 3. **TestFlight, after enrollment** (section E): her iPhone installs the
    build under her own Apple ID and runs the scripted checklist.
 

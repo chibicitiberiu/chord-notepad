@@ -1,0 +1,28 @@
+import SwiftUI
+import UIKit
+
+@main
+struct ChordNotepadApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
+    @StateObject private var model = AppModel.shared
+    @Environment(\.scenePhase) private var scenePhase
+
+    var body: some Scene {
+        WindowGroup {
+            ShellView(model: model)
+                .task { await model.launch() }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            model.scenePhaseChanged(phase)
+        }
+    }
+}
+
+final class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication,
+                     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool {
+        Log.ui.info("Launch \(BuildInfo.current.line, privacy: .public)")
+        Diagnostics.shared.start()
+        return true
+    }
+}

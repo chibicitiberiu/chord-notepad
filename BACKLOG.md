@@ -71,6 +71,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - iOS/iPadOS port: SwiftUI front end over the same core and JSON session bridge, like Android; plan and status in docs/IOS.md. Still to do after the Swift kit and the CI build:
   - SwiftUI screens ported from `android/.../ui/` (editor, Play tab, the CoreGraphics chord-sheet painter over `SheetBuffer`, player, dialogs, settings), each with its catalog fixtures.
   - Platform glue: UIDocumentPicker with security-scoped bookmarks; WKWebView help with a Sphinx `-t ios` edition; AVAudioSession interruptions and route changes sending `pause`; share sheet; PDF through UIGraphicsPDFRenderer; StoreKit 2; an iOS licences entry (`licence_catalog.detect_build` returns None there); `help/_ext/editions.py` knows no iOS edition yet.
+  - Signposts for the note-on and the render inside Python (an `os_signpost` hook in `_cnbridge`), so S2's Audio System Trace sees the whole way from tap to sound; the app marks only the tap and the session's first output now.
   - Decide iOS monetization.
   - App Store listing: privacy labels, screenshots, the AGPL notice.
   - Licensing plan (decided 2026-10-31):

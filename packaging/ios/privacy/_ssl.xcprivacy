@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The privacy manifest for a Python binary module that links OpenSSL (one
+     of the SDKs Apple's third-party SDK requirements list). OpenSSL collects
+     nothing, tracks nothing and calls no required-reason API.
+     packaging/ios/fetch_python.sh puts it next to the module; the build's
+     install_python.sh moves it into the module's framework. -->
+<plist version="1.0">
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array/>
+</dict>
+</plist>

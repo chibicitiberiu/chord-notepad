@@ -5,8 +5,20 @@ on:
     branches: [ master, main ]
     tags:
       - 'v*.*.*'
+    # iOS-only commits are built by ios.yml; they don't need the desktop and
+    # Android jobs. (Tag pushes ignore path filters, so releases always run.)
+    paths-ignore:
+      - 'ios/**'
+      - 'packaging/ios/**'
+      - '.github/workflows/ios.yml'
+      - 'docs/IOS.md'
   pull_request:
     branches: [ master, main ]
+    paths-ignore:
+      - 'ios/**'
+      - 'packaging/ios/**'
+      - '.github/workflows/ios.yml'
+      - 'docs/IOS.md'
   schedule:
     # Run every Monday at 00:00 UTC
     - cron: '0 0 * * 1'

@@ -68,3 +68,8 @@ CLAUDE.md
 # SwiftPM (ios/ChordNotepadKit)
 .build/
 .swiftpm/
+
+# iOS app: XcodeGen writes the project and the Info.plist from ios/project.yml
+ios/ChordNotepad.xcodeproj/
+ios/ChordNotepad/Info.plist
+xcuserdata/

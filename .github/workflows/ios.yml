@@ -1,0 +1,312 @@
+name: iOS
+
+# The iOS app on GitHub's macOS runners, with no Apple account and no signing
+# (docs/IOS.md, "CI"): the kit's tests on a Mac host, then the app built for
+# the simulator and tested on an iPhone and an iPad, the preview catalog
+# rendered to PNGs, screenshots of the running app, and an unsigned device
+# build.
+
+on:
+  push:
+    branches: [ master, main ]
+    paths:
+      - 'ios/**'
+      - 'core/**'
+      - 'packaging/ios/**'
+      - 'android/bridge_schema.json'
+      - 'android/requirements.txt'
+      - 'android/tools/strip_music21.py'
+      - 'android/tools/build_wheelhouse.py'
+      - 'resources/soundfont/**'
+      - 'examples/01_quick_start.txt'
+      - '.github/workflows/ios.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push makes a running build pointless.
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  kit:
+    name: Kit tests (macOS host)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      # The Xcode CI builds with is pinned in ios/.xcode-version (the image
+      # carries several; its default moves).
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_$(cat ios/.xcode-version).app"
+          xcodebuild -version
+          swift --version
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+
+      # The core imports pyFluidSynth even with the fake player, so the host
+      # needs a libfluidsynth: the macOS app's own build, no Homebrew.
+      - name: Cache the host FluidSynth
+        id: host-fluidsynth
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ios/build/host-fluidsynth
+          key: ios-host-fluidsynth-${{ hashFiles('packaging/macos/build_fluidsynth.sh', 'ios/.xcode-version') }}
+
+      - name: Build the host FluidSynth
+        if: steps.host-fluidsynth.outputs.cache-hit != 'true'
+        run: packaging/macos/build_fluidsynth.sh "$PWD/ios/build/host-fluidsynth"
+
+      - name: Cache the wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ios/build/wheel-cache
+          key: ios-wheels-${{ hashFiles('android/requirements.txt', 'android/tools/strip_music21.py') }}
+
+      # The core's packages as the app ships them (requirements.txt minus
+      # chardet, the trimmed music21); the tests put app_packages on sys.path.
+      - name: Build the Python bundle
+        run: python -I packaging/ios/build_python_bundle.py ios/build/python-bundle
+
+      # CN_PYTHON_PKGCONFIG only here: Package.swift links a host Python only
+      # when it is set, and an Xcode build for iOS must never get one.
+      - name: swift test
+        working-directory: ios/ChordNotepadKit
+        env:
+          CN_REQUIRE_CORE: '1'
+        run: |
+          export PKG_CONFIG_PATH="$pythonLocation/lib/pkgconfig"
+          export CN_PYTHON_PKGCONFIG=python3-embed
+          pkg-config --cflags --libs python3-embed
+          export CN_SITE_PACKAGES="$GITHUB_WORKSPACE/ios/build/python-bundle/app_packages"
+          export CHORD_NOTEPAD_LIBFLUIDSYNTH="$GITHUB_WORKSPACE/ios/build/host-fluidsynth/lib/libfluidsynth.3.dylib"
+          swift test 2>&1 | tee "$RUNNER_TEMP/kit-tests.log"
+
+      - name: Upload the kit test log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-kit-tests
+          path: ${{ runner.temp }}/kit-tests.log
+          if-no-files-found: ignore
+
+  app:
+    name: App (simulators, device build)
+    runs-on: macos-26
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode
+        run: |
+          sudo xcode-select -s "/Applications/Xcode_$(cat ios/.xcode-version).app"
+          xcodebuild -version
+          xcrun simctl list runtimes
+
+      # Logged only: whether this runner has an audio device decides what
+      # the live playback check below can show.
+      - name: Audio devices (preflight)
+        run: system_profiler SPAudioDataType || true
+
+      - name: Set up Python
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        with:
+          python-version: '3.14'
+
+      # FluidSynth.xcframework (built from the pinned source) and
+      # Python.xcframework (the pinned BeeWare package, trimmed and
+      # precompiled), rebuilt when a script, a pin or the Xcode changes.
+      - name: Cache the frameworks
+        id: frameworks
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ios/build/Frameworks
+          key: ios-frameworks-${{ hashFiles('ios/.xcode-version', 'packaging/ios/build_fluidsynth.sh', 'packaging/ios/fetch_python.sh', 'packaging/ios/compile_pyc.py', 'packaging/ios/privacy/*') }}
+
+      - name: Build FluidSynth.xcframework
+        if: steps.frameworks.outputs.cache-hit != 'true'
+        run: packaging/ios/build_fluidsynth.sh ios/build/Frameworks
+
+      - name: Fetch Python.xcframework
+        if: steps.frameworks.outputs.cache-hit != 'true'
+        run: packaging/ios/fetch_python.sh ios/build/Frameworks python
+
+      - name: Show the frameworks
+        run: |
+          ls -la ios/build/Frameworks
+          cat ios/build/Frameworks/Python.xcframework/VERSIONS
+          for slice in ios/build/Frameworks/FluidSynth.xcframework/*/FluidSynth.framework; do
+            echo "$slice"; otool -L "$slice/FluidSynth"
+          done
+
+      - name: Cache the wheels
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ios/build/wheel-cache
+          key: ios-wheels-${{ hashFiles('android/requirements.txt', 'android/tools/strip_music21.py') }}
+
+      - name: Build the Python bundle
+        run: python -I packaging/ios/build_python_bundle.py ios/build/python-bundle
+
+      # Pinned and hash-checked; the image has no XcodeGen.
+      - name: Install XcodeGen
+        env:
+          XCODEGEN_VERSION: '2.46.0'
+          XCODEGEN_SHA256: 4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806
+        run: |
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/xcodegen.zip" \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
+          echo "$XCODEGEN_SHA256  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+      - name: Generate the Xcode project
+        run: |
+          xcodegen version
+          xcodegen generate --spec ios/project.yml
+
+      - name: Pick the simulators
+        run: python3 ios/tools/ci_simulators.py >> "$GITHUB_ENV"
+
+      # One simulator build serves both simulators' tests. The build stamp
+      # (Info.plist CNGitCommit, CNBuildDate) and the version come from here.
+      - name: Build for the simulator
+        run: |
+          set -o pipefail
+          xcodebuild build-for-testing \
+            -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
+            -destination "id=$IPHONE_UDID" -derivedDataPath ios/build/DerivedData \
+            MARKETING_VERSION="$(cat VERSION)" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CN_GIT_COMMIT="$(git rev-parse --short HEAD)" CN_BUILD_DATE="$(date -u +%Y-%m-%d)" \
+            | tee "$RUNNER_TEMP/build-simulator.log" | grep -E 'error:|\*\* ' || true
+          grep -q '\*\* TEST BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/build-simulator.log" \
+            || { tail -n 80 "$RUNNER_TEMP/build-simulator.log"; exit 1; }
+          APP=ios/build/DerivedData/Build/Products/Debug-iphonesimulator/ChordNotepad.app
+          echo "SIM_APP=$APP" >> "$GITHUB_ENV"
+          du -sh "$APP" "$APP/python" "$APP/Frameworks"
+          ls "$APP/Frameworks" | head -20
+
+      # The app's XCTests on each simulator: the session over the bundled
+      # Python and core (FakePlayer), the offline synth render (blocking),
+      # and the preview catalog written to PNGs.
+      - name: Test on the iPhone simulator
+        env:
+          TEST_RUNNER_CN_CATALOG_DIR: ${{ github.workspace }}/ios/build/artifacts/catalog
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
+            -destination "id=$IPHONE_UDID" -derivedDataPath ios/build/DerivedData \
+            -resultBundlePath ios/build/artifacts/results/iphone.xcresult \
+            | tee "$RUNNER_TEMP/test-iphone.log" | grep -E 'Test (Case|Suite)|error|Catalog:|\*\* ' || true
+          grep -q '\*\* TEST EXECUTE SUCCEEDED \*\*' "$RUNNER_TEMP/test-iphone.log" \
+            || { tail -n 120 "$RUNNER_TEMP/test-iphone.log"; exit 1; }
+
+      # The catalog already has both sizes; the iPad runs the session test.
+      - name: Test on the iPad simulator
+        run: |
+          set -o pipefail
+          xcodebuild test-without-building \
+            -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad \
+            -destination "id=$IPAD_UDID" -derivedDataPath ios/build/DerivedData \
+            -skip-testing:ChordNotepadTests/CatalogTests \
+            -resultBundlePath ios/build/artifacts/results/ipad.xcresult \
+            | tee "$RUNNER_TEMP/test-ipad.log" | grep -E 'Test (Case|Suite)|error|Catalog:|\*\* ' || true
+          grep -q '\*\* TEST EXECUTE SUCCEEDED \*\*' "$RUNNER_TEMP/test-ipad.log" \
+            || { tail -n 120 "$RUNNER_TEMP/test-ipad.log"; exit 1; }
+
+      - name: Catalog images
+        run: |
+          count=$(find ios/build/artifacts/catalog -name '*.png' 2>/dev/null | wc -l | tr -d ' ')
+          echo "$count catalog images"
+          if [ "$count" -eq 0 ]; then
+            # TEST_RUNNER_ didn't reach the test: take them from the result bundle.
+            xcrun xcresulttool export attachments --path ios/build/artifacts/results/iphone.xcresult \
+              --output-path ios/build/artifacts/catalog
+            find ios/build/artifacts/catalog -name '*.png' | wc -l
+          fi
+
+      # The real app on both simulators: the shell with the quick-start song,
+      # then the self-test screen, with live CoreAudio playback.
+      - name: Screenshots
+        run: |
+          ios/tools/ci_screenshots.sh "$IPHONE_UDID" iphone "$SIM_APP" ios/build/artifacts/screenshots
+          ios/tools/ci_screenshots.sh "$IPAD_UDID" ipad "$SIM_APP" ios/build/artifacts/screenshots
+
+      # Not blocking: a runner may have no audio device. The offline render
+      # above is the check that must pass.
+      - name: Live audio (CoreAudio in the simulator)
+        continue-on-error: true
+        run: |
+          for label in iphone ipad; do
+            python3 - "ios/build/artifacts/screenshots/$label-diagnostics/selftest.json" "$label" <<'PY'
+          import json, sys
+          report = json.load(open(sys.argv[1]))
+          live = report.get("liveAudio") or {}
+          print(f"{sys.argv[2]}: live player {'started' if live.get('initialized') else 'not started'}"
+                f" ({live.get('error')}); route {report.get('audioRoute')}; problems {report.get('problems')}")
+          sys.exit(0 if live.get("initialized") else 1)
+          PY
+          done
+
+      # Device packaging problems (the frameworks' Info.plists, the Python
+      # phase, architectures) show up only in a device build.
+      - name: Unsigned device build
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -project ios/ChordNotepad.xcodeproj -scheme ChordNotepad -configuration Release \
+            -destination 'generic/platform=iOS' -derivedDataPath ios/build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            MARKETING_VERSION="$(cat VERSION)" CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            CN_GIT_COMMIT="$(git rev-parse --short HEAD)" CN_BUILD_DATE="$(date -u +%Y-%m-%d)" \
+            | tee "$RUNNER_TEMP/build-device.log" | grep -E 'error:|\*\* ' || true
+          grep -q '\*\* BUILD SUCCEEDED \*\*' "$RUNNER_TEMP/build-device.log" \
+            || { tail -n 80 "$RUNNER_TEMP/build-device.log"; exit 1; }
+          APP=ios/build/DerivedData/Build/Products/Release-iphoneos/ChordNotepad.app
+          du -sh "$APP"
+          lipo -info "$APP/ChordNotepad"
+          plutil -p "$APP/Info.plist" | grep -E 'CNGitCommit|CFBundle(Short)?Version|ITSApp|UIFileSharing'
+          for framework in "$APP"/Frameworks/*.framework; do
+            plutil -extract CFBundleSupportedPlatforms json -o - "$framework/Info.plist" | grep -q iPhoneOS \
+              || { echo "$framework isn't marked for iPhoneOS"; exit 1; }
+          done
+
+      - name: Collect logs
+        if: always()
+        run: |
+          mkdir -p ios/build/artifacts/logs
+          cp "$RUNNER_TEMP"/*.log ios/build/artifacts/logs/ 2>/dev/null || true
+
+      - name: Upload the catalog
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-catalog
+          path: ios/build/artifacts/catalog
+          if-no-files-found: ignore
+
+      - name: Upload the screenshots and diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-screenshots
+          path: ios/build/artifacts/screenshots
+          if-no-files-found: ignore
+
+      - name: Upload the test results and logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-results
+          path: |
+            ios/build/artifacts/results
+            ios/build/artifacts/logs
+          if-no-files-found: ignore
