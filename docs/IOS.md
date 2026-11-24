@@ -19,10 +19,10 @@ Save, Save As, Recent, Export MIDI and audio, Examples and songs opened from
 Files ("Files"), and the player's sheets with the ribbon's tools: Voicing,
 Instrument, Playback speed, Playback settings, Insert, Transpose, Suggest
 Capo and the chord identifier ("The player's sheets and the ribbon's
-tools"), and Settings, About and the licences ("Settings, About and
-Licences"). Still to come: enrollment, signing and TestFlight (A, E), then the
-other screens (F, in `BACKLOG.md`): the guide, the Quick Start tour and Export
-PDF.
+tools"), Settings, About and the licences ("Settings, About and
+Licences"), and the user guide, the Quick Start tour and Export PDF ("The
+user guide, Quick Start and Export PDF"). Still to come: enrollment, signing
+and TestFlight (A, E), then what `BACKLOG.md` lists.
 
 ## Decisions and constraints
 
@@ -61,11 +61,13 @@ ios/
   .xcode-version                the Xcode CI selects (and her MacBook should match)
   ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
     App/                        AppModel (the session), paths, the document store (AppDocumentStore,
-                                ScopedFileAccess, DocumentPicking), diagnostics, self-test
+                                ScopedFileAccess, DocumentPicking), diagnostics, self-test, PdfPainter
+                                (UIGraphicsPDFRenderer, PdfReport), HelpShotSongs (CI's help screenshots)
     Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets (the
                                 player's and Insert's sheets), Overlays (menu, dialogs, snackbar),
                                 DiagnosticsView (self-test, export), SettingsView, VoicingsView,
-                                SettingsWidgets, AboutView (About, the licences)
+                                SettingsWidgets, AboutView (About, the licences), UserGuideView (the
+                                guide's web view and scheme handler), QuickStartView (the tour)
     Tools/                      ToolDialogs (Transpose, Suggest Capo, the Insert dialogs, Manual… speed,
                                 the tempo), ChordIdentifierView (the identifier and its piano)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
@@ -100,10 +102,12 @@ ios/
       Tools/                    the ribbon's tools: forms, the session's check, Suggest Capo's pick,
                                 the identifier's piano and model, RibbonEdges
       Files/                    file handling's logic: document ids, the store (FileDocumentStore over
-                                DocumentFileAccess), the bookmark table, examples, the session's requests
+                                DocumentFileAccess), the bookmark table, examples, the session's requests,
+                                Export PDF's painting (PdfExporter, paintPdf, paperFor)
       Settings/                 Settings' logic: the draft, SettingsController, the voicing form's schema
                                 and items, pending edits, steppers, the field's echo, the texts
       About/                    the licence list and texts, About's build info, links and texts
+      Help/                     Quick Start's pager and snippet runs, the guide's links, the launch kind
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
@@ -116,6 +120,8 @@ ios/
     mdi_assets.py               Android's Material Design Icons as SVG image sets (and the Settings
                                 and About icons from their Kotlin paths)
     copy_licences.py            the "Licences" build phase: the list and its texts into the app
+    build_help.sh               the user guide's iOS edition (sphinx -t ios), for the "User guide" phase
+    help_images.py, help_shots.json   the guide's iOS screenshots from CI's artifacts
     ci_simulators.py, ci_screenshots.sh   CI helpers
   build/                        not committed: frameworks, the Python bundle, DerivedData
 packaging/ios/
@@ -159,7 +165,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 399 tests, about 35 s after the first build
+make ios-kit-test      # swift test: 419 tests, about 45 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -204,15 +210,17 @@ What the tests cover:
 | `PlayheadGesturesTests` | Android's `PlayheadGesturesTest`, case for case, and the marker's shape |
 | `FileDocumentStoreTests` | Android's `SafDocumentStoreTest` as behaviour on real files (`PlainFileAccess`): raw bytes, the desktop's wording with the document's location, a recent file that has gone (named from its entry, dropped with its bookmark), the 5 MB cap, a cloud file not downloaded, the same file picked twice, a stale bookmark made again under its id, a moved file, a relaunch, corrupt lists, writes in place, `copyFromFile`, the shipped song, example copies (rename, a taken name), rename keeping the id, the recent list's order, cap and pruning, exports and their written callback; the id scheme |
 | `ExampleLibraryTests` | Android's `ExampleLibraryTest`, case for case (ids are `app:examples/<name>`) |
-| `SessionRequestsTests` | Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour: the snapshot's pending request, a picker once per request, a stale result ignored, Save As's move, an export answered at once with the store's file, the unsaved-changes answers, an Insert dialog's fields checked and answered (Cancel answers null), PDF requests cancelled once |
+| `SessionRequestsTests` | Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour: the snapshot's pending request, a picker once per request, a stale result ignored, Save As's move, an export answered at once with the store's file, the unsaved-changes answers, an Insert dialog's fields checked and answered (Cancel answers null), a PDF's pages painted once per request off the main actor and always answered (with a reason, or a thrown error's) |
 | `PlayerSheetsTests` | Android's `SheetRouteTest`, case for case (the instrument's two levels, the speed dialog, typed and snapped speeds, the badge, the pill and Write into song), the slider letting go once the session has its value, Manual…'s check, Playback settings' rows and choices, Insert's entries |
 | `ToolsTests` | Android's `ToolFormsTest` and `DirectiveVerdictTest`, case for case (selections in code points, Transpose's range, each directive's answer, loop targets, key lists, Suggest Capo's pick and Apply, a stale or foreign check ignored), the messages in the fields' order, the tools' commands from the editor's model, `RibbonEdges` |
 | `IdentifierTests` | Android's `IdentifierTest`, case for case: the piano's keys and hit testing, labels in either notation, the model's field and pick, a notation switch, the layout, key looks, sounding keys and their token |
 | `SheetControllerTests` | every tap in the sheets and the tools through the reducer: the route, the dialogs' fields, the commands (speed, Playback settings and its locked reason, voicing, instrument, Insert, Transpose with and without a selection, an Insert dialog checked as it changes, Suggest from Insert Capo, Suggest Capo's pick and Apply, the identifier), Edit voicings… opening Settings |
 | `SettingsControllerTests` | Android's `SettingsControllerTest`, case for case but its three `snapshot()`/`restore()` cases (no state restoration on iOS): the edit's life, autosave and the 400 ms rest, a number only saved when valid, the voicing commands each followed by a save, leaving and the problems question, values kept from last time, the navigation on a phone and with two panes, the split, the dialogs, Add voicing's presets and sections, a built-in and a newer release's voicing read-only, pending edits, the key's spelling; the problems' lines, the steppers; `SettingsScenesTests`: every Settings scene folds into an editing screen with its schema |
 | `VoicingFormTests` | Android's `VoicingFormTest`, case for case: the schema, every field and section kind, the three models' forms with their errors and hints, records and the bottom voice's gap, a read-only form, the payloads, pending edits, steppers; the field's echo and the errors banner's timing |
-| `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the order, bad data, the pages' ← and an opened song, the build info, the FOSS support link |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the thirty scenes (three of them frozen while a chord sounds) |
+| `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the guide's entries Android's word for word with the Sphinx stack's pins, the order, bad data, the pages' ← and an opened song, the build info, the FOSS support link |
+| `PdfExportTests` | Android's `PdfExporterTest`, case for case: every page at its size with the layout's positions and colours, Letter pages, the file written and "" answered, a failed write's reason, the paper by country; the letter countries are the core's |
+| `HelpTests` | Android's `QuickStartModelTest`, case for case (the guide's links on iOS's `cnhelp://guide/`), plus the guide's files (nothing outside its folder, percent-decoding, a folder's index) and types, a snippet styled as the editor's text, the tour's checkbox, the launch kind, local ISO days, the startup screen forgotten once dismissed |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the Quick Start tour; the forty scenes (five of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -313,8 +321,11 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records thirty scenes into `ios/Fixtures/`: `empty_song`,
-`quick_start_edit`, `play_with_chord_sheet` (the complete example with the
+`IntegrationTests` records the scenes into `ios/Fixtures/`: `empty_song`,
+then `identifier_cmaj7` (Amazing Grace under the chord identifier: C, E, G
+and B selected, Cmaj7 played; recorded here, while the status is still the
+start's "Ready", as in Android's help screenshot of a fresh app, and cleared
+again after), `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
 `chord_sheet_staff` (the staff, zoomed in one step, playhead on chord 24),
@@ -343,9 +354,10 @@ its `InsertDirectiveRequest`, the cursor after "me", and the session's check
 of the fields the dialog opens with, so Insert is on for the time, key and
 loop as on Android; the tempo's then carries a check of "999", the label's a
 clean check of "chorus"),
-`grace_edit` (the song restored again, nothing pending), `capo_advice`
-(Suggest Capo scored for the whole song) and `identifier_cmaj7` (C, E, G and
-B selected, Cmaj7 played), then Settings' scenes, last, each from Amazing
+`grace_edit` (the song restored again, nothing pending) and `capo_advice`
+(Suggest Capo scored for the whole song); `player_sheets` and the scenes
+after it are on Piano, as Android's help screenshots' config is. Then
+Settings' scenes, each from Amazing
 Grace's restore so it carries the text and the schema (an event):
 `settings_open` (the edit begun, the defaults, no voicings of the user's),
 `settings_voicing_form` (My 7-String made from a blank fretboard with strings
@@ -353,7 +365,16 @@ B1 E2 A2 D3 G3 B3 E4, as `android/tools/help_shots.json` has it),
 `settings_voicing_refused` (its strings B1 E2 X9 G3 and a relaxed span of 2:
 two problems, nothing saved), `settings_voicing_ensemble` (Jazz Vocal Trio:
 Lead A3–F5, Harmony F3–D5, Bass E2–C4) and `settings_builtin` (the standard
-guitar read-only). A fixture has no answers, so a request in it
+guitar read-only). Last, the guide's scenes (`IntegrationHelpTests.swift`),
+set up as Android's help screenshots are (`android/tools/help_shots.json`:
+Amazing Grace, Piano, the first program, the piano roll 330 pt tall):
+`quick_start_tour` (`request_quick_start`'s seven pages), `grace_play`,
+`grace_staff`, `grace_fret` and `grace_tab` (the playhead on the first chord,
+each view at its default zoom, the standard guitar for the last two),
+`grace_playing` (frozen as chord 5, Em in bar 6, sounds),
+`grace_playing_metronome` (the same with the metronome on at 125 %),
+`grace_playhead` (the playhead on Em, nothing playing) and `colours_edit`
+(`android/tools/help_shot_songs/colours.txt` in Edit, every span kind). A fixture has no answers, so a request in it
 stays pending; only the question draws, and the scenes after the Insert
 requests start from a fresh restore. Each scene comes after
 the ones whose states it would change, so theirs stay as they were; the
@@ -765,9 +786,7 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   Save as… (`save_as {name}`), as Android does.
 - **The menu** has Android's drawer's entries in its order (New song,
   Open…, Recent, Save as…, the three exports, Settings, Examples, User
-  guide, Quick start, About) and Diagnostics last. The file entries,
-  Recent, Examples, Settings and About work; Export PDF, the guide and the
-  Quick Start tour are greyed with "Coming soon". The panel runs
+  guide, Quick start, About) and Diagnostics last; every entry works. The panel runs
   the screen's whole height, under the status bar and the home indicator,
   as Android's drawer does; its entries stay inside the safe area.
 - **Layout:** as `ScreenLayout.kt`. The chord sheet is a Play-mode view, so
@@ -786,7 +805,12 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   `-CNScreen export` exports the song as audio ("Files"), `-CNScreen speed`,
   `instrument`, `insert`, `capo` and `identify` open a sheet or a tool ("The player's sheets
   and the ribbon's tools"), `-CNScreen settings`, `voicings` and `about` a
-  page ("Settings, About and Licences").
+  page ("Settings, About and Licences"). `-CNScreen main` does nothing but
+  make the launch not a direct one (CI's main screenshot, with no tour over
+  it); `-CNScreen guide`, `quickstart` and `pdf` open the guide, the tour and
+  an export of the song as a PDF, and `families`, `hint`, `keyboard` and
+  `landscape` set up the guide's live screenshots ("The user guide, Quick
+  Start and Export PDF").
 
 Deliberate differences from Android:
 
@@ -894,11 +918,11 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
   "Exported MIDI: song.mid" before the user has picked a place, and a
   cancelled picker drops the file without a word (a note for the core:
   an iOS wording such as "Ready to save").
-- **Export PDF stays greyed.** The core doesn't make the PDF: it sends
-  `PaintPdfRequest` with the pages laid out (`PdfLayout`), and Android paints
-  them itself (`PdfExporter`). iOS has no painter yet (`UIGraphicsPDFRenderer`
-  would do; `BACKLOG.md`); a `PaintPdfRequest` that arrives anyway is
-  cancelled.
+- **Export PDF** is an export like these with one step more: the core
+  doesn't make the PDF, it sends `PaintPdfRequest` with the pages laid out
+  (`PdfLayout`); the app paints them and writes the file through the store,
+  whose write offers it with the export picker ("The user guide, Quick Start
+  and Export PDF").
 - **The unsaved-changes question** (`ConfirmDiscardRequest`, before New,
   Open, a recent song, an example, a song from Files): a card over the
   screen with "Unsaved Changes", "Do you want to save your changes?" and
@@ -909,8 +933,6 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
 - **Examples** (Android's sheet): the songs in `examples/` (bundled as a
   folder), a tap copies one to `app:examples/` (Android's `copyFor`: the same
   copy while it is unchanged, `x (2).txt` after an edit) and opens it.
-  **Quick start** stays greyed: on Android it is a tour
-  (`request_quick_start`, `QuickStartContent`), not a song.
 - **From Files and other apps:** `CFBundleDocumentTypes` lists plain text
   as an Alternate handler (never the default for `.txt`), and
   `LSSupportsOpeningDocumentsInPlace` opens it in place: `onOpenURL` gets a
@@ -946,7 +968,6 @@ Deliberate differences from Android:
 - Errors are snackbars, as in the main-screen slice (Android: dialogs).
 - Example copies, the recent list and the bookmarks live in Application
   Support: not in Files, not removed by anything but the app.
-- No Quick Start tour yet, and no Export PDF.
 
 What CI checks: `SessionTests` drives the real store on files in the app's
 Documents with a stand-in for the pickers (Open, Save, Save As, Export
@@ -1118,7 +1139,9 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   GCE-Math; the Python packages at `android/requirements.txt`'s pins without
   chardet; GeneralUser GS, Bravura, Material Design Icons and Google's
   Material Icons (the Settings icons). SQLite and zlib are the system's.
-  The user guide isn't shipped yet, so neither is its group. The "Licences"
+  The user guide and Android's guide group (Sphinx, its theme, jQuery, the
+  Snowball stemmers, Pygments, Font Awesome, Lato and Roboto Slab), word for
+  word, since the same pinned stack builds both. The "Licences"
   build phase (`ios/tools/copy_licences.py`) copies the list and the texts it
   names from `resources/licenses/texts` into `<app>/licenses`; a missing
   text fails the build. `licence_catalog.detect_build` still returns None
@@ -1184,6 +1207,107 @@ question putting the cursor in a number field, scrolling a long form on a
 small phone, links opening in Safari, rotation with Settings open (two
 panes to one), VoiceOver.
 
+### The user guide, Quick Start and Export PDF
+
+The seventh slice, ported from Android's `ui/help/` (`UserGuideScreen.kt`,
+`HelpLinks.kt`, `QuickStartScreen.kt`, `QuickStartModel.kt`), the startup
+screen (`MainScreen.kt`, `AppGraph.reportLaunch`) and `files/PdfExporter.kt`.
+The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
+`app_started` and `dismiss_startup_screen`, `export_pdf` and its
+`PaintPdfRequest`); nothing in the core or the schema changed.
+
+- **In the kit** (`Help/` and `Files/PdfExport.swift`, tested on Linux):
+  `QuickStartPager`, `snippetRuns` (code points to UTF-16, the editor's
+  priority, a stable sort) and `snippetStyleRuns` (the editor's
+  `styleRuns`), `quickStartShowsAtStartup` (the checkbox: the user's pick
+  until the settings echo it, then the setting, then the tour's own),
+  `QuickStartTexts`, `LaunchKind` and `isoDay`; `HelpLinks` (the
+  `cnhelp://guide/` origin, internal and external links, the file a URL
+  names, never outside the guide's folder, and its MIME type); `paintPdf` on
+  the `PdfCanvas` protocol, `PdfColors`, `paperFor` (the core's Letter
+  countries) and `PdfExporter` (paint, write through the store, "" or the
+  reason). `RequestController` paints a `PaintPdfRequest` once per request,
+  off the main actor, and always answers it (Android's `paintOnce`).
+  `SessionSnapshot` keeps `QuickStartContent` and `StartupState`
+  (`startupDismissed()` forgets it at once, as Android's repository does).
+  `MainRoute` gains `.userGuide` and `.quickStart`, both full pages.
+- **In the app**: `Screens/UserGuideView.swift` (`UserGuideScreen` with
+  Android's bar, `GuideWebView`, `HelpSchemeHandler`),
+  `Screens/QuickStartView.swift` (the tour as Android draws it: ✕ and the
+  title, the page's title, paragraphs and snippets in the editor's colours
+  and monospace, scrolling sideways when wide, the divider, the "Show at
+  startup" checkbox in Material's shape, Previous, "1 of 7", Next or Done) and
+  `App/PdfPainter.swift` (`UIKitPdfCanvas`: the pages collected, then
+  `UIGraphicsPDFRenderer`; text drawn with Core Text on the layout's
+  baselines in Menlo; `PdfReport`, what an exported PDF holds read back with
+  PDFKit). `AppModel` sends `app_started` once the first song is open, opens
+  the tour when the session's `StartupState` says so or from ☰, and paints
+  through the request controller.
+- **The guide**: `ios/tools/build_help.sh` builds `help/` with `-t ios`
+  (Android's pinned Sphinx stack, `android/docs-requirements.txt`; `-W`, the
+  same reproducible settings and pruning as Android's Gradle task) into
+  `ios/build/help`, which the "User guide" build phase copies into
+  `<app>/help` (a missing guide fails the build). The web view loads it under
+  `cnhelp://guide/` through a `WKURLSchemeHandler` that serves only that
+  folder (Android's `WebViewAssetLoader`), and a content rule list blocks
+  every other load; JavaScript is on (the theme's menu and search), the
+  website data store is non-persistent. A link to a web site opens in
+  Safari, and only when tapped. The page follows the app's light or dark
+  look through the view's interface style (`prefers-color-scheme`, as
+  Android themes its WebView), on the app's surface colour so there is no
+  white flash. The guide's licences are Android's guide group, word for word
+  (`ios/Licenses/components.json`). The iOS edition itself is described in
+  `docs/HELP_AUTHORING.md`.
+- **Quick Start at startup**: `app_started` goes out once the quick-start
+  song is open, with `can_ask_for_support` false (no purchase on iOS) and
+  the launch kind: `document` when songs from Files were waiting for the
+  session, `restore` for CI's `-CNScreen` launches, otherwise `direct`. The
+  session then shows the tour when Settings' "Show quick start at startup"
+  is on (the default; the tour's checkbox is the same setting). Closing the
+  tour (✕, Done, a song opened from Files) dismisses the startup screen in
+  the session.
+- **Export PDF**: ☰ › Export PDF… sends `export_pdf` with A4 or Letter from
+  the region (`Locale.current.region`, as Android's locale country). The
+  pick request is answered with an export file of the store's, the session
+  lays the song out, and the app paints it and writes it through the store,
+  whose write offers it with the export picker, as for MIDI and audio
+  ("Files"). Menlo's advance is 0.602 em where the layout counts 0.6; every
+  word is a run of its own at its column, so the difference never adds up
+  across a line (CI checks the advance).
+- **Live check:** `SessionTests` exports the quick-start song as a PDF
+  through the real store and a stand-in picker and reads it back with PDFKit
+  (its pages, a line of the song, the font's advance; attached as
+  `export-live.pdf`), opens the tour from ☰, toggles its checkbox (saved as
+  the setting), sends a direct `app_started` (the tour opens) and closes it
+  (dismissed), and loads the guide in a real `WKWebView` through the scheme
+  handler (the iOS edition's first page, its stylesheet, a file outside the
+  guide refused; attached as `guide-live.png`). CI's first launch after the
+  install shows the tour (`startup.json`), `-CNScreen guide` the guide and
+  `-CNScreen pdf` exports a PDF (`pdf.json`, `export.pdf`).
+
+Deliberate differences from Android:
+
+- The guide's ← leaves it, as Android's bar button does; a swipe from the
+  left edge goes back through its pages (Android's system Back). There is no
+  back button for the pages themselves.
+- The guide is served under `cnhelp://guide/` (Android: an https origin of
+  `WebViewAssetLoader`), and other loads are blocked by a content rule list.
+- A launch by a song from Files counts as a document launch only when the
+  song arrives before the session runs (iOS hands the URL over after the
+  launch; Android knows it from the launch intent). A relaunch after iOS
+  ended the app is a direct launch (there is no state restoration).
+- Export PDF's pages are set in Menlo (Android: the system monospace, Droid
+  Sans Mono); both are 0.6 em wide, as the layout counts.
+- The tour's checkbox and its buttons are drawn in Material's shape, as
+  Settings' switches are.
+
+What CI doesn't test: a person reading the guide (scrolling, its search, the
+theme's menu, a link to a web site opening Safari, the edge swipe back,
+switching to dark mode while it is open), VoiceOver in the guide and the
+tour, the tour's checkbox tapped, a PDF printed or opened in another app,
+the export picker driven by a person, A4 against Letter on a device set to
+another region.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -1219,6 +1343,8 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `settings_voicing_refused`, `settings_problems` | `settings_voicing_refused`: the banner and the red fields; leaving with them and a tempo of 1000 | iPhone, iPad |
 | `settings_builtin`, `settings_rename` | the standard guitar read-only with Copy; My 7-String's rename dialog | iPhone, iPad on its side; iPhone |
 | `about`, `licences`, `licence` | About (a sample build), the licences from the bundle's list, FluidSynth's page with its text | iPhone, iPad; iPhone, iPad; iPhone |
+| `quick_start` | `quick_start_tour`: the tour's first page | iPhone, iPad |
+| `help_play`, `help_play_phone`, `help_edit` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit | all four; iPhone; iPhone, iPad, iPhone on its side |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
 its scroll view (live only) is UIKit. ImageRenderer can't draw a
@@ -1292,7 +1418,9 @@ Artifacts of each run:
 
 - `ios-catalog`: the catalog PNGs,
   `<screen>-<scene>-<iphone|ipad>-<light|dark>-<default|large>.png`.
-- `ios-screenshots`: `<iphone|ipad>-main.png` (the quick-start song in
+- `ios-screenshots`: `<iphone|ipad>-quickstart.png` (the first launch after
+  the install: the tour over the song, `startup.json` says it opened),
+  `<iphone|ipad>-main.png` (the quick-start song in
   Play, as it opens), `<iphone|ipad>-menu.png` (`-CNScreen menu`),
   `<iphone|ipad>-selftest.png` (Diagnostics),
   `<iphone|ipad>-chordsheet.png` (Play with the chord sheet shown, its
@@ -1307,7 +1435,15 @@ Artifacts of each run:
   `-voicings.png` and `-about.png` (Settings › General, Settings › Voicings
   with the standard guitar's form, About),
   `<iphone|ipad>-export.png` (the export picker
-  over the song after an audio export), the app's Diagnostics
+  over the song after an audio export), `<iphone|ipad>-pdf.png` (the export
+  picker after a PDF export; `pdf.json` has its pages, a line of the song
+  found in its text and the font's advance, and `export.pdf` is the file),
+  `-guide.png` (☰ › User guide's first page), `-families.png` (the
+  Instrument sheet's families, Steel Guitar the current one), `-hint.png` (a
+  red `{bpm: 500}` explained in Play), `-keyboard.png` (a new song with
+  "C  Am  F  G" typed and the keyboard up), `-landscape.png` (the phone on its
+  side typing: the header gives way to the floating undo chip), the guide's
+  live screenshots, the app's Diagnostics
   folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`,
   `export.json`, `selftest.json` with the live
   audio result, the core's log) and `<device>-app.log` (the unified log of
@@ -1316,6 +1452,7 @@ Artifacts of each run:
   `xcrun xcresulttool` on a Mac; the catalog PNGs and the test's
   `selftest.json`, `chordsheet-live.png`, `editor-live.png` and `play-live.png` are attached) and the xcodebuild logs.
 - `ios-kit-tests`: the kit's `swift test` output on macOS.
+- `ios-help`: the iOS edition of the guide as the app ships it.
 
 `gh run download <run> -n ios-screenshots` fetches one on Linux.
 
@@ -1459,6 +1596,19 @@ expires, her tester status and the issue list. By hand:
      keyboard over a field low on the page.
   4. About: each link opens Safari; the licence pages scroll and their text
      selects.
+
+  Standing items for the guide, the tour and Export PDF:
+  1. Install fresh and launch from the Home screen: the tour opens over the
+     song; untick "Show at startup", close, relaunch: no tour; Settings ›
+     General shows the switch off. Open a `.txt` from Files with the app
+     closed: no tour.
+  2. ☰ › User guide: scroll, the theme's menu, the search, a link inside the
+     guide, a link to a web site (Safari opens), the edge swipe back through
+     the pages, ← back to the song; the same in dark mode, and switch the
+     system's look while the guide is open.
+  3. ☰ › Export PDF… on a long song: the export picker, save to Files and to
+     iCloud Drive, open the PDF in Files and print it; cancel the picker once.
+     A4 on a device set to a European region, Letter on one set to the US.
 
   Standing items for the sheets and the tools:
   1. Speed: drag the slider end to end and back (the value follows, the
