@@ -39,6 +39,11 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var directiveCheck: DirectiveCheck?
     /// The newest reply to `request_directive_hint`.
     public private(set) var directiveHint: DirectiveHint?
+    /// The Quick Start tour, once asked for (`request_quick_start`).
+    public private(set) var quickStart: QuickStartContent?
+    /// What opens over the screen at startup (the answer to `app_started`),
+    /// until it is dismissed (``startupDismissed()``).
+    public private(set) var startup: StartupState?
     /// The newest rename the session refused, and how many there were (the
     /// dialog reacts to each one, the same refusal twice included).
     public private(set) var renameFailure: RenameFailure?
@@ -100,6 +105,10 @@ public struct SessionSnapshot: Sendable, Equatable {
             directiveCheck = check
         case .directiveHint(let hint):
             directiveHint = hint
+        case .quickStartContent(let content):
+            quickStart = content
+        case .startupState(let state):
+            startup = state
         case .audioUnavailable(let event):
             audioProblem = event.message
             note(event.message)
@@ -121,6 +130,12 @@ public struct SessionSnapshot: Sendable, Equatable {
     /// as `restore_draft`: pass nil): it is no longer pending.
     public mutating func requestAnswered(_ id: Int?) {
         if id == nil || request?.requestId == id { request = nil }
+    }
+
+    /// The startup screen was closed (the app sends `dismiss_startup_screen`):
+    /// forgotten at once, as Android's repository does, so it doesn't open again.
+    public mutating func startupDismissed() {
+        if startup != nil { startup = StartupState(screen: .noScreen) }
     }
 
     /// Fold one output in as it crossed the bridge.

@@ -76,11 +76,10 @@ public enum MenuSection: Sendable, Hashable {
 
 /// The menu's contents, top to bottom.
 public enum AppMenu {
-    /// What the iOS app can do from the menu now: the rest waits for the
-    /// guide, the Quick Start tour and a PDF painter (BACKLOG.md).
+    /// What the iOS app can do from the menu: every entry (Android's drawer's).
     public static let available: Set<String> = [
-        "new", "open", "recent", "saveAs", "exportMidi", "exportAudio", "settings", "examples", "about",
-        "diagnostics",
+        "new", "open", "recent", "saveAs", "exportMidi", "exportAudio", "exportPdf", "settings", "examples",
+        "userGuide", "quickStart", "about", "diagnostics",
     ]
 
     public static func sections(recent: [DocumentRef]) -> [MenuSection] {
@@ -150,6 +149,10 @@ public enum MainRoute: Sendable, Hashable {
     /// One licence's text: from the licences list, or from About itself (the
     /// app's own licence), so ← goes back where it came from (Android's P7).
     case licence(id: String, fromAbout: Bool)
+    /// ☰ › User guide, full screen (the bundled guide in a web view).
+    case userGuide
+    /// ☰ › Quick start, or the tour opened at startup, full screen.
+    case quickStart
 
     /// Where a full-screen page's ← goes (Android's `Pages.parent`): a
     /// licence to its list (or to About), the list to About, the rest to the
@@ -166,7 +169,7 @@ public enum MainRoute: Sendable, Hashable {
     /// the whole screen.
     public var isFullPage: Bool {
         switch self {
-        case .settings, .about, .licences, .licence: return true
+        case .settings, .about, .licences, .licence, .userGuide, .quickStart: return true
         default: return false
         }
     }

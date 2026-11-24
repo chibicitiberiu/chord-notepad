@@ -40,15 +40,15 @@ public enum RequestPresentation: Sendable, Equatable {
     case dialog(SessionRequest)
     /// A document picker, or for an export a file of the store's, answers it.
     case picker(PickDocumentRequest)
-    /// No UI on iOS yet: cancelled at once (a PDF's pages, which need a painter).
-    case notYetSupported(SessionRequest)
+    /// Painted and written off the main actor, no UI (``RequestController/paintOnce(_:)``).
+    case paint(PaintPdfRequest)
 }
 
 public func presentationOf(_ request: SessionRequest) -> RequestPresentation {
     switch request {
     case .confirmDiscard, .insertDirective: return .dialog(request)
     case .pickDocument(let pick): return .picker(pick)
-    case .paintPdf: return .notYetSupported(request)
+    case .paintPdf(let paint): return .paint(paint)
     }
 }
 
@@ -109,6 +109,9 @@ public final class RequestController {
     /// Runs `work` away from the main actor, then `done` with its result on it.
     public typealias OffMain = (_ work: @escaping @Sendable () -> DocumentRef?,
                                 _ done: @escaping @Sendable @MainActor (DocumentRef?) -> Void) -> Void
+    /// The same for a PDF's painting, whose result is the request's answer.
+    public typealias PaintOffMain = (_ work: @escaping @Sendable () -> String?,
+                                     _ done: @escaping @Sendable @MainActor (String?) -> Void) -> Void
 
     private let pending: () -> SessionRequest?
     private let submit: (BridgeCommand) -> Void
@@ -116,8 +119,10 @@ public final class RequestController {
     private let adopt: @Sendable (URL, PickMode) throws -> DocumentRef
     private let prepareExport: @Sendable (PickMode, String) throws -> DocumentRef
     private let runOffMain: OffMain
+    private let paint: @Sendable (PaintPdfRequest) throws -> String?
+    private let paintOffMain: PaintOffMain
     private var launchedPickerId: Int?
-    private var cancelledIds: Set<Int> = []
+    private var paintedId: Int?
 
     /// - Parameters:
     ///   - pending: The session's pending request (the snapshot's).
@@ -129,36 +134,64 @@ public final class RequestController {
     ///   - prepareExport: Makes the store's file for an export
     ///     (``FileDocumentStore/prepareExport(named:)``); file I/O.
     ///   - runOffMain: Runs file I/O away from the main actor.
+    ///   - paint: Paints a PDF export and writes it (``PdfExporter/export(_:)``):
+    ///     "" written, else the reason; file I/O.
+    ///   - paintOffMain: Runs the painting away from the main actor.
     public init(pending: @escaping () -> SessionRequest?, submit: @escaping (BridgeCommand) -> Void,
                 answered: @escaping (Int) -> Void,
                 adopt: @escaping @Sendable (URL, PickMode) throws -> DocumentRef,
                 prepareExport: @escaping @Sendable (PickMode, String) throws -> DocumentRef,
-                runOffMain: @escaping OffMain) {
+                runOffMain: @escaping OffMain,
+                paint: @escaping @Sendable (PaintPdfRequest) throws -> String? = { _ in nil },
+                paintOffMain: @escaping PaintOffMain = { work, done in
+                    Task.detached {
+                        let answer = work()
+                        await MainActor.run { done(answer) }
+                    }
+                }) {
         self.pending = pending
         self.submit = submit
         self.answered = answered
         self.adopt = adopt
         self.prepareExport = prepareExport
         self.runOffMain = runOffMain
+        self.paint = paint
+        self.paintOffMain = paintOffMain
     }
 
-    /// A request just became pending: cancels the ones iOS can't present
-    /// yet, answers an export with the store's file, and returns the picker
-    /// to open for an open or a save that hasn't had one yet (marking it
-    /// opened), else nil.
+    /// A request just became pending: paints a PDF's pages, answers an
+    /// export with the store's file, and returns the picker to open for an
+    /// open or a save that hasn't had one yet (marking it opened), else nil.
     public func onPending(_ request: SessionRequest?) -> PickerLaunch? {
         guard let request else { return nil }
         switch presentationOf(request) {
-        case .notYetSupported(let request):
-            if !cancelledIds.contains(request.requestId) {
-                cancelledIds.insert(request.requestId)
-                cancel(request)
-            }
+        case .paint(let paint):
+            paintOnce(paint)
             return nil
         case .picker:
             return takePickerLaunch()
         case .dialog:
             return nil
+        }
+    }
+
+    /// Paint and write `request`'s PDF off the main actor and answer it, once
+    /// per request (the same pending request seen again isn't painted twice).
+    /// Always answered, whatever fails, so the session's flow never waits.
+    public func paintOnce(_ request: PaintPdfRequest) {
+        guard paintedId != request.requestId else { return }
+        paintedId = request.requestId
+        let paint = self.paint
+        paintOffMain({
+            do {
+                return try paint(request)
+            } catch {
+                return "\(type(of: error)): \(error)"
+            }
+        }) { [weak self] answer in
+            guard let self else { return }
+            self.answered(request.requestId)
+            self.submit(.respondToPaintPdfRequest(requestId: request.requestId, value: answer))
         }
     }
 

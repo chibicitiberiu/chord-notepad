@@ -6,8 +6,8 @@ import XCTest
 /// Android's `RequestControllerTest` and `DocumentPickersTest` as behaviour,
 /// with iOS's pickers: Save As moves a file the app made, an export is
 /// answered with the store's file at once, an Insert directive's fields are
-/// checked and answered from its dialog, and a PDF's pages (no painter yet)
-/// are cancelled.
+/// checked and answered from its dialog, and a PDF's pages painted once per
+/// request and answered.
 @MainActor
 final class SessionRequestsTests: XCTestCase {
     private var snapshot = SessionSnapshot()
@@ -41,7 +41,26 @@ final class SessionRequestsTests: XCTestCase {
             },
             runOffMain: { [unowned self] work, done in
                 self.offMain.append { done(work()) }
+            },
+            paint: { [paintedBox, paintAnswer] request in
+                paintedBox.append(request.requestId)
+                return try paintAnswer.get.answer()
+            },
+            paintOffMain: { [unowned self] work, done in
+                self.offMain.append { done(work()) }
             })
+    }
+
+    private let paintedBox = Box<[Int]>([])
+    /// What the painter answers (or throws), changed between requests.
+    private let paintAnswer = Box(PaintAnswer { "" })
+
+    private struct PaintAnswer: @unchecked Sendable {
+        let answer: () throws -> String?
+    }
+
+    private struct Broken: Error, CustomStringConvertible {
+        var description: String { "broken" }
     }
 
     private var adoptedBox = Box<[(URL, PickMode)]>([])
@@ -53,6 +72,7 @@ final class SessionRequestsTests: XCTestCase {
         private var value: T
         init(_ value: T) { self.value = value }
         var get: T { lock.withLock { value } }
+        func set(_ new: T) { lock.withLock { value = new } }
         func append<E>(_ item: E) where T == [E] { lock.withLock { value.append(item) } }
     }
 
@@ -123,7 +143,7 @@ final class SessionRequestsTests: XCTestCase {
         let insert = SessionRequest.insertDirective(InsertDirectiveRequest(
             existingLabels: [], keyOptions: [], kind: "bpm", notation: "american", requestId: 4))
         XCTAssertEqual(presentationOf(insert), .dialog(insert))
-        XCTAssertEqual(presentationOf(.paintPdf(paint(5))), .notYetSupported(.paintPdf(paint(5))))
+        XCTAssertEqual(presentationOf(.paintPdf(paint(5))), .paint(paint(5)))
     }
 
     func testTheSnapshotKeepsTheNewestRequestUntilItIsAnswered() async {
@@ -247,12 +267,31 @@ final class SessionRequestsTests: XCTestCase {
         assertResponded(11, "cancel")
     }
 
-    func testRequestsWithoutAnIOSScreenAreCancelledOnce() async {
+    func testAPdfIsPaintedOffTheMainActorOncePerRequestAndAnswered() async {
         let c = controller()
-        pend(.paintPdfRequest(paint(22)))
+        pend(.paintPdfRequest(paint(30)))
         XCTAssertNil(c.onPending(snapshot.request))
-        assertResponded(22, nil)
-        XCTAssertNil(c.onPending(.paintPdf(paint(22))), "seen again: not cancelled twice")
+        // The same request seen again: not painted twice.
+        XCTAssertNil(c.onPending(snapshot.request))
+        XCTAssertTrue(paintedBox.get.isEmpty && sent.isEmpty)
+        runOffMain()
+        XCTAssertEqual(paintedBox.get, [30])
+        assertResponded(30, "")
+        XCTAssertNil(snapshot.request)
+
+        paintAnswer.set(PaintAnswer { "Permission denied: song.pdf" })
+        pend(.paintPdfRequest(paint(31)))
+        _ = c.onPending(snapshot.request)
+        runOffMain()
+        assertResponded(31, "Permission denied: song.pdf")
+
+        // A painter that throws still answers, with what went wrong.
+        paintAnswer.set(PaintAnswer { throw Broken() })
+        pend(.paintPdfRequest(paint(32)))
+        _ = c.onPending(snapshot.request)
+        runOffMain()
+        assertResponded(32, "Broken: broken")
+        XCTAssertEqual(paintedBox.get, [30, 31, 32])
         XCTAssertTrue(sent.isEmpty)
     }
 

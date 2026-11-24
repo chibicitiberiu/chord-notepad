@@ -422,9 +422,8 @@ final class MainScreenTests: XCTestCase {
         XCTAssertEqual(labels, ["New song", "Open…", "a.txt", "—", "Save as…", "Export MIDI…", "Export audio…",
                                 "Export PDF…", "—", "Settings", "Examples", "User guide", "Quick start", "About",
                                 "Diagnostics"])
-        // Export PDF waits for a painter; the guide and the tour for their screens.
-        XCTAssertEqual(enabled, ["New song", "Open…", "a.txt", "Save as…", "Export MIDI…", "Export audio…", "Settings",
-                                 "Examples", "About", "Diagnostics"])
+        // Every entry works, as on Android.
+        XCTAssertEqual(enabled, labels.filter { $0 != "—" })
     }
 
     // -- the player's state ------------------------------------------------------------------------
