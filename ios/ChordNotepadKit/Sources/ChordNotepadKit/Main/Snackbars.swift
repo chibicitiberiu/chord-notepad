@@ -69,6 +69,12 @@ public struct Snackbars: Sendable, Equatable {
         if shown?.error != true { show(text, error: false) }
     }
 
+    /// An error the app hit itself (an example it couldn't copy, a file from
+    /// Files it can't keep), shown as the session's errors are.
+    public mutating func error(_ text: String) {
+        show(text, error: true)
+    }
+
     /// The snackbar `id` timed out or was closed.
     public mutating func dismiss(_ id: Int) {
         if shown?.id == id { shown = nil }

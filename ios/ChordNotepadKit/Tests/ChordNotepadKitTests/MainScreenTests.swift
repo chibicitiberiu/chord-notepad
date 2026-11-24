@@ -368,6 +368,15 @@ final class MainScreenTests: XCTestCase {
         XCTAssertEqual(bars.shown?.text, "Broken")
     }
 
+    func testTheAppsOwnErrorShowsAsAnErrorOverANotice() {
+        var bars = Snackbars()
+        bars.notice("Pause first")
+        bars.error("Couldn't copy the example x.txt into the app's storage.")
+        XCTAssertEqual(bars.shown?.text, "Couldn't copy the example x.txt into the app's storage.")
+        XCTAssertEqual(bars.shown?.error, true)
+        XCTAssertEqual(bars.shown?.duration, 10)
+    }
+
     func testWhatTheSnapshotAlreadyHeldDoesntPopUp() {
         let s = snapshot([.statusState(StatusState(text: "Ready")), .userError(UserError(message: "old", title: ""))])
         var bars = Snackbars(s)

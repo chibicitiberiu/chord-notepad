@@ -108,7 +108,7 @@ public enum DiscardQuestion {
 public final class RequestController {
     /// Runs `work` away from the main actor, then `done` with its result on it.
     public typealias OffMain = (_ work: @escaping @Sendable () -> DocumentRef?,
-                                _ done: @escaping @MainActor (DocumentRef?) -> Void) -> Void
+                                _ done: @escaping @Sendable @MainActor (DocumentRef?) -> Void) -> Void
 
     private let pending: () -> SessionRequest?
     private let submit: (BridgeCommand) -> Void

@@ -52,7 +52,7 @@ public enum DocumentId: Sendable, Hashable {
     }
 
     /// A one-component name: not empty, no `/`, not `.` or `..`.
-    static func isFileName(_ name: String) -> Bool {
+    public static func isFileName(_ name: String) -> Bool {
         !name.isEmpty && !name.contains("/") && name != "." && name != ".."
     }
 
