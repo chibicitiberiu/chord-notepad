@@ -90,9 +90,11 @@ struct EditRibbon: View {
                     }
                     .coordinateSpace(name: "ribbon")
                 } else {
-                    row(palette)
-                        .padding(.trailing, 24)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    // The row's own width must not widen the screen: a flexible
+                    // stand-in takes the window's width, the row lies over it, cut.
+                    Color.clear
+                        .frame(maxWidth: .infinity)
+                        .overlay(alignment: .leading) { row(palette).padding(.trailing, 24) }
                         .clipped()
                 }
             }

@@ -43,8 +43,8 @@ struct ToolDialog<Content: View, Buttons: View>: View {
                 }
                 .padding(22)
                 .frame(maxWidth: 360)
-                .frame(maxHeight: room)
                 .background(colors.surfaceHigh.swiftUI, in: RoundedRectangle(cornerRadius: 24))
+                .frame(maxHeight: room)
                 .padding(24)
                 .accessibilityIdentifier(identifier ?? "dialog")
             }
@@ -64,9 +64,11 @@ struct ToolDialog<Content: View, Buttons: View>: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxHeight: contentHeight > 0 ? contentHeight : nil)
         } else {
-            column.fixedSize(horizontal: false, vertical: true)
-                .frame(maxHeight: max(room - 150, 60), alignment: .top)
-                .clipped()
+            // The content whole when it fits, else cut at the room left.
+            ViewThatFits(in: .vertical) {
+                column.fixedSize(horizontal: false, vertical: true)
+                column.frame(maxHeight: max(room - 150, 60), alignment: .top).clipped()
+            }
         }
     }
 }
@@ -82,6 +84,9 @@ struct OutlinedField: View {
     var suffix: String?
     var error = false
     var keyboard: UIKeyboardType = .asciiCapable
+    /// Takes the keyboard when it appears (the Insert dialogs, Manual…, the
+    /// tempo); the identifier's field waits for a tap, so the piano stays in view.
+    var autofocus = true
     var identifier: String?
     var change: (String) -> Void = { _ in }
     var submit: () -> Void = {}
@@ -99,7 +104,7 @@ struct OutlinedField: View {
                     .submitLabel(.done)
                     .focused($focused)
                     .onSubmit(submit)
-                    .onAppear { focused = true }
+                    .onAppear { if autofocus { focused = true } }
                     .accessibilityLabel(label)
                     .accessibilityIdentifier(identifier ?? "field-\(label)")
             } else {

@@ -741,9 +741,13 @@ final class AppModel: ObservableObject {
         case "identify":
             selectMode(.edit)
             sheet(.ribbon(.identify))
-            let piano = PianoKeyboard()
-            for key in piano.keys where [60, 64, 67, 71].contains(key.midi) {
+            // One key at a time, as a person taps: the field follows each tap's state.
+            var tapped = 0
+            for key in PianoKeyboard().keys where [60, 64, 67, 71].contains(key.midi) {
                 sheet(.identifierTap(key))
+                tapped += 1
+                let count = tapped
+                _ = await waitFor(timeout: .seconds(10)) { $0.identifier?.notes.count == count }
             }
             ok = await waitFor(timeout: .seconds(30)) { $0.identifier?.candidates.contains("Cmaj7") == true }
             if ok { sheet(.identifierPick("Cmaj7", rolled: false)) }

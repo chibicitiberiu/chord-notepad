@@ -160,7 +160,7 @@ struct ChordIdentifierView: View {
         VStack(alignment: .leading, spacing: 2) {
             HStack(spacing: 8) {
                 OutlinedField(label: IdentifierTexts.notes, text: model.typed, colors: colors, live: live,
-                              error: state?.typedTextError != nil, identifier: "identifier-notes",
+                              error: state?.typedTextError != nil, autofocus: false, identifier: "identifier-notes",
                               change: { event(.identifierType($0)) })
                 pill(IdentifierTexts.clear, enabled: true, outline: colors.line.swiftUI.opacity(0.6),
                      text: colors.muted.swiftUI, id: "identifier-clear") { event(.identifierClear) }

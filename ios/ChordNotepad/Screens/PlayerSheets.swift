@@ -85,12 +85,14 @@ struct BottomSheet<Content: View, Actions: View>: View {
         .padding(.horizontal, 18)
         .padding(.bottom, 12)
         .frame(maxWidth: 640)
-        .frame(maxHeight: room)
+        // The panel is as tall as its rows: the background hugs them, and the
+        // room above (a flexible frame fills it) stays transparent.
         .background(alignment: .top) {
             UnevenRoundedRectangle(topLeadingRadius: 18, topTrailingRadius: 18)
                 .fill(colors.surfaceLow.swiftUI)
                 .ignoresSafeArea(edges: .bottom)
         }
+        .frame(maxHeight: room, alignment: .bottom)
         // The rows follow the text size up to a point: the sheet keeps room for its rows.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
     }
@@ -106,9 +108,11 @@ struct BottomSheet<Content: View, Actions: View>: View {
             .scrollBounceBehavior(.basedOnSize)
             .frame(maxHeight: contentHeight > 0 ? contentHeight : nil)
         } else {
-            rows.fixedSize(horizontal: false, vertical: true)
-                .frame(maxHeight: max(room - chrome, 60), alignment: .top)
-                .clipped()
+            // The rows whole when they fit, else cut at the room left.
+            ViewThatFits(in: .vertical) {
+                rows.fixedSize(horizontal: false, vertical: true)
+                rows.frame(maxHeight: max(room - chrome, 60), alignment: .top).clipped()
+            }
         }
     }
 
