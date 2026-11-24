@@ -14,9 +14,9 @@ scheduled, its channel's CC 7 at 0 while it is off, as live), the speed
 multiplier and the SoundFont playback loaded. Mute doesn't apply: an export
 is never silent on purpose.
 
-No numpy: the builds leave it out. Samples come from our own ctypes
-prototype of ``fluid_synth_write_s16`` (pyfluidsynth's returns a pointer and
-its stereo helper needs numpy).
+No numpy: the builds leave it out. Samples come from
+``fluid_synth_write_s16`` (:meth:`audio.fluid_ctypes.Synth.write_s16`) into a
+ctypes buffer.
 """
 
 import array
@@ -186,7 +186,7 @@ def synth_problem() -> Optional[str]:
     Checked before the picker, since an Android picker makes the file.
     """
     try:
-        from chordnotepad.audio.fluidsynth_import import fluidsynth  # noqa: F401
+        import chordnotepad.audio.fluid_ctypes  # noqa: F401
     except Exception as e:      # ImportError, OSError...
         return f"FluidSynth could not be loaded: {e}"
     return None
@@ -215,12 +215,11 @@ class FluidSynthRenderer:
 
     def __init__(self, soundfont: str, sample_rate: int = SAMPLE_RATE) -> None:
         try:
-            from chordnotepad.audio.fluidsynth_import import fluidsynth
+            from chordnotepad.audio.fluid_ctypes import Synth
         except Exception as e:      # no libfluidsynth: ImportError, OSError...
             raise AudioInitializationError(f"FluidSynth could not be loaded: {e}") from e
-        self._synth = fluidsynth.Synth(gain=AUDIO_GAIN, samplerate=sample_rate)
+        self._synth = Synth(gain=AUDIO_GAIN, samplerate=sample_rate)
         try:
-            self._write = _write_s16(fluidsynth)
             self._sfid = self._synth.sfload(soundfont)
             if self._sfid is None or self._sfid < 0:
                 raise AudioInitializationError(f"Could not load the soundfont: {soundfont}")
@@ -248,7 +247,7 @@ class FluidSynthRenderer:
         """The next ``frames`` (at most :data:`BLOCK_FRAMES`) as 16-bit
         little-endian interleaved stereo."""
         buffer = self._buffer
-        result = self._write(self._synth.synth, frames, buffer, 0, 2, buffer, 1, 2)
+        result = self._synth.write_s16(frames, buffer)
         if result != 0:
             raise AudioInitializationError("FluidSynth failed to render audio.")
         return ctypes.string_at(buffer, frames * 4)
@@ -258,20 +257,6 @@ class FluidSynthRenderer:
         synth, self._synth = self._synth, None
         if synth is not None:
             synth.delete()
-
-
-def _write_s16(module) -> Callable[..., int]:
-    """``fluid_synth_write_s16`` with its real signature.
-
-    A function pointer of our own (indexing the CDLL makes a new one), so
-    pyfluidsynth's prototype stays as it is.
-    """
-    function = module._fl["fluid_synth_write_s16"]
-    function.argtypes = [ctypes.c_void_p, ctypes.c_int,
-                         ctypes.c_void_p, ctypes.c_int, ctypes.c_int,
-                         ctypes.c_void_p, ctypes.c_int, ctypes.c_int]
-    function.restype = ctypes.c_int
-    return function
 
 
 #: Builds the synth an export plays on (tests replace it).

@@ -16,7 +16,7 @@ import threading
 from typing import Callable, List, Optional, Tuple
 
 from chordnotepad.audio.audio_options import AudioOptions
-from chordnotepad.audio.fluidsynth_import import fluidsynth
+from chordnotepad.audio import fluid_ctypes
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
 from chordnotepad.audio.song_scheduler import (
@@ -132,7 +132,7 @@ class NotePlayer(IPlayer):
             if options.sample_rate:
                 synth_kwargs["samplerate"] = float(options.sample_rate)
             logger.debug("Creating FluidSynth instance...")
-            self.fs = fluidsynth.Synth(**synth_kwargs)
+            self.fs = fluid_ctypes.Synth(**synth_kwargs)
 
             # Gain (volume): 0.0 to 10.0, FluidSynth's default is 0.2.
             self.fs.setting('synth.gain', self._gain)
@@ -222,7 +222,7 @@ class NotePlayer(IPlayer):
         fs = self.fs
         try:
             if fs.audio_driver:
-                fluidsynth.delete_fluid_audio_driver(fs.audio_driver)
+                fluid_ctypes.delete_fluid_audio_driver(fs.audio_driver)
         except Exception:
             logger.debug("Could not free the audio driver", exc_info=True)
         fs.audio_driver = None
@@ -274,7 +274,7 @@ class NotePlayer(IPlayer):
             return
         try:
             if fs.audio_driver:
-                fluidsynth.delete_fluid_audio_driver(fs.audio_driver)
+                fluid_ctypes.delete_fluid_audio_driver(fs.audio_driver)
         except Exception:
             logger.debug("Could not free the audio driver", exc_info=True)
         fs.audio_driver = None
@@ -294,9 +294,8 @@ class NotePlayer(IPlayer):
     def _start_audio_driver(self, driver: str) -> bool:
         """Try to start one FluidSynth audio driver.
 
-        pyfluidsynth's ``Synth.start()`` returns OK even when FluidSynth could
-        not create the driver (``new_fluid_audio_driver`` returned NULL), so
-        the handle it stores is what tells success from failure.
+        Success is ``start()`` returning OK *and* a driver handle: FluidSynth's
+        ``new_fluid_audio_driver`` returns NULL when the device won't open.
 
         Args:
             driver: FluidSynth audio driver name, e.g. ``"pulseaudio"``.
@@ -312,22 +311,8 @@ class NotePlayer(IPlayer):
         if result == 0 and self.fs.audio_driver:
             return True
         logger.info(f"Audio driver {driver!r} could not be started")
-        self._discard_failed_start()
+        self.fs.audio_driver = None
         return False
-
-    def _discard_failed_start(self) -> None:
-        """Free the MIDI input driver a failed ``start()`` still created.
-
-        The next attempt would overwrite (and leak) it.
-        """
-        fs = self.fs
-        if getattr(fs, "midi_driver", None):
-            try:
-                fluidsynth.delete_fluid_midi_driver(fs.midi_driver)
-            except Exception:
-                logger.debug("Could not free the MIDI driver after a failed start", exc_info=True)
-            fs.midi_driver = None
-        fs.audio_driver = None
 
     def get_available_instruments(self) -> List[Tuple[int, str]]:
         """

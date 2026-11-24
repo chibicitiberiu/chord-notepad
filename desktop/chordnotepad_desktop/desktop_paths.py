@@ -13,7 +13,7 @@ differs:
   package (``desktop/chordnotepad_desktop/``).
 
 Stdlib only (and the core's ``app_paths``): ``launcher.py`` imports it
-before pyfluidsynth is loaded.
+before libfluidsynth is loaded (``audio/fluid_ctypes.py``).
 """
 
 import os

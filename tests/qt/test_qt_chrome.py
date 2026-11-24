@@ -770,7 +770,7 @@ def test_export_audio_without_chords_says_so(app):
 
 def _fluidsynth_available():
     try:
-        from chordnotepad.audio.fluidsynth_import import fluidsynth  # noqa: F401
+        import chordnotepad.audio.fluid_ctypes  # noqa: F401
     except Exception:
         return False
     return True

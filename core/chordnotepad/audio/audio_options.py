@@ -43,7 +43,7 @@ class AudioOptions:
     Attributes:
         driver: Audio driver to try before the platform list (``None``: just
             the platform list).
-        sample_rate: Synth sample rate in Hz (``None``: pyfluidsynth's
+        sample_rate: Synth sample rate in Hz (``None``: ``fluid_ctypes.Synth``'s
             44.1 kHz default).
         period_size: ``audio.period-size`` in frames (``None``: FluidSynth's
             default).

@@ -318,7 +318,7 @@ class TestNotePlayerInit:
         # The sequencer needs a real synth (tests/test_player_sequencer.py and
         # tests/test_audio_driver_selection.py cover it).
         with patch("chordnotepad.audio.player.SynthSequencer"), \
-                patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver"):
+                patch("chordnotepad.audio.player.fluid_ctypes.delete_fluid_audio_driver"):
             yield
 
     def _bare_player(self):
@@ -335,7 +335,7 @@ class TestNotePlayerInit:
         player = self._bare_player()
         synth = MagicMock()
         synth.start.return_value = -1
-        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluid_ctypes.Synth", return_value=synth):
             with pytest.raises(AudioInitializationError, match="No audio output"):
                 player._initialize_fluidsynth("/x.sf2")
         assert player.fs is None
@@ -346,13 +346,13 @@ class TestNotePlayerInit:
         synth = MagicMock()
         synth.start.return_value = 0
         synth.sfload.return_value = -1
-        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluid_ctypes.Synth", return_value=synth):
             with pytest.raises(AudioInitializationError, match="soundfont"):
                 player._initialize_fluidsynth("/broken.sf2")
 
     def test_other_errors_are_wrapped(self):
         player = self._bare_player()
-        with patch("chordnotepad.audio.player.fluidsynth.Synth", side_effect=OSError("no lib")):
+        with patch("chordnotepad.audio.player.fluid_ctypes.Synth", side_effect=OSError("no lib")):
             with pytest.raises(AudioInitializationError, match="no lib"):
                 player._initialize_fluidsynth("/x.sf2")
 
@@ -361,7 +361,7 @@ class TestNotePlayerInit:
         synth = MagicMock()
         synth.start.return_value = 0
         synth.sfload.return_value = 1
-        with patch("chordnotepad.audio.player.fluidsynth.Synth", return_value=synth):
+        with patch("chordnotepad.audio.player.fluid_ctypes.Synth", return_value=synth):
             player._initialize_fluidsynth("/x.sf2")
         assert player.fs is synth
         assert player.sfid == 1

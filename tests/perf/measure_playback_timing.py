@@ -73,7 +73,7 @@ def make_old_player(path: str, raw: str):
     spec = importlib.util.spec_from_file_location("old_player", path)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
-    from chordnotepad.audio.fluidsynth_import import fluidsynth
+    from chordnotepad.audio import fluid_ctypes
 
     player = module.NotePlayer.__new__(module.NotePlayer)
     # Run __init__ with FluidSynth setup replaced, then set the synth up here.
@@ -83,7 +83,7 @@ def make_old_player(path: str, raw: str):
         player.__init__(soundfont_path=os.path.join(ROOT, "resources/soundfont/GeneralUser-GS.sf2"))
     finally:
         module.NotePlayer._initialize_fluidsynth = original
-    fs = fluidsynth.Synth(gain=0.5, **{"audio.file.name": raw, "audio.file.type": "raw"})
+    fs = fluid_ctypes.Synth(gain=0.5, **{"audio.file.name": raw, "audio.file.type": "raw"})
     fs.start(driver="file")
     player.fs = fs
     player.sfid = fs.sfload(os.path.join(ROOT, "resources/soundfont/GeneralUser-GS.sf2"))

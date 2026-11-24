@@ -264,7 +264,7 @@ def test_cleanup_stops_playback_and_frees_in_order(player):
     freed = []
     player._sequencer.delete = lambda: freed.append("sequencer")
     player.fs.audio_driver = 1234
-    with patch("chordnotepad.audio.player.fluidsynth.delete_fluid_audio_driver", lambda h: freed.append("driver")):
+    with patch("chordnotepad.audio.player.fluid_ctypes.delete_fluid_audio_driver", lambda h: freed.append("driver")):
         fs = player.fs
         player.cleanup()
     assert freed == ["driver", "sequencer"]

@@ -14,9 +14,8 @@ keeps a thin wrapper that fixes what differs: Android's is
 Tests (Linux) may set ``CN_TEST_FAKE_PLAYER=1`` to run with
 ``session.testing.FakePlayer`` instead of starting FluidSynth, so the Swift
 kit's tests can start a real session with no audio output. This only skips
-creating the synth: importing the core still imports pyFluidSynth (and so
-needs libfluidsynth to be loadable, on Linux the system's), as
-``services/__init__.py`` pulls ``audio.fluidsynth_import`` in.
+creating the synth: importing the core still loads libfluidsynth (on Linux
+the system's), as ``services/__init__.py`` pulls ``audio.fluid_ctypes`` in.
 """
 
 import logging

@@ -3,8 +3,8 @@
 Every build starts here (the PyInstaller spec runs ``__main__.py``, the
 Flatpak and snap launchers and ``make run`` use ``-m chordnotepad_desktop``).
 Before the Qt window is imported it resolves where the app's files are, sets
-up the Windows FluidSynth DLL folder (before pyfluidsynth is loaded) and the
-std streams, and reads CI's ``build_info``.
+up the Windows FluidSynth DLL folder (before ``audio/fluid_ctypes.py`` loads
+libfluidsynth) and the std streams, and reads CI's ``build_info``.
 
 ``--ui qt`` is still accepted and ignored: older scripts and the session's
 own relaunch (``rendering.relaunch_command``) may pass it. ``--ui tk`` says
@@ -24,11 +24,11 @@ from chordnotepad_desktop.desktop_paths import resolve_desktop_paths
 # Flatpak or the snap); handed down to everything that needs them.
 APP_PATHS = resolve_desktop_paths()
 
-# Set up FluidSynth DLL path for local development on Windows
-# This must run BEFORE pyfluidsynth is imported (it has hardcoded paths that fail)
+# Set up FluidSynth DLL path for local development on Windows. This must run
+# before audio/fluid_ctypes.py is imported: it looks for libfluidsynth-3.dll on
+# PATH when the module loads.
 if sys.platform == 'win32' and not getattr(sys, 'frozen', False):
-    # Monkeypatch os.add_dll_directory to not fail on missing directories
-    # (pyfluidsynth unconditionally tries to add C:\tools\fluidsynth\bin)
+    # os.add_dll_directory that ignores missing directories
     _original_add_dll_directory = os.add_dll_directory
 
     def _safe_add_dll_directory(path):

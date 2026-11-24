@@ -128,7 +128,7 @@ def test_an_empty_song_plans_nothing():
 
 
 class RecordingFluidSynth:
-    """pyfluidsynth's Synth calls FluidSynthRenderer.setup and play make."""
+    """The Synth calls FluidSynthRenderer.setup and play make."""
 
     def __init__(self):
         self.calls = []
@@ -329,7 +329,7 @@ def test_problems_are_named_before_any_file_is_asked_for(tmp_path, monkeypatch):
     real_import = builtins.__import__
 
     def no_fluidsynth(name, *args, **kwargs):
-        if name == "chordnotepad.audio.fluidsynth_import":
+        if name == "chordnotepad.audio.fluid_ctypes":
             raise OSError("libfluidsynth.so.3: cannot open shared object file")
         return real_import(name, *args, **kwargs)
 
@@ -417,7 +417,7 @@ def test_the_file_store_copies_an_export(tmp_path):
 
 def _fluidsynth_available():
     try:
-        from chordnotepad.audio.fluidsynth_import import fluidsynth  # noqa: F401
+        import chordnotepad.audio.fluid_ctypes  # noqa: F401
     except Exception:
         return False
     return True

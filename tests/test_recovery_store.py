@@ -148,8 +148,7 @@ def test_a_live_instance_in_another_process_is_left_alone(tmp_path):
     child = subprocess.Popen([sys.executable, "-c", script], stdin=subprocess.PIPE,
                              stdout=subprocess.PIPE, text=True)
     try:
-        # Other lines may come first (pyfluidsynth prints where it found the
-        # library when CI is set).
+        # Other lines may come first, whatever a library prints.
         line = ""
         while not line.startswith("ID "):
             line = child.stdout.readline()

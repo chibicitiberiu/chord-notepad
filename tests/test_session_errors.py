@@ -115,8 +115,7 @@ def _handler_is_unset_after_import(mode):
          ",".join(_DESKTOP_ONLY)],
         capture_output=True, text=True, timeout=60)
     assert out.returncode == 0, out.stderr
-    # The probe's answer is its last line (pyfluidsynth prints where it found
-    # the library first when CI is set).
+    # The probe's answer is its last line, whatever a library prints first.
     return out.stdout.splitlines()[-1:] == ["True"]
 
 
