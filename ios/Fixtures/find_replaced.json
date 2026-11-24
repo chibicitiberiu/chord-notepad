@@ -6,10 +6,10 @@
    "json": {
     "anchor": null,
     "cursor": 616,
-    "end": 635,
+    "end": 232,
     "replacement": "{bpm: 100} {time: 3/4} {key: Am}\n\n// Scarborough Fair (traditional)\n{label: verse}\nAm           G          Am\nAre you going to Scarborough Fair?\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm         C        G\nRemember me to one who lives there\nAm        G         D       Am\nFor once she was a true love of mine\n\n{label: verse 2}\nAm         G          Am\nTell her to make me a cambric shirt\nC        G         Am    Em\nParsley, sage, rosemary and thyme\nAm          C          G\nWithout any seam or needlework\nAm        G         D       Am\nAnd then she'll be a true love of mine\n\n{loop: verse 2}\n",
     "start": 0,
-    "text_revision": 29,
+    "text_revision": 33,
     "undo": "reset"
    },
    "type": "TextEdited"
@@ -21,7 +21,7 @@
     "end": 31,
     "replacement": "Em",
     "start": 29,
-    "text_revision": 30,
+    "text_revision": 34,
     "undo": "group"
    },
    "type": "TextEdited"
@@ -33,7 +33,7 @@
     "end": 559,
     "replacement": "Em           G          Em\nAre you going to Scarborough Fair?\nC        G         Em    Em\nParsley, sage, rosemary and thyme\nEm         C        G\nRemember me to one who lives there\nEm        G         D       Em\nFor once she was a true love of mine\n\n{label: verse 2}\nEm         G          Em\nTell her to make me a cambric shirt\nC        G         Em    Em\nParsley, sage, rosemary and thyme\nEm          C          G\nWithout any seam or needlework\nEm        G         D       Em",
     "start": 83,
-    "text_revision": 31,
+    "text_revision": 35,
     "undo": "group"
    },
    "type": "TextEdited"
@@ -52,12 +52,12 @@
    "voicings": []
   },
   "ChordSheetState": {
-   "active_view": "tab",
+   "active_view": "keyboard",
    "current_index": null,
-   "cursor_index": 0,
-   "disabled_reason": null,
+   "cursor_index": null,
+   "disabled_reason": "Pick a fretted voicing, like Guitar, with the Voicing button.",
    "height": 330,
-   "song_revision": 9,
+   "song_revision": 12,
    "views": [
     {
      "available": true,
@@ -70,18 +70,18 @@
      "view_id": "staff"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Fret cards",
      "view_id": "fret"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Tab",
      "view_id": "tab"
     }
    ],
    "visible": false,
-   "zoom": 0.833,
+   "zoom": 1.0,
    "zoom_supported": true
   },
   "DocumentState": {
@@ -313,7 +313,7 @@
      "start": 600
     }
    ],
-   "text_revision": 31
+   "text_revision": 35
   },
   "IdentifierState": {
    "candidates": [
@@ -354,14 +354,14 @@
    "sounding_above": null,
    "sounding_below": null,
    "sounding_seconds": 3.0,
-   "sounding_token": 1,
+   "sounding_token": 2,
    "typed_text_error": null
   },
   "InstrumentMenuState": {
-   "current": 25,
+   "current": 0,
    "families": [
     {
-     "is_current": false,
+     "is_current": true,
      "items": [],
      "name": "Piano"
     },
@@ -376,7 +376,7 @@
      "name": "Organ"
     },
     {
-     "is_current": true,
+     "is_current": false,
      "items": [],
      "name": "Guitar"
     },
@@ -453,26 +453,14 @@
     {
      "first_bar": 1,
      "label": "verse",
-     "last_bar": 14,
+     "last_bar": 30,
      "repeat": false
     },
     {
-     "first_bar": 15,
-     "label": "verse 2",
-     "last_bar": 28,
-     "repeat": false
-    },
-    {
-     "first_bar": 29,
+     "first_bar": 31,
      "label": "verse",
-     "last_bar": 42,
+     "last_bar": 66,
      "repeat": true
-    },
-    {
-     "first_bar": 43,
-     "label": "verse 2",
-     "last_bar": 56,
-     "repeat": false
     }
    ],
    "status": "idle",
@@ -711,7 +699,7 @@
     ]
    ],
    "locked_reason": null,
-   "selected": "guitar:standard"
+   "selected": "piano"
   }
  }
 }
