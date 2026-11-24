@@ -18,6 +18,7 @@ PLATFORM_DRIVERS: Dict[str, List[str]] = {
     "win32": ["dsound", "wasapi"],
     "darwin": ["coreaudio"],
     "android": ["oboe", "opensles"],
+    "ios": ["coreaudio"],
 }
 #: Linux and anything else not listed above.
 DEFAULT_DRIVERS: List[str] = ["pulseaudio", "alsa", "oss"]

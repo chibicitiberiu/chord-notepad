@@ -13,7 +13,7 @@ import pytest
 
 from chordnotepad.session import quick_start
 from chordnotepad.session.platform import (
-    ANDROID, DESKTOP, DESKTOP_QT, PLATFORMS, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
+    ANDROID, DESKTOP, DESKTOP_QT, IOS, PLATFORMS, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
 )
 from chordnotepad.session.state import PlaybackStatus
 from tests.test_session_player import Env, named_strip_song
@@ -24,8 +24,8 @@ def test_desktop_qt_is_a_platform_of_its_own():
     assert check_platform(DESKTOP_QT) == DESKTOP_QT
     # Texts without a Qt variant are the desktop's.
     assert pick({DESKTOP: 1, ANDROID: 2}, DESKTOP_QT) == 1
-    assert TRACKS_PLAYHEAD == {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
-    assert STOP_REWINDS == {DESKTOP: False, ANDROID: False, DESKTOP_QT: True}
+    assert TRACKS_PLAYHEAD == {DESKTOP: False, ANDROID: True, DESKTOP_QT: True, IOS: True}
+    assert STOP_REWINDS == {DESKTOP: False, ANDROID: False, DESKTOP_QT: True, IOS: False}
 
 
 # -- the playhead -------------------------------------------------------------------

@@ -13,10 +13,10 @@ from chordnotepad.session.platform import ANDROID, DESKTOP, PLATFORMS, check_pla
 
 
 def test_platforms_and_pick():
-    assert PLATFORMS == ("desktop", "android", "desktop_qt")
+    assert PLATFORMS == ("desktop", "android", "desktop_qt", "ios")
     assert check_platform("android") == ANDROID
     with pytest.raises(ValueError):
-        check_platform("ios")
+        check_platform("unknown")
     assert pick({DESKTOP: 1, ANDROID: 2}, ANDROID) == 2
     assert pick({DESKTOP: 1}, ANDROID) == 1
 
@@ -42,7 +42,7 @@ def test_create_session_refuses_an_unknown_platform(tmp_path):
                                    player=FakePlayer())
     with pytest.raises(ValueError):
         create_session(host, services, InMemoryDocumentStore(), chord_sheet=False,
-                       platform="ios")
+                       platform="unknown")
 
 
 # -- Quick Start -------------------------------------------------------------------
@@ -83,7 +83,7 @@ def test_android_quick_start_names_taps_and_the_drawer():
     snippets = lambda pages: [b for p in pages for b in p["blocks"] if b[0] == "snippet"]
     assert snippets(android) == snippets(desktop)
     with pytest.raises(ValueError):
-        quick_start.pages("ios")
+        quick_start.pages("unknown")
 
 
 def test_android_quick_start_says_the_chord_sheet_is_in_play():
@@ -127,3 +127,37 @@ def test_quick_start_content_carries_snippet_spans(tmp_path):
     assert chords == ["C", "C/E", "F", "C", "Dm", "Am", "G", "C"]
     assert content.pages[0].blocks[2].text.startswith("The app recognizes")
     assert "tap any chord" in content.pages[0].blocks[2].text
+
+
+def test_ios_flags_match_android_except_the_picker_note():
+    from chordnotepad.session import platform as p
+
+    assert p.IOS in p.PLATFORMS and p.check_platform("ios") == p.IOS
+    for table in (p.TRACKS_PLAYHEAD, p.STOP_REWINDS, p.COUNTS_SONG_BARS, p.POSITION_STATUS):
+        assert table[p.IOS] == table[p.ANDROID]
+    assert p.POSITION_STATUS == {p.DESKTOP: False, p.ANDROID: True, p.DESKTOP_QT: False, p.IOS: True}
+    assert p.PICKER_CREATES_FILE == {p.DESKTOP: False, p.ANDROID: True,
+                                     p.DESKTOP_QT: False, p.IOS: False}
+    for table in (p.TRACKS_PLAYHEAD, p.STOP_REWINDS, p.COUNTS_SONG_BARS,
+                  p.POSITION_STATUS, p.PICKER_CREATES_FILE):
+        assert set(table) == set(p.PLATFORMS)
+
+
+def test_pick_falls_back_ios_to_android_to_desktop():
+    from chordnotepad.session.platform import IOS
+
+    assert pick({DESKTOP: 1, ANDROID: 2}, IOS) == 2
+    assert pick({DESKTOP: 1, ANDROID: 2, IOS: 3}, IOS) == 3
+    assert pick({DESKTOP: 1}, IOS) == 1
+    assert pick({DESKTOP: 1, ANDROID: 2}, "desktop_qt") == 1  # android never leaks to the desktop
+
+
+def test_ios_texts_and_tooltips_follow_android():
+    from chordnotepad.session import quick_start
+    from chordnotepad.session.platform import IOS
+    from chordnotepad.settings_forms import voicing_form
+
+    assert quick_start.pages(IOS) == quick_start.pages(ANDROID)
+    assert formatting.audio_unavailable_message("x", True, IOS) == (
+        formatting.audio_unavailable_message("x", True, ANDROID))
+    assert (voicing_form.editor_schema(IOS)["help"] == voicing_form.editor_schema(ANDROID)["help"])

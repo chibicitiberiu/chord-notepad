@@ -98,6 +98,7 @@ class TestAudioOptions:
     def test_platform_lists(self):
         assert platform_drivers("linux") == ["pulseaudio", "alsa", "oss"]
         assert platform_drivers("android") == ["oboe", "opensles"]
+        assert platform_drivers("ios") == ["coreaudio"]
         assert platform_drivers("win32") == ["dsound", "wasapi"]
         assert platform_drivers("darwin") == ["coreaudio"]
         assert platform_drivers("freebsd14") == ["pulseaudio", "alsa", "oss"]

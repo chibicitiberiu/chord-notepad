@@ -70,7 +70,7 @@ def test_the_status_shows_the_warning(platform, expected):
     from tests.test_session_playback import Env
     env = Env(text="{bpm: 380}\nC\n{bpm: +50}\nG")
     if platform == ANDROID:
-        env.session._android = True
+        env.session._position_status_texts = True
     env.session.play_pause()
     env.rendered()
     texts = [s.text for s in env.recorder.of_type(StatusState)]

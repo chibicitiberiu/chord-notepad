@@ -32,8 +32,12 @@ class AppDataService:
                 ``filesDir``). Data then lives in ``root/data/chord-notepad``
                 and the config in ``root/config/chord-notepad``, the layout
                 the platform rules below give Linux with ``XDG_*`` pointed at
-                ``root``. None (desktop) follows the platform rules.
+                ``root``. None (desktop) follows the platform rules; on iOS (the host
+                gives Application Support) None raises ``ValueError``.
         """
+        if root is None and sys.platform == "ios":
+            raise ValueError("On iOS the host must give the app's Application Support "
+                             "folder as root; the XDG rules below don't apply there")
         self._root: Optional[Path] = Path(root) if root is not None else None
         self._app_data_dir: Optional[Path] = None
         self._config_dir: Optional[Path] = None

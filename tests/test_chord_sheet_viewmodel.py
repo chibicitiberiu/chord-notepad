@@ -1071,4 +1071,4 @@ def test_the_fretted_reason_per_platform():
     assert reasons["desktop_qt"] == ("Pick a fretted voicing, like Guitar, with the Voicing "
                                      "button to use this view.")
     with pytest.raises(ValueError):
-        ChordSheetViewModel(FakeConfig(), FakeAudio(), platform="ios")
+        ChordSheetViewModel(FakeConfig(), FakeAudio(), platform="unknown")

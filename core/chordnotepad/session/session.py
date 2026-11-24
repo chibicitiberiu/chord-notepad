@@ -49,7 +49,8 @@ from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
-    ANDROID, COUNTS_SONG_BARS, DESKTOP, STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
+    COUNTS_SONG_BARS, DESKTOP, PICKER_CREATES_FILE, POSITION_STATUS, STOP_REWINDS, TRACKS_PLAYHEAD,
+    check_platform, pick,
 )
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
@@ -305,7 +306,8 @@ class AppSession:
             ValueError: For an unknown platform.
         """
         self._platform = check_platform(platform)
-        self._android = self._platform == ANDROID
+        self._position_status_texts = POSITION_STATUS[self._platform]
+        self._picker_creates_file = PICKER_CREATES_FILE[self._platform]
         self._settings_type = values_type(self._platform)
         self._host = host
         self._emitter = Emitter()
@@ -1494,7 +1496,7 @@ class AppSession:
         elif status is PlaybackStatus.PAUSED:
             logger.info("Resuming playback")
             self._main.resume_playback()
-            if self._android and self._playing_chord is not None:
+            if self._position_status_texts and self._playing_chord is not None:
                 self._set_status(formatting.position_status(
                     self._playback.bar, self._playback.total_bars,
                     formatting.playing_activity(self._playing_chord)))
@@ -1527,7 +1529,7 @@ class AppSession:
             self._move_playhead(chord.start if chord is not None else None)
         else:
             self._move_playhead(self._playhead, 0)
-        if self._android:
+        if self._position_status_texts:
             self._set_idle_status()
         else:
             self._set_status(formatting.STOPPED)
@@ -1631,7 +1633,7 @@ class AppSession:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=True)
             return
-        if self._android:
+        if self._position_status_texts:
             self._set_idle_status()
         else:
             self._set_status(formatting.tapped_chord_status(chord.chord))
@@ -3597,7 +3599,7 @@ class AppSession:
         self._set_status(formatting.READY)
         message = formatting.file_error_message(
             formatting.AUDIO_EXPORT_FAILED, ref.location, self._main.last_error)
-        if self._android:
+        if self._picker_creates_file:
             # The picker made the file, and the store can't delete it.
             message += "\n\n" + formatting.export_left_file_note(ref.display_name)
         self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
@@ -3618,7 +3620,7 @@ class AppSession:
         reason = answer if isinstance(answer, str) else None
         message = formatting.file_error_message(
             formatting.PDF_EXPORT_FAILED, ref.location, reason)
-        if self._android:
+        if self._picker_creates_file:
             # The picker made the file, and the store can't delete it.
             message += "\n\n" + formatting.export_left_file_note(ref.display_name)
         self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
@@ -3976,7 +3978,7 @@ class AppSession:
     def _set_idle_status(self) -> None:
         """The status while nothing plays: Android shows the playhead's bar
         (``Bar 6/24``) when it is known, else (and on desktop) "Ready"."""
-        if not self._android:
+        if not self._position_status_texts:
             self._set_status(formatting.READY)
             return
         bar, total = self._playhead_bar()
@@ -3984,7 +3986,7 @@ class AppSession:
         self._position_status = True
 
     def _set_paused_status(self) -> None:
-        if self._android:
+        if self._position_status_texts:
             self._set_status(formatting.position_status(
                 self._playback.bar, self._playback.total_bars, formatting.PAUSED_ACTIVITY))
         else:
@@ -4103,7 +4105,7 @@ class AppSession:
             self._set_status(formatting.AUDIO_UNAVAILABLE_STATUS)
             self._report_audio_failure(str(e), from_click=False)
             return
-        if started and self._android:
+        if started and self._position_status_texts:
             self._set_status(formatting.STARTING)
         elif started:
             # Counted from the latest detection, as the status always has.
@@ -4219,7 +4221,7 @@ class AppSession:
             tempo_clamped=(formatting.tempo_clamped_warning(*event.tempo_clamp)
                            if event.tempo_clamp else None),
         ))
-        if self._android:
+        if self._position_status_texts:
             self._set_status(formatting.with_tempo_clamp(formatting.position_status(
                 bar, event.total_bars, formatting.playing_activity(chord.chord)),
                 event.tempo_clamp, formatting.POSITION_SEPARATOR))

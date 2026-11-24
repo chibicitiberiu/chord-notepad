@@ -570,6 +570,8 @@ def form_schema(model: str) -> Dict[str, Any]:
 
 #: Header help worded per platform (the keys of ``session.platform.PLATFORMS``).
 _PLATFORM_TOOLTIPS = {'android': ANDROID_TOOLTIPS, 'desktop_qt': DESKTOP_QT_TOOLTIPS}
+# iOS shares Android's mobile wording until it needs its own.
+_PLATFORM_TOOLTIPS['ios'] = _PLATFORM_TOOLTIPS['android']
 
 
 def editor_schema(platform: str = 'desktop') -> Dict[str, Any]:

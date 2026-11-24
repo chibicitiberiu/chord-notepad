@@ -16,7 +16,7 @@ changes what a click does.
 
 from typing import Any, Dict, List, Optional
 
-from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, check_platform
+from chordnotepad.session.platform import ANDROID, DESKTOP, DESKTOP_QT, IOS, check_platform
 
 #: The picture of the chord sheet (desktop only): the Tk window's, and the
 #: Qt window's (made by packaging/tools/qt_help_screenshots.py).
@@ -30,7 +30,7 @@ def pages(platform: str = DESKTOP) -> List[Dict[str, Any]]:
     Raises:
         ValueError: For an unknown platform.
     """
-    android = check_platform(platform) == ANDROID
+    android = check_platform(platform) in (ANDROID, IOS)  # the mobile tour; iOS text is a placeholder
     qt = platform == DESKTOP_QT
 
     def variant(desktop: str, mobile: str, qt_text: Optional[str] = None) -> str:

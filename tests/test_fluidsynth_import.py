@@ -96,3 +96,21 @@ def test_desktop_without_env_uses_pyfluidsynth_lookup(monkeypatch):
     monkeypatch.delenv(loader.LIBRARY_ENV, raising=False)
     monkeypatch.setattr(sys, "platform", "linux")
     assert loader._requested_library() == ""
+
+
+def test_ios_without_the_env_var_raises_a_clear_error(monkeypatch):
+    from chordnotepad.exceptions import AudioInitializationError
+
+    monkeypatch.setattr(sys, "platform", "ios")
+    monkeypatch.delenv(loader.LIBRARY_ENV, raising=False)
+    with pytest.raises(AudioInitializationError) as raised:
+        loader._requested_library()
+    assert loader.LIBRARY_ENV in str(raised.value)
+    assert "Frameworks/FluidSynth.framework/FluidSynth" in str(raised.value)
+
+
+def test_ios_uses_the_framework_path_the_host_gives(monkeypatch):
+    path = "/private/var/App.app/Frameworks/FluidSynth.framework/FluidSynth"
+    monkeypatch.setattr(sys, "platform", "ios")
+    monkeypatch.setenv(loader.LIBRARY_ENV, path)
+    assert loader._requested_library() == path

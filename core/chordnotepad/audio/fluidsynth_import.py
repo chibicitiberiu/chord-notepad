@@ -10,12 +10,22 @@ dynamic linker resolves it itself, so no file has to exist at that name. On
 Android the native libraries stay inside the APK (there is no file path at
 all) and CPython's find_library only looks in ``/system/lib64``, so there the
 soname is the default.
+
+On iOS the library is a framework inside the app bundle and there is no
+default: the Swift host sets the variable to
+``<app>/Frameworks/FluidSynth.framework/FluidSynth`` before Python starts
+(the binary inside an iOS framework carries the framework's name, not a
+``libfluidsynth`` name). Without it the import raises
+:class:`~chordnotepad.exceptions.AudioInitializationError`, which the code
+that needs audio already reports as "FluidSynth could not be loaded".
 """
 
 import ctypes.util
 import logging
 import os
 import sys
+
+from chordnotepad.exceptions import AudioInitializationError
 
 logger = logging.getLogger(__name__)
 
@@ -33,6 +43,10 @@ def _requested_library() -> str:
     library = os.environ.get(LIBRARY_ENV, "")
     if not library and sys.platform == "android":
         return ANDROID_SONAME
+    if not library and sys.platform == "ios":
+        raise AudioInitializationError(
+            f"FluidSynth's location is unknown: {LIBRARY_ENV} is not set. The iOS app must set "
+            f"it to <app>/Frameworks/FluidSynth.framework/FluidSynth before Python starts.")
     return library
 
 

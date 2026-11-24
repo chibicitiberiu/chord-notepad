@@ -11,6 +11,12 @@ There are two desktop front ends while the desktop moves from Tk to Qt Quick:
 ``DESKTOP_QT`` is the Qt one. It shares the desktop's texts (:func:`pick`
 falls back to them) except where those name a Tk menu or control, and it has
 a playhead like Android's (:data:`TRACKS_PLAYHEAD`).
+
+``IOS`` is the SwiftUI app. It behaves like Android in every flag below, so
+:func:`pick` falls back ios -> android -> desktop: a text with no iOS variant
+uses Android's, and one with neither uses the desktop's. Only a text that
+names something Android-only (Android's Back button, say) would need an iOS
+variant of its own; none does today.
 """
 
 from typing import Mapping, TypeVar
@@ -18,8 +24,9 @@ from typing import Mapping, TypeVar
 DESKTOP = "desktop"
 ANDROID = "android"
 DESKTOP_QT = "desktop_qt"
+IOS = "ios"
 #: Every platform a host may name.
-PLATFORMS = (DESKTOP, ANDROID, DESKTOP_QT)
+PLATFORMS = (DESKTOP, ANDROID, DESKTOP_QT, IOS)
 
 T = TypeVar("T")
 
@@ -36,8 +43,14 @@ def check_platform(platform: str) -> str:
 
 
 def pick(variants: Mapping[str, T], platform: str) -> T:
-    """The variant for ``platform``, or the desktop one when it has none."""
-    return variants.get(platform, variants[DESKTOP])
+    """The variant for ``platform``: for iOS, its own, else Android's; for any
+    platform, else the desktop's when it has none."""
+    if platform in variants:
+        return variants[platform]
+    if platform == IOS and ANDROID in variants:
+        return variants[ANDROID]
+    return variants[DESKTOP]
+
 
 #: Whether the playhead follows playback and chord taps (``AppSession``).
 #: Android's and the Qt desktop's players show a playhead: playback moves it,
@@ -46,16 +59,30 @@ def pick(variants: Mapping[str, T], platform: str) -> T:
 #: desktop has no playhead UI, so there nothing moves it but an explicit
 #: ``set_playhead``/``rewind`` (which the Tk window never sends) and Play
 #: keeps starting at the top.
-TRACKS_PLAYHEAD = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+TRACKS_PLAYHEAD = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True, IOS: True}
 
 #: Whether Stop also puts the playhead back on the first chord, so Stop is
 #: "pause and go to the beginning" and ▶ then plays from the top. The Qt
 #: desktop's (Tibi, 2026-11-15); Android's Stop leaves the playhead where
 #: playback was, and the Tk desktop has no playhead.
-STOP_REWINDS = {DESKTOP: False, ANDROID: False, DESKTOP_QT: True}
+STOP_REWINDS = {DESKTOP: False, ANDROID: False, DESKTOP_QT: True, IOS: False}
 
 #: Whether ``PlaybackState.bar`` and ``beat`` (and the desktop's "Bar n/N"
 #: status) count from the top of the song. Android's status and the Qt
 #: desktop's timeline do; the Tk desktop's status restarts at bar 1 where
 #: playback started, as it always has.
-COUNTS_SONG_BARS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True}
+COUNTS_SONG_BARS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: True, IOS: True}
+
+#: Whether the status line shows the position (``Bar 6/24``, with what is
+#: playing) in place of the desktop's sentences ("Ready", "Stopped", "Playing
+#: 12 chords"). The mobile players have no room for them and show where the
+#: playhead is instead.
+POSITION_STATUS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: False, IOS: True}
+
+#: Whether the export picker has already created the file when the export
+#: runs, so a failed export leaves an empty file the store can't delete and
+#: the error says so. Android's Storage Access Framework creates it. Desktop
+#: pickers only return a path. iOS stays False: its export picker needs the
+#: file to exist first, so the iOS store owns that file and no note is added
+#: (revisit with the iOS document store).
+PICKER_CREATES_FILE = {DESKTOP: False, ANDROID: True, DESKTOP_QT: False, IOS: False}
