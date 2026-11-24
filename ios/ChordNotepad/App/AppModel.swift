@@ -443,7 +443,8 @@ final class AppModel: ObservableObject {
             await MainActor.run {
                 switch adopted {
                 case .success(let ref):
-                    if self.ui.route == .menu { self.ui.route = .none }
+                    // Nothing over the screen: the unsaved-changes question may follow.
+                    self.ui.route = .none
                     self.ui.modes.expectOpen(target: ref.id, current: self.snapshot.document)
                     session.submit(.openDocument(readOnly: false, ref: ref))
                 case .failure(let error):
