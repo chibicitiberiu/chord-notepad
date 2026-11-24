@@ -118,7 +118,7 @@ CPython comes from the system: Fedora's `python3-devel` (3.14) provides
 The core's packages come from the pipenv venv, which is made from the same
 `/usr/bin/python3.14`, so its compiled wheels load in the embedded
 interpreter. The system `libfluidsynth` is needed because the core loads
-FluidSynth even with the fake player.
+it at import even with the fake player.
 
 ## Running the tests
 
@@ -179,7 +179,7 @@ runtime; another one is an error):
   the `sys.path` CPython computed.
 - `environment` is applied with `setenv` before the start:
   `CHORD_NOTEPAD_LIBFLUIDSYNTH` on iOS (the framework's binary, which
-  the core's FluidSynth binding loads), `CN_TEST_FAKE_PLAYER=1`
+  `audio/fluid_ctypes.py` loads at import time), `CN_TEST_FAKE_PLAYER=1`
   in the tests.
 - After the start the GIL is released (`PyEval_SaveThread`). A failed
   `PyStatus` comes back as a Swift error; nothing calls `exit`.

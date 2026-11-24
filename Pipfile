@@ -4,7 +4,6 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-pyfluidsynth = ">=1.4.0"
 pychord = "*"
 music21 = "*"
 mido = "*"

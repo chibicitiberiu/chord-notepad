@@ -1,7 +1,7 @@
 {
     "_meta": {
         "hash": {
-            "sha256": "b4c2bd29f63363e8de0ebc462c9505902cdbde38b94ce70cf0b439c34803743a"
+            "sha256": "51cf39dccd44c483290b8e5216863747ccad03df2c94a7117496a65d27c3eb9a"
         },
         "pipfile-spec": 6,
         "requires": {
@@ -764,15 +764,6 @@
             "hashes": [
                 "sha256:18f06e0dd72ffd2ffd1ec9354489fa9c4bbbc49ffcb7afbb32458c317ff99d54",
                 "sha256:97ee54ab54a4478fc7330bf399cd5b8eba41158f55c502ea0ef9e21a55a33d1b"
-            ],
-            "index": "pypi",
-            "markers": "python_version >= '3.10'",
-            "version": "==1.4.0"
-        },
-        "pyfluidsynth": {
-            "hashes": [
-                "sha256:6a9e1dbaf469fd11f45184f37ec28e198b1d6495ad74f61dc4a57726b2b1ba31",
-                "sha256:93f0a0e8d5b34f974010473f9985fc52e1379e8f316892afeb2de1d759439ca3"
             ],
             "index": "pypi",
             "markers": "python_version >= '3.10'",

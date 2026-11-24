@@ -256,7 +256,6 @@ SOURCES = {
     "idna-BSD.txt": ("dist", "idna", r"licenses/LICENSE\.md$"),
     "urllib3-MIT.txt": ("dist", "urllib3", r"licenses/LICENSE\.txt$"),
     "webcolors-BSD.txt": ("dist", "webcolors", r"licenses/LICENSE$"),
-    "pyfluidsynth-LGPL-2.1.txt": ("dist", "pyfluidsynth", r"licenses/LICENSE$"),
     "mido-MIT.txt": ("dist", "mido", r"\.dist-info/LICENSE$"),
     "packaging-Apache-2.0.txt": ("dist", "packaging", r"licenses/LICENSE\.APACHE$"),
     "packaging-BSD.txt": ("dist", "packaging", r"licenses/LICENSE\.BSD$"),

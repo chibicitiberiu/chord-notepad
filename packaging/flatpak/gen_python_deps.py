@@ -29,7 +29,6 @@ LOCK = HERE.parent.parent / "Pipfile.lock"
 
 # Everything the app imports at runtime, plus their runtime deps. Deliberately
 # left out: numpy, matplotlib, joblib, jsonpickle (music21 extras we never hit)
-# and numpy for pyfluidsynth (only its get_samples/raw_audio helpers use it),
 # and chardet (see PYINSTALLER_EXCLUDES in packaging/licenses/licence_inventory.py).
 PACKAGES = [
     "pychord",
@@ -41,7 +40,6 @@ PACKAGES = [
     "idna",
     "urllib3",
     "webcolors",
-    "pyfluidsynth",
     "mido",
     "packaging",
     # The Qt window; packaging/qt_bundle.py trims the installed wheel.

@@ -694,27 +694,6 @@
       "builds": ["windows", "macos", "linux", "flatpak", "snap"]
     },
     {
-      "id": "pyfluidsynth",
-      "name": "pyFluidSynth",
-      "group": "python",
-      "version": "1.4.0",
-      "pypi": "pyfluidsynth",
-      "license": "LGPL-2.1-or-later",
-      "copyright": "2008-2024 Nathan Whitehead and others",
-      "url": "https://github.com/nwhitehead/pyfluidsynth",
-      "sourceUrl": "https://github.com/nwhitehead/pyfluidsynth",
-      "texts": ["pyfluidsynth-LGPL-2.1"],
-      "builds": ["windows", "macos", "linux", "flatpak", "snap"],
-      "sources": [
-        {
-          "file": "pyfluidsynth-1.4.0.tar.gz",
-          "urls": ["https://files.pythonhosted.org/packages/source/p/pyfluidsynth/pyfluidsynth-1.4.0.tar.gz"],
-          "sha256": "6a9e1dbaf469fd11f45184f37ec28e198b1d6495ad74f61dc4a57726b2b1ba31"
-        }
-      ],
-      "note": "Python bindings for FluidSynth. The package metadata says MIT, but its LICENSE file is the LGPL 2.1, so that is what applies."
-    },
-    {
       "id": "mido",
       "name": "Mido",
       "group": "python",

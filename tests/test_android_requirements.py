@@ -15,11 +15,10 @@ from packaging.requirements import Requirement
 REQUIREMENTS = Path(__file__).resolve().parent.parent / "android" / "requirements.txt"
 
 # music21's declared dependencies are left out on purpose (see the file's comments).
-CHECKED = ["pychord", "mido", "pyfluidsynth", "requests"]
+CHECKED = ["pychord", "mido", "requests"]
 
-# Declared but never needed here: pyfluidsynth only uses numpy for its optional
-# sample helpers (the core doesn't call them).
-LEFT_OUT = {"pyfluidsynth": {"numpy"}}
+# Declared dependencies left out on purpose, by package.
+LEFT_OUT: dict = {}
 
 
 def _norm(name: str) -> str:

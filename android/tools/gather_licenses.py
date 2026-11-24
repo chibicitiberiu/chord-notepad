@@ -77,7 +77,6 @@ SOURCES = {
     "mido-MIT.txt": ("wheel", "mido", r"\.dist-info/LICENSE$"),
     "packaging-Apache-2.0.txt": ("wheel", "packaging", r"licenses/LICENSE\.APACHE$"),
     "packaging-BSD.txt": ("wheel", "packaging", r"licenses/LICENSE\.BSD$"),
-    "pyfluidsynth-LGPL-2.1.txt": ("wheel", "pyfluidsynth", r"licenses/LICENSE$"),
     "music21-BSD.txt": ("wheel", "music21", r"licenses/LICENSE$"),
     "chardet-LGPL-2.1.txt": ("wheel", "chardet", r"licenses/LICENSE$"),
     "webcolors-BSD.txt": ("wheel", "webcolors", r"licenses/LICENSE$"),

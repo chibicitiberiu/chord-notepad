@@ -16,9 +16,9 @@ authors = [{ name = "Tiberiu Chibici" }]
 # What the core imports. PySide6 belongs to the desktop app
 # (desktop/chordnotepad_desktop); chardet is left out on purpose: only
 # music21's fileTools imports it, and its relicensing is disputed
-# (packaging/licenses/licence_inventory.py, PYINSTALLER_EXCLUDES).
+# (packaging/licenses/licence_inventory.py, PYINSTALLER_EXCLUDES). FluidSynth
+# is a system or bundled library, loaded by audio/fluid_ctypes.py.
 dependencies = [
-    "pyfluidsynth>=1.4.0",
     "pychord",
     "music21",
     "mido",

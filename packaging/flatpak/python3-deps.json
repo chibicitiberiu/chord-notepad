@@ -2,7 +2,7 @@
     "name": "python3-deps",
     "buildsystem": "simple",
     "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pychord music21 more-itertools requests certifi charset-normalizer idna urllib3 webcolors pyfluidsynth mido packaging pyside6-essentials shiboken6"
+        "pip3 install --verbose --exists-action=i --no-index --no-deps --ignore-installed --no-build-isolation --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} pychord music21 more-itertools requests certifi charset-normalizer idna urllib3 webcolors mido packaging pyside6-essentials shiboken6"
     ],
     "sources": [
         {
@@ -49,11 +49,6 @@
             "type": "file",
             "url": "https://files.pythonhosted.org/packages/e2/cc/e097523dd85c9cf5d354f78310927f1656c422bd7b2613b2db3e3f9a0f2c/webcolors-25.10.0-py3-none-any.whl",
             "sha256": "032c727334856fc0b968f63daa252a1ac93d33db2f5267756623c210e57a4f1d"
-        },
-        {
-            "type": "file",
-            "url": "https://files.pythonhosted.org/packages/40/b6/7387ecf46c01df39ed36d9700312a11d8455efe04803b8472a333ff9d51b/pyfluidsynth-1.4.0-py3-none-any.whl",
-            "sha256": "93f0a0e8d5b34f974010473f9985fc52e1379e8f316892afeb2de1d759439ca3"
         },
         {
             "type": "file",

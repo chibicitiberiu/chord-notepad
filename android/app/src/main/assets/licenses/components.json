@@ -354,20 +354,6 @@
       ]
     },
     {
-      "id": "pyfluidsynth",
-      "name": "pyFluidSynth",
-      "group": "python",
-      "version": "1.4.0",
-      "license": "LGPL-2.1-or-later",
-      "copyright": "2008-2024 Nathan Whitehead and others",
-      "url": "https://github.com/nwhitehead/pyfluidsynth",
-      "sourceUrl": "https://github.com/nwhitehead/pyfluidsynth",
-      "texts": [
-        "pyfluidsynth-LGPL-2.1"
-      ],
-      "note": "Python bindings for FluidSynth. The package metadata says MIT, but its LICENSE file and source header say LGPL 2.1, which is what applies here. Pure Python, so you can replace it in a rebuild."
-    },
-    {
       "id": "music21",
       "name": "music21",
       "group": "python",

@@ -32,7 +32,7 @@ apps:
       # (monospace, sans-serif). Use the config staged with libfontconfig.
       FONTCONFIG_FILE: $SNAP/etc/fonts/fonts.conf
       FONTCONFIG_PATH: $SNAP/etc/fonts
-      # pyfluidsynth only searches the system linker cache (core/chordnotepad/audio/fluidsynth_import.py)
+      # find_library only searches the system linker cache (core/chordnotepad/audio/fluid_ctypes.py)
       CHORD_NOTEPAD_LIBFLUIDSYNTH: $SNAP/usr/lib/$CRAFT_ARCH_TRIPLET_BUILD_FOR/libfluidsynth.so.3
 
 parts:

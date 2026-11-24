@@ -72,7 +72,7 @@ class LicencesTest {
         val expected = listOf(
             "chord-notepad", "cpython", "chaquopy", "openssl", "sqlite", "libffi", "zlib", "xz", "bzip2",
             "fluidsynth", "libsndfile", "oboe", "libogg", "libvorbis", "flac", "opus", "libcxx",
-            "pychord", "music21", "mido", "pyfluidsynth", "chardet", "generaluser-gs", "bravura",
+            "pychord", "music21", "mido", "chardet", "generaluser-gs", "bravura",
         )
         assertEquals(emptyList<String>(), expected.filterNot { it in ids })
     }

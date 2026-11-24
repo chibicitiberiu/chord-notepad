@@ -121,7 +121,7 @@ task) are put into the APK's assets by Gradle tasks, not duplicated in git.
 Python packages (all `--no-deps`, pinned with hashes in `android/requirements.txt`,
 installed offline from the wheelhouse; see below):
 music21 10.3.0 (trimmed, see below), pychord 1.4.0, mido 1.3.3,
-pyfluidsynth 1.4.0, packaging 26.3 (mido imports it), plus what music21 really imports: chardet 6.0.0.post1
+packaging 26.3 (mido imports it), plus what music21 really imports: chardet 6.0.0.post1
 (LGPL; below 7 on purpose), webcolors, more-itertools, requests, urllib3, idna,
 certifi, charset-normalizer. numpy, matplotlib, joblib, jsonpickle and Pillow are
 **not** needed: the core imports, detects and renders with them absent
@@ -1334,9 +1334,6 @@ It checks that every entry parses, every named text exists, no text is unused,
 the Python entries match `requirements.txt`, and
 that every Maven licence id the plugin exports has a text. The Maven list
 changes with dependencies; the rest only when you edit these files.
-
-Note: pyFluidSynth's metadata says MIT but its LICENSE file and source header
-are LGPL 2.1; it is listed as LGPL.
 
 ### Closing with Back
 

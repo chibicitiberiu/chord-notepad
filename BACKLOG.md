@@ -77,7 +77,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - Licensing plan (decided 2026-10-31):
     - ship FluidSynth under LGPL-2.1 as a dynamic framework with its source in the release, relying on upstream's Licensing FAQ ("iOS and the App Store": nine copyright holders, including Peter Hanappe and Tom Moebert, agreed not to object if changes stay LGPL and the app can be relinked; not a guarantee);
     - build it without libsndfile (the app plays `.sf2` only);
-    - pyFluidSynth (LGPL) isn't covered: ask its maintainer or replace it with a small ctypes binding, before the app is distributed;
+    - pyFluidSynth (LGPL) isn't covered: done, replaced on every platform by the app's own ctypes binding (`core/chordnotepad/audio/fluid_ctypes.py`);
     - leave chardet out, as on the desktop;
     - fallback if a FluidSynth copyright holder objects: Apple's AVAudioUnitSampler (system library, loads the same SF2) or TinySoundFont (MIT);
     - App Store Connect: AGPL notice and source URL in the listing, no custom EULA.
