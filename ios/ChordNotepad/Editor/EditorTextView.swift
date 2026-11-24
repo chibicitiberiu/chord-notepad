@@ -185,6 +185,7 @@ final class EditorTextView: UITextView {
 
     /// Keep the sounding chord in view on both axes (the desktop's `see`).
     func follow(_ range: UTF16Range) {
+        layoutIfNeeded()  // the content's width after the latest change
         guard let rect = rect(of: range) else { return }
         let inset = adjustedContentInset
         var offset = contentOffset
@@ -208,7 +209,11 @@ final class EditorTextView: UITextView {
     /// Unwrapped: keep the caret in view sideways while typing or moving it
     /// (UIKit follows it up and down).
     func followCaretSideways() {
-        guard !wordWrap, let end = selectedTextRange?.end else { return }
+        guard !wordWrap else { return }
+        // The content must have its new width first, or a caret past the old
+        // edge has nowhere to scroll to (the iPhone stayed at 0 in run 45357633967).
+        layoutIfNeeded()
+        guard let end = selectedTextRange?.end else { return }
         let caret = caretRect(for: end)
         guard caret.width.isFinite, caret.minX.isFinite else { return }
         let inset = adjustedContentInset
