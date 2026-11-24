@@ -68,7 +68,8 @@ struct EditRibbon: View {
         }
         .buttonStyle(.plain)
         .opacity(enabled ? 1 : 0.38)
-        .disabled(!enabled || perform == nil)
+        // Inert in the catalog (perform nil) but not dimmed, so it shows what a person sees.
+        .disabled(!enabled)
         .accessibilityLabel(label)
     }
 
@@ -95,7 +96,6 @@ struct EditRibbon: View {
                         .background((on ? palette.primarySoft : palette.surfaceLow).swiftUI)
                 }
                 .buttonStyle(.plain)
-                .disabled(perform == nil)
                 .accessibilityLabel(value == "american" ? "American notation" : "European notation")
                 .accessibilityAddTraits(on ? .isSelected : [])
             }

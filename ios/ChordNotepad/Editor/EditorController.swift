@@ -146,6 +146,7 @@ final class EditorController: ObservableObject {
         EditorAppearance.paint(model.styleRuns(palette), on: view.textStorage, font: font, palette: palette)
         view.typingAttributes = EditorAppearance.baseAttributes(font: font, palette: palette)
         view.setWordWrap(model.wordWrap, joinPoints: model.joinPoints)
+        view.textChanged()
         view.backgroundColor = palette.background.uiColor
         view.tintColor = palette.primary.uiColor
         if view.isEditable == model.readOnly { view.isEditable = !model.readOnly }

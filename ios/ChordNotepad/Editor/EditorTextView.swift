@@ -116,20 +116,50 @@ final class EditorTextView: UITextView {
     private func invalidateTextLayout() {
         layout.invalidateLayout(forCharacterRange: NSRange(location: 0, length: storage.length),
                                 actualCharacterRange: nil)
+        textChanged()
+    }
+
+    /// The text or its attributes changed: unwrapped, the content's width is
+    /// worked out again at the next layout.
+    func textChanged() {
+        contentWidthStale = true
         setNeedsLayout()
     }
 
-    /// Unwrapped, the content is as wide as the longest line.
+    private var contentWidthStale = true
+    private var measuredWidth: CGFloat = 0
+
+    /// Unwrapped, the content is as wide as the longest line (UIKit keeps it
+    /// at the view's width: it doesn't always go through the setter below,
+    /// so the width is also put right after every layout).
     override var contentSize: CGSize {
         get { super.contentSize }
         set {
             var size = newValue
-            if !wordWrap {
-                let used = layout.usedRect(for: container)
-                size.width = max(bounds.width - adjustedContentInset.left - adjustedContentInset.right,
-                                 ceil(used.maxX + textContainerInset.left + textContainerInset.right))
-            }
+            if !wordWrap { size.width = unwrappedContentWidth() }
             super.contentSize = size
+        }
+    }
+
+    private func unwrappedContentWidth() -> CGFloat {
+        let used = layout.usedRect(for: container)
+        return max(bounds.width - adjustedContentInset.left - adjustedContentInset.right,
+                   ceil(used.maxX + textContainerInset.left + textContainerInset.right))
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        guard !wordWrap else { return }
+        if contentWidthStale || measuredWidth != bounds.width {
+            // The whole text, so the longest line is measured even when it is
+            // off screen (TextKit lays out lazily).
+            layout.ensureLayout(for: container)
+            contentWidthStale = false
+            measuredWidth = bounds.width
+        }
+        let width = unwrappedContentWidth()
+        if abs(super.contentSize.width - width) > 0.5 {
+            super.contentSize = CGSize(width: width, height: super.contentSize.height)
         }
     }
 
