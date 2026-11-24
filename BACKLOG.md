@@ -68,13 +68,20 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Staff view notation (Tibi, 2026-11-03; deferred until after the first official release, too much risk before it): real note values from chord lengths (stems, flags, beams, dots, ties, NC as a sized rest, time signatures, true bar lines in every allowed meter), neat triplets snapped in the renderer (lazy `*0.3 *0.6` too), anything off a 16th grid rounded with a ≈ mark, then C clefs, a clef and staff number per voice, and transposing instruments. Reviewed plan: ~/Documents/chord-notepad/staff-plan.md (rhythm about 2–2.5 weeks, clefs about 1.5 weeks).
 - Playback ideas: arpeggio and strum patterns, `{pattern: …}` per section, `{v: 80}` volume.
 - Desktop ideas: audio device selection, PDF/image export of the chord sheet, multiple tabs, MIDI out.
-- iOS/iPadOS port on the same core. Licensing plan (decided 2026-10-31):
-  - ship FluidSynth under LGPL-2.1 as a dynamic framework with its source in the release, relying on upstream's Licensing FAQ ("iOS and the App Store": nine copyright holders, including Peter Hanappe and Tom Moebert, agreed not to object if changes stay LGPL and the app can be relinked; not a guarantee);
-  - build it without libsndfile (the app plays `.sf2` only);
-  - pyFluidSynth (LGPL) isn't covered: ask its maintainer or replace it with a small ctypes binding;
-  - leave chardet out, as on the desktop;
-  - fallback if a FluidSynth copyright holder objects: Apple's AVAudioUnitSampler (system library, loads the same SF2) or TinySoundFont (MIT);
-  - App Store Connect: AGPL notice and source URL in the listing, no custom EULA.
+- iOS/iPadOS port: SwiftUI front end over the same core and JSON session bridge, like Android; plan and status in docs/IOS.md. Still to do after the Swift kit and the CI build:
+  - SwiftUI screens ported from `android/.../ui/` (editor, Play tab, the CoreGraphics chord-sheet painter over `SheetBuffer`, player, dialogs, settings), each with its catalog fixtures.
+  - Platform glue: UIDocumentPicker with security-scoped bookmarks; WKWebView help with a Sphinx `-t ios` edition; AVAudioSession interruptions and route changes sending `pause`; share sheet; PDF through UIGraphicsPDFRenderer; StoreKit 2; an iOS licences entry (`licence_catalog.detect_build` returns None there); `help/_ext/editions.py` knows no iOS edition yet.
+  - Decide iOS monetization.
+  - App Store listing: privacy labels, screenshots, the AGPL notice.
+  - Licensing plan (decided 2026-10-31):
+    - ship FluidSynth under LGPL-2.1 as a dynamic framework with its source in the release, relying on upstream's Licensing FAQ ("iOS and the App Store": nine copyright holders, including Peter Hanappe and Tom Moebert, agreed not to object if changes stay LGPL and the app can be relinked; not a guarantee);
+    - build it without libsndfile (the app plays `.sf2` only);
+    - pyFluidSynth (LGPL) isn't covered: ask its maintainer or replace it with a small ctypes binding, before the app is distributed;
+    - leave chardet out, as on the desktop;
+    - fallback if a FluidSynth copyright holder objects: Apple's AVAudioUnitSampler (system library, loads the same SF2) or TinySoundFont (MIT);
+    - App Store Connect: AGPL notice and source URL in the listing, no custom EULA.
+- Notarize the macOS DMG once the Apple Developer enrollment is done.
+- Mac App Store listing of the Qt app, later: sandbox, the Qt LGPL question, and whether to do Universal Purchase.
 - One `chordnotepad.` package namespace, only if a top-level name collides or the core should be installable.
 
 ## Needs a decision
