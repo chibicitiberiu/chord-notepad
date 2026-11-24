@@ -3,7 +3,9 @@ import Foundation
 // The ☰ menu (Android's ui/main/AppDrawer.kt): Documents (New song, Open…,
 // the recent songs, Save as…, the exports) and App (Settings, Examples, User
 // guide, Quick start, About), plus Diagnostics on iOS. Entries whose screens
-// the iOS app doesn't have yet are listed, greyed, with "Coming soon".
+// the iOS app doesn't have yet are listed, greyed, with "Coming soon". Export
+// PDF is one of them: the session sends the pages' layout
+// (`PaintPdfRequest`) and Android paints it itself; iOS has no painter yet.
 
 /// What a menu entry does.
 public enum MenuAction: Sendable, Hashable {
@@ -73,9 +75,12 @@ public enum MenuSection: Sendable, Hashable {
 
 /// The menu's contents, top to bottom.
 public enum AppMenu {
-    /// What the iOS app can do from the menu now: everything else waits for
-    /// the document picker, Settings, the guide and About (BACKLOG.md).
-    public static let available: Set<String> = ["diagnostics"]
+    /// What the iOS app can do from the menu now: the rest waits for
+    /// Settings, the guide, the Quick Start tour, About and a PDF painter
+    /// (BACKLOG.md).
+    public static let available: Set<String> = [
+        "new", "open", "recent", "saveAs", "exportMidi", "exportAudio", "examples", "diagnostics",
+    ]
 
     public static func sections(recent: [DocumentRef]) -> [MenuSection] {
         func entry(_ action: MenuAction, _ key: String, _ label: String, _ icon: String, _ tint: MenuTint) -> MenuEntry {
@@ -119,6 +124,8 @@ public enum MainRoute: Sendable, Hashable {
     /// The storage refused a rename.
     case renameFailed(name: String, reason: String, canSaveAs: Bool)
     case diagnostics
+    /// The bundled example songs (Android's Examples sheet).
+    case examples
     case voicing
     case instrument
     case speed

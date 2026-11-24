@@ -42,6 +42,9 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var messageCount = 0
     /// How many outputs were applied.
     public private(set) var outputCount = 0
+    /// The request the session waits on (the newest one: a new request
+    /// replaces it), until the app answers it (``requestAnswered(_:)``).
+    public private(set) var request: SessionRequest?
 
     public init() {}
 
@@ -87,9 +90,17 @@ public struct SessionSnapshot: Sendable, Equatable {
         case .renameFailed(let event):
             renameFailure = RenameFailure(event)
             renameFailures += 1
+        case .confirmDiscardRequest, .pickDocumentRequest, .insertDirectiveRequest, .paintPdfRequest:
+            request = SessionRequest(output)
         default:
             break
         }
+    }
+
+    /// The app answered request `id` (or sent a command that drops it, such
+    /// as `restore_draft`: pass nil): it is no longer pending.
+    public mutating func requestAnswered(_ id: Int?) {
+        if id == nil || request?.requestId == id { request = nil }
     }
 
     /// Fold one output in as it crossed the bridge.

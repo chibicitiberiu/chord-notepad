@@ -396,7 +396,7 @@ final class MainScreenTests: XCTestCase {
 
     // -- the menu ------------------------------------------------------------------------------------
 
-    func testTheMenuHasAndroidsEntriesInOrderAndDiagnosticsWorks() {
+    func testTheMenuHasAndroidsEntriesInOrderAndTheFileEntriesWork() {
         let recent = [DocumentRef(displayName: "a.txt", id: "a", location: "On My iPhone")]
         let sections = AppMenu.sections(recent: recent)
         var labels: [String] = []
@@ -413,7 +413,9 @@ final class MainScreenTests: XCTestCase {
         XCTAssertEqual(labels, ["New song", "Open…", "a.txt", "—", "Save as…", "Export MIDI…", "Export audio…",
                                 "Export PDF…", "—", "Settings", "Examples", "User guide", "Quick start", "About",
                                 "Diagnostics"])
-        XCTAssertEqual(enabled, ["Diagnostics"])
+        // Export PDF waits for a painter; Settings, the guide, the tour and About for their screens.
+        XCTAssertEqual(enabled, ["New song", "Open…", "a.txt", "Save as…", "Export MIDI…", "Export audio…", "Examples",
+                                 "Diagnostics"])
     }
 
     // -- the player's state ------------------------------------------------------------------------
