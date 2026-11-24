@@ -778,9 +778,14 @@ extension SessionTests {
         window.addSubview(web)
         window.isHidden = false
         web.load(URLRequest(url: URL(string: HelpLinks.startURL)!))
-        let deadline = ContinuousClock.now + .seconds(30)
-        while web.isLoading || web.url == nil, ContinuousClock.now < deadline {
-            try await Task.sleep(for: .milliseconds(100))
+        // Until the page has loaded (isLoading can still be false right after load(),
+        // so run 45502466827's check read an empty page).
+        let deadline = ContinuousClock.now + .seconds(60)
+        while ContinuousClock.now < deadline {
+            let ready = try? await web.evaluateJavaScript(
+                "document.readyState === 'complete' && document.title.length > 0") as? Bool
+            if ready == true, !web.isLoading { break }
+            try await Task.sleep(for: .milliseconds(200))
         }
         try await Task.sleep(for: .seconds(1))
         let title = try await web.evaluateJavaScript("document.title") as? String
