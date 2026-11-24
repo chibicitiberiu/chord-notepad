@@ -80,6 +80,12 @@ final class MemoryStore: DocumentStore, @unchecked Sendable {
 
     func contents(_ id: String) -> Data? { lock.withLock { files[id] } }
 
+    func put(_ id: String, _ text: String) { lock.withLock { files[id] = Data(text.utf8) } }
+
+    func remove(_ id: String) { lock.withLock { _ = files.removeValue(forKey: id) } }
+
+    var recentIds: [String] { lock.withLock { recentRefs.map(\.id) } }
+
     func readBytes(id: String) throws -> Data {
         log("readBytes \(id)")
         if id.hasPrefix("slow") { Thread.sleep(forTimeInterval: 0.3) }

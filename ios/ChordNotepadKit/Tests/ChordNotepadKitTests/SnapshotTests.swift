@@ -41,8 +41,9 @@ final class SnapshotTests: XCTestCase {
 
     func testEveryFixtureFolds() throws {
         let all = try Fixture.all(in: fixtures)
-        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "editor_european",
-                                          "editor_mid_edit", "empty_song", "errors", "play_with_chord_sheet",
+        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "discard_question",
+                                          "editor_european", "editor_mid_edit", "empty_song", "errors",
+                                          "export_done", "files_recent", "play_with_chord_sheet",
                                           "quick_start_edit", "scarborough_edit", "scarborough_fret",
                                           "scarborough_piano_roll", "scarborough_tab"])
         for fixture in all {
@@ -73,6 +74,31 @@ final class SnapshotTests: XCTestCase {
         let snapshot = try Fixture(contentsOf: fixtures.appendingPathComponent("errors.json")).snapshot()
         XCTAssertTrue(snapshot.messages.contains { $0.contains("File not found: missing") }, "\(snapshot.messages)")
         XCTAssertEqual(snapshot.text, "C G\n")
+    }
+
+    func testTheFileScenesHaveTheirRecentListExportAndQuestion() throws {
+        let recent = try Fixture(contentsOf: fixtures.appendingPathComponent("files_recent.json")).snapshot()
+        XCTAssertEqual(recent.recentDocuments?.items.map(\.displayName), ["Lullaby.txt", "Evening.txt", "Morning.txt",
+                                                                           "song.txt"])
+        XCTAssertEqual(recent.document?.displayName, "Lullaby.txt")
+        XCTAssertTrue(recent.text.contains("Hush now, the stars are out"))
+        XCTAssertNil(recent.request)
+
+        let export = try Fixture(contentsOf: fixtures.appendingPathComponent("export_done.json")).snapshot()
+        XCTAssertEqual(export.status?.text, "Exported MIDI: Lullaby (2).mid")
+        XCTAssertEqual(export.document?.displayName, "Lullaby (2).txt")
+        XCTAssertTrue(export.text.hasSuffix("Sleep until the morning\n"), export.text)
+        XCTAssertEqual(export.recentDocuments?.items.first?.displayName, "Lullaby (2).txt")
+        // A fixture has no answers: the export's request stays (no screen draws a pick request).
+        guard case .pickDocument(let pick)? = export.request else { return XCTFail("\(String(describing: export.request))") }
+        XCTAssertEqual(pick.mode, .exportMidi)
+
+        let question = try Fixture(contentsOf: fixtures.appendingPathComponent("discard_question.json")).snapshot()
+        guard case .confirmDiscard? = question.request else {
+            return XCTFail("the scene ends on the unsaved-changes question: \(String(describing: question.request))")
+        }
+        XCTAssertEqual(question.document?.isModified, true)
+        XCTAssertTrue(question.text.hasPrefix("{key: G}\n{bpm: 72}"), question.text)
     }
 
     func testTheChordSheetScenesCarryBuffersForTheirViewAtThePhoneAndTabletHeights() throws {

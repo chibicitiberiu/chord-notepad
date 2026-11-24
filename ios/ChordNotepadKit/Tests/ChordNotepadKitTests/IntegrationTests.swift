@@ -277,6 +277,152 @@ final class IntegrationTests: XCTestCase {
         try await scenes.record("editor_european", "The quick-start song converted to European notation.",
                                 from: mark)
 
+        // -- files (last again: the recent list and the document stay out of the
+        // scenes before): open from the store, Recent, save, Save As, an export,
+        // the unsaved-changes question, a recent song that has gone --------------------
+        let morning = "{bpm: 90}\nC        G        Am       F\nMorning has broken, like the first morning\n"
+        let evening = "{key: Am}\nAm       Dm       E7       Am\nEvening falls on the harbour\n"
+        let lullaby = "{bpm: 72} {time: 3/4}\nG        Em       C        D\nHush now, the stars are out\n"
+        store.put("songs/Morning.txt", morning)
+        store.put("songs/Evening.txt", evening)
+        store.put("songs/Lullaby.txt", lullaby)
+        for (id, text) in [("songs/Morning.txt", morning), ("songs/Evening.txt", evening)] {
+            let opened = log.count
+            session.submit(.openDocument(readOnly: false, ref: memoryRef(id)))
+            if id == "songs/Morning.txt" {
+                // The converted song counts as changed: Open asks first, Don't save goes on.
+                try await log.wait("Open's unsaved-changes question") {
+                    !log.events(since: opened, type: "ConfirmDiscardRequest").isEmpty
+                }
+                let first = try log.decode(ConfirmDiscardRequest.self,
+                                           log.events(since: opened, type: "ConfirmDiscardRequest").last)
+                session.submit(.respondToConfirmDiscardRequest(requestId: first.requestId, value: .discard))
+            }
+            try await log.wait("the open of \(id)") {
+                (try? log.decode(DocumentState.self, log.latest("DocumentState", since: opened)))?.documentId == id
+            }
+            let edit = try await waitForEdit(log, since: opened) { $0.undo == .reset }
+            XCTAssertEqual(edit.replacement, text, "opened text replaces the editor's with a reset edit")
+        }
+        mark = log.count
+        session.submit(.openDocument(readOnly: false, ref: memoryRef("songs/Lullaby.txt")))
+        _ = try await waitForHighlight(log, since: mark, "the lullaby's highlight") {
+            $0.spans.contains { $0.kind == .chord }
+        }
+        try await log.wait("the recent list") {
+            (try? log.decodeLatest(RecentDocumentsState.self, "RecentDocumentsState"))?.items.map(\.id)
+                == ["songs/Lullaby.txt", "songs/Evening.txt", "songs/Morning.txt", "song.txt"]
+        }
+        XCTAssertTrue(try log.decodeLatest(StatusState.self, "StatusState").text.hasPrefix("Opened: "))
+        await log.waitQuiet()
+        try await scenes.record("files_recent", "Three songs opened from the store, the last one on screen: "
+                                + "the recent list has them and the song saved before.", from: mark)
+
+        // Modified by the user's typing (set_text, not echoed), then saved in place.
+        let typed = lullaby + "Sleep until the morning\n"
+        session.submit(.setText(clientToken: 1, text: typed))
+        try await log.wait("the modified flag") {
+            (try? log.decodeLatest(DocumentState.self, "DocumentState"))?.isModified == true
+        }
+        session.submit(.save())
+        try await log.wait("the save in place") { store.contents("songs/Lullaby.txt") == Data(typed.utf8) }
+        try await log.wait("the saved state") {
+            (try? log.decodeLatest(DocumentState.self, "DocumentState"))?.isModified == false
+        }
+
+        // Save As: the session asks where, with the document's name; the answer is a new id.
+        var asked = log.count
+        session.submit(.saveAs(name: nil))
+        try await log.wait("Save As's picker request") { !log.events(since: asked, type: "PickDocumentRequest").isEmpty }
+        let saveAs = try log.decode(PickDocumentRequest.self, log.events(since: asked, type: "PickDocumentRequest").last)
+        XCTAssertEqual(saveAs.mode, .save)
+        XCTAssertEqual(saveAs.suggestedName, "Lullaby.txt")
+        XCTAssertEqual(pickerFor(saveAs), .save(suggestedName: "Lullaby.txt"))
+        let copy = memoryRef("songs/Lullaby (2).txt")
+        session.submit(.respondToPickDocumentRequest(requestId: saveAs.requestId, value: copy))
+        try await log.wait("the copy") { store.contents(copy.id) == Data(typed.utf8) }
+        try await log.wait("the copy as the open document") {
+            (try? log.decodeLatest(DocumentState.self, "DocumentState"))?.documentId == copy.id
+        }
+        XCTAssertEqual(store.recentIds.first, copy.id)
+
+        // The copy again from Recent: the scenes below start from its text (the
+        // user's set_text isn't echoed, so a scene can't carry the typed line).
+        mark = log.count
+        session.submit(.openRecent(ref: copy))
+        let reopened = try await waitForEdit(log, since: mark) { $0.undo == .reset }
+        XCTAssertEqual(reopened.replacement, typed)
+        _ = try await waitForHighlight(log, since: mark, "the copy's highlight") {
+            $0.textRevision == reopened.textRevision
+        }
+
+        // Export MIDI: answered with a ref the store owns (iOS: a file for the
+        // export picker); the render is written through the store.
+        asked = log.count
+        session.submit(.exportMidi())
+        try await log.wait("the export's picker request") {
+            !log.events(since: asked, type: "PickDocumentRequest").isEmpty
+        }
+        let export = try log.decode(PickDocumentRequest.self, log.events(since: asked, type: "PickDocumentRequest").last)
+        XCTAssertEqual(export.mode, .exportMidi)
+        XCTAssertEqual(export.suggestedName, "Lullaby (2).mid")
+        XCTAssertEqual(pickerFor(export), .export(.exportMidi, suggestedName: "Lullaby (2).mid"))
+        let exportRef = DocumentRef(displayName: "Lullaby (2).mid", id: "exports/Lullaby (2).mid",
+                                    location: "Lullaby (2).mid")
+        session.submit(.respondToPickDocumentRequest(requestId: export.requestId, value: exportRef))
+        try await log.wait("the MIDI bytes") { store.contents(exportRef.id)?.prefix(4) == Data("MThd".utf8) }
+        try await log.wait("the exported status") {
+            (try? log.decodeLatest(StatusState.self, "StatusState"))?.text == "Exported MIDI: Lullaby (2).mid"
+        }
+        let statuses = log.events(since: asked, type: "StatusState").compactMap {
+            try? log.decode(StatusState.self, $0).text
+        }
+        XCTAssertTrue(statuses.contains("Exporting MIDI: Lullaby (2).mid..."), "\(statuses)")
+        XCTAssertNotEqual(store.recentIds.first, exportRef.id, "exports don't join Recent")
+        XCTAssertEqual(try log.decodeLatest(DocumentState.self, "DocumentState").documentId, copy.id,
+                       "nor change the open document")
+        await log.waitQuiet()
+        try await scenes.record("export_done", "The lullaby's copy exported as MIDI through the store.", from: mark)
+
+        // The unsaved-changes question on New: Cancel keeps the song, Don't save clears it.
+        session.submit(.insertText(at: 0, text: "{key: G}\n"))
+        try await log.wait("the session's edit") {
+            (try? log.decodeLatest(DocumentState.self, "DocumentState"))?.isModified == true
+        }
+        asked = log.count
+        session.submit(.newDocument())
+        try await log.wait("the unsaved-changes question") {
+            !log.events(since: asked, type: "ConfirmDiscardRequest").isEmpty
+        }
+        var question = try log.decode(ConfirmDiscardRequest.self,
+                                      log.events(since: asked, type: "ConfirmDiscardRequest").last)
+        await log.waitQuiet()
+        try await scenes.record("discard_question", "The lullaby's copy changed, then New: the unsaved-changes "
+                                + "question.", from: mark)
+        session.submit(.respondToConfirmDiscardRequest(requestId: question.requestId, value: .cancel))
+        await log.waitQuiet()
+        XCTAssertEqual(try log.decodeLatest(DocumentState.self, "DocumentState").documentId, copy.id, "Cancel: still open")
+        XCTAssertTrue(try log.decodeLatest(DocumentState.self, "DocumentState").isModified)
+        asked = log.count
+        session.submit(.newDocument())
+        try await log.wait("the question again") { !log.events(since: asked, type: "ConfirmDiscardRequest").isEmpty }
+        question = try log.decode(ConfirmDiscardRequest.self, log.events(since: asked, type: "ConfirmDiscardRequest").last)
+        session.submit(.respondToConfirmDiscardRequest(requestId: question.requestId, value: .discard))
+        try await log.wait("a new, empty song") {
+            guard let document = try? log.decodeLatest(DocumentState.self, "DocumentState") else { return false }
+            return document.documentId == nil && !document.isModified
+        }
+        XCTAssertEqual(store.contents(copy.id), Data(typed.utf8), "Don't save: the file kept the saved text")
+
+        // A recent song whose file has gone: the store's message, worded for the user.
+        store.remove("songs/Morning.txt")
+        asked = log.count
+        session.submit(.openRecent(ref: memoryRef("songs/Morning.txt")))
+        try await log.wait("the vanished song's error") { !log.events(since: asked, type: "UserError").isEmpty }
+        let vanished = try log.decode(UserError.self, log.events(since: asked, type: "UserError").last)
+        XCTAssertEqual(vanished.message, "Failed to open file:\nOn My iPhone\n\nFile not found: songs/Morning.txt")
+        XCTAssertNil(try log.decodeLatest(DocumentState.self, "DocumentState").documentId, "nothing opened")
+
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {
             XCTAssertNoThrow(try SessionOutput.decode(typeName: event.typeName, json: event.json),

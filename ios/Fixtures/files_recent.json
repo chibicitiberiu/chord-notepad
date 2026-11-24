@@ -1,0 +1,475 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "Three songs opened from the store, the last one on screen: the recent list has them and the song saved before.",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 79,
+    "end": 69,
+    "replacement": "{bpm: 72} {time: 3/4}\nG        Em       C        D\nHush now, the stars are out\n",
+    "start": 0,
+    "text_revision": 14,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  }
+ ],
+ "scene": "files_recent",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "tab",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 330,
+   "song_revision": 8,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 0.833,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Lullaby.txt",
+   "document_id": "songs/Lullaby.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Lullaby.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 23,
+     "kind": "chord",
+     "message": "",
+     "start": 22
+    },
+    {
+     "end": 33,
+     "kind": "chord",
+     "message": "",
+     "start": 31
+    },
+    {
+     "end": 41,
+     "kind": "chord",
+     "message": "",
+     "start": 40
+    },
+    {
+     "end": 50,
+     "kind": "chord",
+     "message": "",
+     "start": 49
+    },
+    {
+     "end": 9,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 21,
+     "kind": "directive",
+     "message": "",
+     "start": 10
+    }
+   ],
+   "text_revision": 14
+  },
+  "IdentifierState": {
+   "candidates": [],
+   "message": "Select notes to identify chords...",
+   "notation": "american",
+   "notes": [],
+   "notes_text": "",
+   "sounding": [],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 0,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 0,
+   "families": [
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "C",
+   "playhead_offset": 22,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "verse",
+     "last_bar": 14,
+     "repeat": false
+    },
+    {
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
+     "repeat": false
+    },
+    {
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
+    },
+    {
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    3,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "Lullaby.txt",
+     "id": "songs/Lullaby.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Evening.txt",
+     "id": "songs/Evening.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Morning.txt",
+     "id": "songs/Morning.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": null,
+    "from_directive": false,
+    "value": "C"
+   },
+   "locked_reason": null,
+   "summary": "72 · 3/4 · C",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "72"
+   },
+   "time": {
+    "directive_offset": 10,
+    "from_directive": true,
+    "value": "3/4"
+   }
+  },
+  "StatusState": {
+   "text": "Opened: On My iPhone"
+  },
+  "ToolbarState": {
+   "beats": 3,
+   "bpm": 72,
+   "bpm_display": 72,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 72}",
+   "key": "C",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": null,
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 3/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "guitar:standard"
+  }
+ }
+}
