@@ -173,7 +173,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 419 tests, about 45 s after the first build
+make ios-kit-test      # swift test: 451 tests, about 47 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -1416,7 +1416,8 @@ or the schema changed: the session already had `replace_match`,
   the iPad lists them while Command is held, and iPadOS's menu bar shows
   them: File: New Song ⌘N, Open… ⌘O, Save ⌘S, Save As… ⇧⌘S; Edit: Find… ⌘F,
   Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G; View: Larger
-  Text ⌘=, Smaller Text ⌘-, Reset Text Size ⌘0. They act only on the bare
+  Text ⌘=, Smaller Text ⌘-, Reset Text Size ⌘0; Help: User Guide ⌘?
+  (Android's F1). They act only on the bare
   main screen (Android's are the song screen's: a sheet, a dialog or
   Settings has the keys then). The text view keeps its own: undo, redo, the
   line commands, and a hidden Command-+ beside the app's Command-=.
@@ -1451,8 +1452,8 @@ Deliberate differences:
 - The current match is a stronger tint over the selection rather than the
   desktop's swapped selection colour (the text view's selection is the
   system's, and Play mode has none).
-- F1 for the user guide isn't mapped yet (the guide comes with its own
-  slice).
+- The user guide is Command-? (Apple's Help key), not Android's F1: an
+  iPad's keyboard has no F1, and SwiftUI's menu commands can't take one.
 - Command-+ is listed once, as Larger Text ⌘=; Android lists both keys.
 
 What CI doesn't test: a hardware keyboard's real key presses (the menu

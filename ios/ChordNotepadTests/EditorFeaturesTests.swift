@@ -94,6 +94,10 @@ extension SessionTests {
         XCTAssertTrue(UIApplication.shared.sendAction(try XCTUnwrap(plus.action), to: view, from: plus, for: nil))
         ok = await model.waitFor(timeout: .seconds(10)) { $0.editor?.fontSize == EditorFont.defaultPoints + 1 }
         XCTAssertTrue(ok, "Command-+ in the text")
+        // Command-? opens the user guide (Android's F1).
+        model.shortcut(.userGuide)
+        XCTAssertEqual(model.ui.route, .userGuide)
+        model.ui.route = .none
         // Shortcuts wait while something is over the screen.
         model.ui.route = .menu
         model.shortcut(.fontSmaller)

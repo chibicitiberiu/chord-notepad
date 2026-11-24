@@ -21,7 +21,8 @@ final class UserDefaultsPreferences: PreferenceStore {
 
 /// The app's keyboard shortcuts as menu commands (the kit's ``AppShortcut``
 /// table): File (New Song, Open…, Save, Save As…), Edit (Find…, Find and
-/// Replace…, Find Next, Find Previous) and View (the text size). As menu
+/// Replace…, Find Next, Find Previous), View (the text size) and Help (the
+/// user guide). As menu
 /// commands they act wherever the keys are, Play mode included (Android's
 /// are the song screen's root handler), and the iPad lists them when Command
 /// is held, and in iPadOS's menu bar.
@@ -33,6 +34,7 @@ struct AppCommands: Commands {
         CommandGroup(replacing: .saveItem) { buttons(.file, from: .save) }
         CommandGroup(replacing: .textEditing) { buttons(.edit) }
         CommandGroup(before: .toolbar) { buttons(.view) }
+        CommandGroup(replacing: .help) { buttons(.help) }
     }
 
     /// The shortcuts listed in `menu` (optionally from or up to a command, for
@@ -83,6 +85,7 @@ extension AppModel {
         case .fontBigger: editor.perform(.fontBigger)
         case .fontSmaller: editor.perform(.fontSmaller)
         case .fontReset: editor.perform(.fontReset)
+        case .userGuide: choose(.userGuide)
         }
     }
 

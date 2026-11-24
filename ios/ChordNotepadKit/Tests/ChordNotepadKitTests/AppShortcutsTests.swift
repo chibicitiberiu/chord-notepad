@@ -20,6 +20,8 @@ final class AppShortcutsTests: XCTestCase {
         XCTAssertEqual(command("="), .fontBigger)
         XCTAssertEqual(command("-"), .fontSmaller)
         XCTAssertEqual(command("0"), .fontReset)
+        // Android's F1, as Apple's Help key.
+        XCTAssertEqual(command("?"), .userGuide)
     }
 
     func testFindAndReplaceUseApplesKeys() {
@@ -54,6 +56,7 @@ final class AppShortcutsTests: XCTestCase {
         XCTAssertEqual(AppShortcut.listed(in: .edit).map(\.title),
                        ["Find…", "Find and Replace…", "Find Next", "Find Previous"])
         XCTAssertEqual(AppShortcut.listed(in: .view).map(\.title), ["Larger Text", "Smaller Text", "Reset Text Size"])
+        XCTAssertEqual(AppShortcut.listed(in: .help).map(\.title), ["User Guide"])
         XCTAssertEqual(AppShortcut.of(.saveAs)?.shift, true)
         // The text view's untitled Command-+ isn't listed twice.
         XCTAssertEqual(EditorKeyBinding.all.filter { $0.title.isEmpty }.map(\.action), [.fontBigger, .fontBigger])

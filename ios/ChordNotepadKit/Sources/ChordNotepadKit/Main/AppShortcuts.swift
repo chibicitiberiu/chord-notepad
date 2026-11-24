@@ -14,11 +14,13 @@ public enum AppCommand: Sendable, Hashable, CaseIterable {
     case newSong, open, save, saveAs
     case find, findAndReplace, findNext, findPrevious
     case fontBigger, fontSmaller, fontReset
+    /// The user guide (Android's F1).
+    case userGuide
 }
 
 /// The menu a shortcut is listed in.
 public enum AppShortcutMenu: Sendable, Hashable {
-    case file, edit, view
+    case file, edit, view, help
 }
 
 /// One app shortcut: a key with Command (and Shift or Option), its title in
@@ -40,6 +42,8 @@ public struct AppShortcut: Sendable, Hashable {
     ///   its Ctrl+G (Go to line) has no counterpart here.
     /// - Larger Text is Command-=, the unshifted key of Command-+ (Android takes
     ///   both); the editor's text view takes Command-+ too.
+    /// - The user guide is Command-? (Apple's Help key): Android's F1 is a
+    ///   media key on an iPad's keyboard, and SwiftUI's commands can't take it.
     public static let all: [AppShortcut] = [
         AppShortcut(input: "n", shift: false, option: false, command: .newSong, title: "New Song", menu: .file),
         AppShortcut(input: "o", shift: false, option: false, command: .open, title: "Open…", menu: .file),
@@ -55,6 +59,7 @@ public struct AppShortcut: Sendable, Hashable {
         AppShortcut(input: "-", shift: false, option: false, command: .fontSmaller, title: "Smaller Text", menu: .view),
         AppShortcut(input: "0", shift: false, option: false, command: .fontReset, title: "Reset Text Size",
                     menu: .view),
+        AppShortcut(input: "?", shift: false, option: false, command: .userGuide, title: "User Guide", menu: .help),
     ]
 
     /// The shortcuts listed in `menu`, in order.
