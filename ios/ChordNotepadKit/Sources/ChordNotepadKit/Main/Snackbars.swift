@@ -13,6 +13,12 @@ public struct Snackbar: Sendable, Equatable {
     /// Counts up, so the same text twice is two snackbars.
     public var id: Int
 
+    public init(text: String, error: Bool, id: Int) {
+        self.text = text
+        self.error = error
+        self.id = id
+    }
+
     /// How long it stays, in seconds (Android's Short, and Long for errors).
     public var duration: Double { error ? 10 : 4 }
 }
