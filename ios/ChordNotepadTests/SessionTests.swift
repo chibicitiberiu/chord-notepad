@@ -119,7 +119,7 @@ final class SessionTests: XCTestCase {
     /// NSFileCoordinator) on files in the app's Documents, with a stand-in
     /// for the system's pickers, which CI can't drive: Open (after the
     /// unsaved-changes question), a change saved in place, Save As (the
-    /// empty file moved), Export MIDI (the store's file offered, then
+    /// empty file moved), Export MIDI and audio (the store's file offered, then
     /// deleted), a second store reading the same lists (a relaunch), a song
     /// opened from Files and renamed, an example, a recent song that has gone,
     /// and New with its question answered Cancel, then Don't save.
@@ -194,6 +194,28 @@ final class SessionTests: XCTestCase {
             atPath: AppPaths.filesDir.appendingPathComponent("exports").path)) ?? []
         XCTAssertEqual(leftover, [], "the store's export file goes once the picker is done")
         XCTAssertEqual(model.snapshot.document?.documentId, copyId, "an export doesn't change the open document")
+
+        // Export audio: rendered on the core's own synth with the SoundFont, streamed into the
+        // store's file from the export's worker (copyFromFile), then offered the same way.
+        let messagesBeforeAudio = model.snapshot.messageCount
+        model.choose(.exportAudio)
+        let audio = await model.waitFor(timeout: .seconds(120)) { snapshot in
+            picker.exported?.pathExtension == "wav" || snapshot.messageCount > messagesBeforeAudio
+        }
+        XCTAssertTrue(audio, "\(picker.calls); \(String(describing: model.snapshot.status))")
+        XCTAssertEqual(model.snapshot.messageCount, messagesBeforeAudio, "\(model.snapshot.messages)")
+        if let file = picker.exported, file.pathExtension == "wav" {
+            XCTAssertEqual(file.lastPathComponent, "Morning copy.wav")
+            let wav = try Data(contentsOf: file)
+            XCTAssertEqual(wav.prefix(4), Data("RIFF".utf8))
+            XCTAssertGreaterThan(wav.count, 10_000)
+        }
+        _ = await model.waitFor(timeout: .seconds(10)) { $0.status?.text.hasPrefix("Exported audio") == true }
+        XCTAssertEqual(model.snapshot.status?.text, "Exported audio: Morning copy.wav")
+        try await Task.sleep(for: .milliseconds(300))
+        let audioLeftover = (try? FileManager.default.contentsOfDirectory(
+            atPath: AppPaths.filesDir.appendingPathComponent("exports").path)) ?? []
+        XCTAssertEqual(audioLeftover, [])
 
         // A relaunch: another store over the same lists resolves the bookmarks.
         let relaunched = AppDocumentStore.make()
