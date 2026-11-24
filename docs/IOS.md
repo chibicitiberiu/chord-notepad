@@ -12,9 +12,10 @@ repeated here.
 plan), `ios/ChordNotepadKit` is built and tested on Linux (section C), and
 CI builds the bare app shell and tests it on iPhone and iPad simulators
 with no Apple account (section D, `.github/workflows/ios.yml`). The first
-screen slice is the chord sheet, under the shell's text ("The chord sheet"
-below). Still to come: enrollment, signing and TestFlight (A, E), then the
-other screens (F, in `BACKLOG.md`).
+screen slices are the chord sheet ("The chord sheet" below) and the song
+editor with the Edit ribbon ("The song editor"), both in the shell. Still to
+come: enrollment, signing and TestFlight (A, E), then the other screens (F,
+in `BACKLOG.md`), the Play tab and the main screen's navigation first.
 
 ## Decisions and constraints
 
@@ -55,6 +56,8 @@ ios/
     App/                        AppModel (the session), paths, document store,
                                 diagnostics, self-test
     Screens/                    ShellScreen (pure), ShellView (live), self-test
+    Editor/                     the song editor: EditorTextView, EditorController, SongEditor,
+                                EditRibbon, EditorAppearance and EditorPreview, EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
     Assets.xcassets             the app icon (ios/tools/make_app_icon.py)
@@ -76,6 +79,8 @@ ios/
       OffsetMapper.swift        code points <-> UTF-16
       SheetBuffer.swift         op-buffer v2 decoder (values, no drawing)
       ChordSheet/               the chord sheet's logic: geometry, theme, split, loader, painter
+      Editor/                   the song editor's logic: EditorModel, EditHistory, text arithmetic,
+                                styles, paste and wrap, scrolling, shortcuts, directive hints
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
@@ -127,7 +132,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 102 tests, about 10 s after the first build
+make ios-kit-test      # swift test: 168 tests, about 12 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -157,14 +162,18 @@ What the tests cover:
 | `BridgeCodecTests` | generated facts against the schema file, every builder (null and set) accepted by the core's own `decode_args` and answer decoders, required nullable keys written as null, decoding by type name |
 | `OffsetMapperTests` | Android's `OffsetMapperTest`, case for case (lone surrogates through UTF-16 code units) |
 | `SheetBufferTests` | Android's `ChordSheetBufferTest` on the same fixtures, plus every truncation throwing, huge counts, `Data` slices |
-| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap), every fixture folding into a screen's snapshot, the chord sheet scenes' buffers (view, zoom, playhead, heights) |
+| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap), every fixture folding into a screen's snapshot, the chord sheet scenes' buffers (view, zoom, playhead, heights), the editor scenes folded into the editor (the selection a command made, every span kind, the notation) |
+| `EditorTextTests` | Android's `SpanShiftTest` and `TextEditsTest`, case for case: the one changed range, surrogate pairs, spans moving like Tk tags, a session edit's cursor before, inside and after its replacement against a code-point reference (500 random edits), the anchor's selection |
+| `EditorModelTests` | Android's `EditorControllerTest` and `EditorWiringTest` as behaviour (tokens, stale highlights, spans moving with typing, no echo, `group`/`plain`/`reset`, a highlight that arrives before its edit, code-point taps and cursor, the playing chord), plus the undo history (typing runs, a new line or a caret move ends one, redo, undone text highlighted under its token, read-only), composition, paste, Convert and the line commands, every fixture folding into the editor |
+| `EditorLookTests` | Android's `EditorLookTest` (font kinds, points × 4/3, the pinch, the redundant directive's alpha, tag priority) and `ShortcutsTest` with Command; the style runs (no overlaps, priority, the playing chord on top, clamping, merging) |
+| `TextInputTests` | Android's `PasteNormalizationTest`, `ChordWrapTest`, `TextScrollTest` and `DirectiveHintControllerTest`, case for case |
 | `ChordSheetGeometryTests` | Android's `ChordSheetGeometryTest`, case for case: anchors, hit-testing, gutter variants, culling, lane clips, auto-scroll, zoom steps, Tk colours, requests; the scroll after a new buffer |
 | `ChordSheetThemeTests` | Android's `ChordSheetThemeTest` and `ChordSheetPaperTest` as behaviour: the light theme keeps the buffer's colours, the dark one maps them; the palette |
 | `ChordSheetLayoutTests` | Android's `ChordSheetSplitTest`, the pane's content height, when the strip follows the playhead |
 | `ChordSheetLoaderTests` | Android's `ChordSheetControllerTest`: one fetch per distinct request after the settle time, no song, a newer version, the loading flag, stale replies dropped |
 | `SheetPainterTests` | the painter on the Android fixtures with a recording canvas: paint order, clips and translations, glyph rectangles and tints (widths against `clef_assets.scaled_width`), text anchoring and pixel snapping, lane clips, the playhead marks, the key bed, culling |
 | `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the six scenes |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the eight scenes |
 
 ## The Swift kit
 
@@ -265,14 +274,22 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records six scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records eight scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
-`chord_sheet_staff` (the staff, zoomed in one step, playhead on chord 24) and
+`chord_sheet_staff` (the staff, zoomed in one step, playhead on chord 24),
 `chord_sheet_fret` (fret cards after `set_voicing guitar:standard`, which
-makes the view available). The last two come after `errors`, so its states
-stay as they were. Each file has the newest JSON of every state (the whole
+makes the view available), `editor_mid_edit` (the quick-start song with a
+line of an invalid and a redundant directive and an unknown chord put in by
+`insert_text`, then two lines commented out by `toggle_comment`, whose
+`anchor` leaves them selected: every span kind) and `editor_european` (the
+quick-start song after `convert_notation european`). Each scene comes after
+the ones whose states it would change, so theirs stay as they were; the
+editor's come last, with the sheet hidden again. A scene starts at the mark
+before its song's `restore_draft`, so it carries the `TextEdited` with the
+text. The user's own typing can't be recorded (the session doesn't echo
+`set_text`), so the editor scenes are made of the session's edits. Each file has the newest JSON of every state (the whole
 screen) and the other outputs of the scene in order, exactly as they crossed
 the bridge, sorted and indented, with the temporary files folder written
 `$FILES_DIR`. A normal run checks them; `make ios-fixtures` rewrites them.
@@ -364,12 +381,15 @@ ChordNotepad.app/
 
 ### The shell and its diagnostics
 
-Phase 1 has one screen: the song's title, its text with the chords
-highlighted (from `HighlightState`, code points mapped with `OffsetMapper`)
-and the status line. `SessionSnapshot` (in the kit, tested on Linux) folds
-the session's output into what a screen reads; `EditorState` carries no
-text, so the text is rebuilt from `TextEdited`. Buttons: play the first
-chord, the self-test, export diagnostics.
+Phase 1 has one screen: the song's title, the Edit ribbon, the song editor
+("The song editor" below), the chord sheet while it is shown, and the
+status line. `SessionSnapshot` (in the kit, tested on Linux) folds the
+session's output into what a screen reads; `EditorState` carries no text,
+so its `text` is rebuilt from `TextEdited`. That is the session's edits
+only: the editor's own model (`EditorModel`, fed the same outputs in the
+same order by `AppModel.receive`) owns the text the user sees and types.
+Buttons: play the first chord, show the chord sheet, the self-test, export
+diagnostics.
 
 - **Logs:** `os_log` subsystem `com.tibich.chordnotepad`, categories
   `bridge`, `python`, `audio`, `store`, `ui`. Python's own output reaches
@@ -463,18 +483,150 @@ Deliberate differences from Android:
 - While a pinch is in progress the whole strip scales, the gutter too.
 - The height the drag stores is in points (`set_chord_sheet_height`).
 
+### The song editor
+
+The second slice: the shell's text is the song editor, a port of Android's
+`ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
+
+- **In the kit** (`Sources/ChordNotepadKit/Editor/`, tested on Linux):
+  `EditorModel` is the whole editor as a value: the text the view shows,
+  its selection, the painted spans, the sounding chord, the undo history and
+  the text exchange with the session. Every input is a mutating call that
+  returns `EditorEffects` (commands to send, `ViewEdit`s for the text
+  storage, the selection, whether to restyle or scroll):
+  - the user's edits (`viewChanged(text:selection:composing:)`, from the
+    text view's delegate) go out as `set_text` with an increasing client
+    token; the session doesn't echo them;
+  - the session's `TextEdited` come back as `ViewEdit`s in UTF-16
+    (`TextEdited.utf16(in:)`, with the selection its `anchor` and `cursor`
+    make), folded into the history by their `undo`, never sent back; while
+    an input method composes (marked text) they wait for the composition to
+    end;
+  - a `HighlightState` is painted only for the text it was computed for
+    (Android's `TextIdentity`: the client token, or a session edit's
+    revision); until then the old spans move with each edit the way Tk tags
+    do. A state that arrives before its text (a fixture folds the states
+    first) is painted once the text is there;
+  - `EditHistory`: undo is the view's, as on every front end (the session
+    has no undo command; Android uses `TextFieldState`'s history, the Qt
+    desktop `QTextDocument`'s). Typing merges into one step per run
+    (insertions that continue where the last one ended, a run of Backspace
+    or Delete; a new line or a caret move starts a new step), a `group` or
+    `plain` session edit is a step of its own, `reset` clears the history,
+    and each step puts back its selection. The text an undo or redo leaves
+    goes to the session as a user edit;
+  - `perform(_:)` runs the ribbon's and the key commands' actions (undo,
+    redo, the font steps, the notation, Convert, the desktop's line
+    commands), with the text synced first and offsets in code points.
+
+  `EditorStyles.swift` has `EditorPalette` (Android's `AppColors` for the
+  editor and the ribbon: Tk's colours in light, readable hues in dark),
+  `styleRuns` (the spans and the sounding chord flattened into runs that
+  don't overlap, merged in the desktop's tag priority; a field a span leaves
+  unset keeps the lower span's, as in Tk and Compose) and `EditorFont`.
+  `TextInput.swift` has the paste normalisation, the chord join points and
+  `JoinedText`, and `TextScroll`; `EditorShortcuts.swift` the key bindings;
+  `DirectiveHints.swift` Play mode's long-press explanation (Android's
+  controller as plain state, for the Play slice: the editor shows no hint).
+- **In the app** (`ChordNotepad/Editor/`): `EditorTextView` (a UITextView on
+  a TextKit 1 stack built by hand), `EditorController` (the main actor's
+  `ObservableObject` over the model; it applies the effects to the view and
+  sends the commands), `SongEditor` (the `UIViewRepresentable` and its
+  delegate), `EditRibbon`, `EditorAppearance` (fonts and attributes from the
+  kit's runs) and `EditorPreview` (the catalog's drawing), `EditorScript`
+  (CI's typing).
+- **The text is never assigned.** SwiftUI only places the view
+  (`updateUIView` does nothing). The session's edits, undo and redo go into
+  the text storage with `replaceCharacters`, the delegate's callbacks
+  ignored meanwhile; the model's bookkeeping is done first. Should the view
+  and the model ever differ, it is logged and the model's text wins.
+- **Styles** are attributes on the text storage, repainted from the kit's
+  runs after each change, never while an input method has marked text
+  (changing its attributes ends the composition). The typing attributes are
+  reset after every change, so what is typed after a chord isn't blue.
+- **TextKit 1** rather than TextKit 2: the layout manager's
+  `shouldBreakLineByWordBeforeCharacterAt` keeps a chord whole when the text
+  wraps (`D/F#` never splits after the slash), so the song never holds a word
+  joiner and a copy needs no cleaning (Android draws joiners and rewrites
+  the clipboard). The stack is built by hand at init, since asking a
+  TextKit 2 view for its layout manager switches it over mid-life.
+- **Word wrap off** (the default, `EditorState.word_wrap`): the container is
+  100 000 pt wide, the content as wide as the longest line, and the view
+  scrolls sideways; UIKit follows the caret up and down,
+  `TextScroll.followCursor` sideways. The sounding chord is followed on both
+  axes (`TextScroll.followChord`).
+- **Undo:** the view's undo manager is an `EditorUndoManager` whose undo,
+  redo and "can undo" are the kit's, so the Edit menu, shake to undo, the
+  three-finger gestures, the iPad's shortcut bar and Command-Z all reach
+  the same history as the ribbon. UIKit still registers its own typing
+  actions there; they are never run, and one level is kept.
+- **The ribbon** is a SwiftUI row under the header, as on Android, rather
+  than an `inputAccessoryView`: it stays with a hardware keyboard or none,
+  the catalog can draw it, and iPhone and iPad share one layout. Its
+  captions follow Dynamic Type up to `xLarge` (the row is a fixed 48 pt).
+- **Font:** the session's size in desktop points × 4/3, scaled like body
+  text by `UIFontMetrics`, so it follows Dynamic Type; the configured
+  family's kind picks the system's monospaced design (the default), the
+  system font or its serif design (New York).
+- **Input:** no autocorrection, capitalisation, spell checking, smart quotes
+  or dashes, smart insert and delete, or inline prediction. A change that
+  needs normalising (a paste, a drop, dictation, a keyboard's non-breaking
+  space) is refused in `shouldChangeTextIn` and put in normalised.
+- **Live check:** `SessionTests` puts a real `EditorTextView` in a window,
+  types through UIKit's `insertText` (the keyboard's path, which calls the
+  delegate), waits for the session's highlight under the editor's own
+  token, checks the unwrapped content is wider than the view, a session
+  `insert_text` lands without a `set_text` going back, and undo and redo
+  (the ribbon's and the undo manager's) go back as user edits; the view is
+  attached as `editor-live.png`. `-CNScreen editor` does the typing at
+  launch on the screen itself and writes `Diagnostics/editor.json`, which
+  CI's screenshot waits for and checks.
+
+Deliberate differences from Android:
+
+- The ribbon has Undo, Redo, AB/Do and Convert. Insert, Transpose, Capo and
+  Identify open sheets that come with later slices; until then the row fits
+  every screen, so it has no chevron or fades. There is no floating undo
+  chip: the header doesn't collapse, and iOS has its own undo gestures.
+- Hardware keys use Command, not Ctrl; redo is Shift-Command-Z (no
+  Command-Y). The Qt desktop's line commands come along: Command-/ (toggle
+  comment), Command-D (duplicate), Shift-Command-K (delete lines) and
+  Option-Command-Up/Down (move lines; the desktop's Shift-Ctrl-arrows would
+  take over "select to the start/end" on Apple platforms).
+- A session edit with an `anchor` selects from it to the cursor, as the Qt
+  desktop does (Android ignores the anchor).
+- The session's edits wait while an input method composes.
+- Dragging the text down hides the keyboard (`keyboardDismissMode =
+  .interactive`).
+- The empty editor says "Type or paste a song here" in the system's
+  monospaced body font, as Android's placeholder.
+
+What CI doesn't test: a person typing on the software keyboard (its
+suggestions bar, a long-press menu), input method composition (Japanese,
+Chinese) and dictation on a device, the hardware key commands (XCTest
+sends no key events without UI tests), shake and the three-finger gestures,
+dropping text, rotation, VoiceOver, and the editor's speed on a long song
+(every change repaints the whole text's attributes).
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
 with; adding a screen is one line there. `#Preview`s use the same
 `PreviewCatalog.snapshot("<scene>")`. `CatalogTests` renders each entry with
 `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and iPad Air 11-inch
-(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 56
-PNGs (the shell with six scenes, the self-test with a sample report). The
+(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 72
+PNGs (the shell with eight scenes, the self-test with a sample report). The
 chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only its
 scroll view (live only) is UIKit. ImageRenderer can't draw a `ScrollView` (or other UIKit-backed
 views), so a screen takes `scrolls: false` in the catalog and draws plain
-SwiftUI.
+SwiftUI. The editor's UITextView is one of those: the catalog draws
+`EditorPreview`, a SwiftUI `Text` of the same `EditorModel` (folded from the
+scene's outputs) with the same font and the same `styleRuns` as attributes,
+word joiners keeping the chords whole when it wraps, and the selection as a
+25 % tint of the primary colour. It has no caret, the live view's selection
+colour is the system's, and SwiftUI's line height can differ slightly from
+TextKit's; unwrapped lines run past the right edge, as the live view shows
+them before it is scrolled.
 
 ### App Store requirements already in place
 
@@ -531,13 +683,15 @@ Artifacts of each run:
 - `ios-screenshots`: `<iphone|ipad>-shell.png` (the quick-start song with
   its status line), `<iphone|ipad>-selftest.png`,
   `<iphone|ipad>-chordsheet.png` (the quick-start song with the chord sheet
-  shown, its buffer from the live session), the app's Diagnostics
-  folder from each simulator (`launch.json`, `selftest.json` with the live
+  shown, its buffer from the live session), `<iphone|ipad>-editor.png` (the
+  editor after the app typed a long chord line into it, the session's
+  highlight painted, the keyboard up), the app's Diagnostics
+  folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`, `selftest.json` with the live
   audio result, the core's log) and `<device>-app.log` (the unified log of
   the app's process).
 - `ios-results`: the `.xcresult` bundles (open in Xcode, or
   `xcrun xcresulttool` on a Mac; the catalog PNGs and the test's
-  `selftest.json` are attached) and the xcodebuild logs.
+  `selftest.json`, `chordsheet-live.png` and `editor-live.png` are attached) and the xcodebuild logs.
 - `ios-kit-tests`: the kit's `swift test` output on macOS.
 
 `gh run download <run> -n ios-screenshots` fetches one on Linux.
