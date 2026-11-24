@@ -235,17 +235,18 @@ enum PreviewCatalog {
         let state = scene.snapshot.voicingEditor
         let schema = scene.snapshot.voicingEditorSchema.map { EditorSchema.parse($0.schema) }
         let form = state.flatMap { schema?.form($0.model) }
-        let items = state.flatMap { state in
+        let all = state.flatMap { state in
             form.map { buildForm($0, values: state.values, errors: state.fieldErrors, hints: state.hints) }
         } ?? []
+        // From the voices' section title on, as the scrolled form shows them.
+        let records = all.firstIndex { if case .records = $0 { return true } else { return false } } ?? 0
+        let start = records > 0 && { if case .header = all[records - 1] { return true } else { return false } }()
+            ? records - 1 : records
+        let items = Array(all[start...])
         VStack(spacing: 0) {
             PageBar(title: state?.selected ?? "", colors: colors)
             PageColumn(live: false, spacing: 8, maxWidth: 900) {
-                ForEach(items, id: \.key) { item in
-                    if case .records(let records) = item {
-                        RecordsInput(item: records, formKey: "catalog", wide: false, colors: colors, live: false)
-                    }
-                }
+                VoicingFormItems(items: items, formKey: "catalog", wide: false, colors: colors, live: false)
             }
         }
         .background(colors.surface.swiftUI)

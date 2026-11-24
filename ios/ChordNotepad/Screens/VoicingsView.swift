@@ -105,9 +105,7 @@ struct VoicingList: View {
         if live {
             ScrollView { list }
         } else {
-            list
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .clipped()
+            list.topClipped()
         }
     }
 }

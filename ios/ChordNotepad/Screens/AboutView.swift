@@ -50,7 +50,7 @@ struct AboutScreen: View {
             if live {
                 ScrollView { column }
             } else {
-                column.frame(maxHeight: .infinity, alignment: .top).clipped()
+                column.topClipped()
             }
         }
         .background(colors.surface.swiftUI.ignoresSafeArea())
@@ -150,8 +150,7 @@ struct LicencesScreen: View {
                 ScrollView { LazyVStack(alignment: .leading, spacing: 0) { rows } }
             } else {
                 VStack(alignment: .leading, spacing: 0) { rows }
-                    .frame(maxHeight: .infinity, alignment: .top)
-                    .clipped()
+                    .topClipped()
             }
         }
         .background(colors.surface.swiftUI.ignoresSafeArea())
@@ -202,7 +201,7 @@ struct LicenceDetailScreen: View {
             if live {
                 ScrollView { column }
             } else {
-                column.frame(maxHeight: .infinity, alignment: .top).clipped()
+                column.topClipped()
             }
         }
         .background(colors.surface.swiftUI.ignoresSafeArea())

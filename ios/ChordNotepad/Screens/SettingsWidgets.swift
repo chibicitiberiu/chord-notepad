@@ -523,6 +523,17 @@ struct IconButton: View {
     }
 }
 
+extension View {
+    /// Laid out at its ideal height from the top of the space it is given and
+    /// cut at the bottom (the catalog, which can't draw a scroll view). Its
+    /// size is the space's, so whatever sits over it stays on screen.
+    func topClipped() -> some View {
+        Color.clear
+            .overlay(alignment: .top) { fixedSize(horizontal: false, vertical: true) }
+            .clipped()
+    }
+}
+
 /// A scrolling column of fields, not wider than a comfortable form (live), or
 /// the same column cut at the bottom of its space (the catalog).
 struct PageColumn<Content: View>: View {
@@ -540,10 +551,7 @@ struct PageColumn<Content: View>: View {
             ScrollView { column }
                 .scrollDismissesKeyboard(.interactively)
         } else {
-            column
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                .clipped()
+            column.topClipped()
         }
     }
 }
