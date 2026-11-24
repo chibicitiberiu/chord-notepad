@@ -110,6 +110,7 @@ final class SessionTests: XCTestCase {
         session.submit(.setChordSheetVisible(visible: false))
 
         try await checkFiles(model)
+        try await checkSheetsAndTools(model)
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
@@ -272,6 +273,141 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(model.ui.mode, .edit, "a new song is in Edit")
         model.picker = SystemDocumentPicker()
         try? FileManager.default.removeItem(at: folder)
+    }
+
+    /// The player's sheets and the ribbon's tools, live, through the app's
+    /// own path (`AppModel.sheet`, the kit's reducer, the session): the speed
+    /// sheet's slider, Manual… and Reset; Playback settings' Write into song;
+    /// Transpose, Insert › Tempo with the session's check, Suggest Capo and the
+    /// chord identifier's Insert, each checked in the editor's text.
+    private func checkSheetsAndTools(_ model: AppModel) async throws {
+        let editor = model.editor
+        model.openQuickStart()
+        let opened = await model.waitFor(timeout: .seconds(60)) {
+            $0.document?.displayName == "01_quick_start.txt" && $0.highlight?.spans.isEmpty == false
+        }
+        XCTAssertTrue(opened, "\(String(describing: model.snapshot.document))")
+        XCTAssertTrue(editor.model.text.hasPrefix("{bpm: 190} {time: 4/4} {key: C}\n"))
+
+        // Speed: the slider snaps to 5 % and the session follows; Manual… checks the value first.
+        model.sheet(.open(.speed(manual: false)))
+        XCTAssertEqual(model.ui.route, .speed(manual: false))
+        model.sheet(.speedDragged(148))
+        var done = await model.waitFor(timeout: .seconds(10)) { $0.toolbar?.multiplierPct == 150 }
+        XCTAssertTrue(done, "\(String(describing: model.snapshot.toolbar?.multiplierPct))")
+        XCTAssertNil(model.ui.tools.speedSlider.dragged, "the thumb lets go once the session has the value")
+        model.sheet(.speedManual)
+        model.sheet(.speedTyped("500"))
+        model.sheet(.speedOK)
+        XCTAssertEqual(model.ui.route, .speed(manual: true), "500 isn't a speed: the dialog stays")
+        XCTAssertEqual(model.ui.tools.speedEntry?.showError, true)
+        model.sheet(.speedTyped("80"))
+        model.sheet(.speedOK)
+        done = await model.waitFor(timeout: .seconds(10)) { $0.toolbar?.multiplierPct == 80 }
+        XCTAssertTrue(done)
+        XCTAssertEqual(model.ui.route, .speed(manual: false))
+        model.sheet(.speedReset)
+        done = await model.waitFor(timeout: .seconds(10)) { $0.toolbar?.multiplierPct == 100 }
+        XCTAssertTrue(done)
+        model.sheet(.done)
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+
+        // Playback settings: every value is set by a directive in the quick-start song.
+        model.sheet(.open(.songDefaults))
+        let defaults = try XCTUnwrap(model.snapshot.songDefaults)
+        XCTAssertTrue(defaults.tempo.fromDirective && defaults.time.fromDirective && defaults.key.fromDirective)
+        XCTAssertFalse(defaults.anythingToWrite)
+        model.sheet(.editDirective(defaults.key.directiveOffset ?? 0))
+        XCTAssertEqual(model.ui.mode, .edit, "Edit under a value goes to Edit")
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+
+        // Transpose the whole song up two semitones from the ribbon.
+        var revision = model.snapshot.textRevision
+        model.sheet(.ribbon(.transpose))
+        XCTAssertEqual(model.ui.route, .transpose(selection: false))
+        model.sheet(.transposeUp)
+        model.sheet(.transposeUp)
+        model.sheet(.transposeOK)
+        done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
+        XCTAssertTrue(done)
+        XCTAssertTrue(editor.model.text.hasPrefix("{bpm: 190} {time: 4/4} {key: D}\n"), "\(editor.model.text.prefix(60))")
+        XCTAssertEqual(chordsAbove("Twinkle, twinkle, little star,", in: editor.model.text), ["D", "D/F#", "G", "D"])
+
+        // Insert › Tempo: the dialog's fields checked by the session; Insert only once they're clean.
+        caretAtStart(editor)
+        model.sheet(.ribbon(.insert))
+        XCTAssertEqual(model.ui.route, .insert)
+        model.sheet(.insert(.bpm))
+        var asked = await model.waitFor(timeout: .seconds(30)) {
+            if case .insertDirective? = $0.request { return true }
+            return false
+        }
+        XCTAssertTrue(asked)
+        model.sheet(.directiveShown)
+        var form = try XCTUnwrap(model.ui.tools.directive?.form)
+        form.bpm = "999"
+        model.sheet(.directiveChanged(form))
+        let checked = await model.waitFor(timeout: .seconds(10)) { $0.directiveCheck?.fields["value"]?.stringValue == "999" }
+        XCTAssertTrue(checked)
+        guard case .insertDirective(let request)? = model.snapshot.request else { return XCTFail("no request") }
+        XCTAssertFalse(model.ui.directiveVerdict(for: request, snapshot: model.snapshot).messages.isEmpty)
+        form.bpm = "110"
+        model.sheet(.directiveChanged(form))
+        let clean = await model.waitFor(timeout: .seconds(10)) { $0.directiveCheck?.fields["value"]?.stringValue == "110" }
+        XCTAssertTrue(clean)
+        XCTAssertTrue(model.ui.directiveVerdict(for: request, snapshot: model.snapshot).canInsert)
+        revision = model.snapshot.textRevision
+        model.sheet(.directiveInsert)
+        XCTAssertNil(model.snapshot.request)
+        done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
+        XCTAssertTrue(done)
+        XCTAssertTrue(editor.model.text.hasPrefix("{bpm: 110}"), "\(editor.model.text.prefix(60))")
+
+        // Suggest Capo from the ribbon: scored at once, closed without a change.
+        model.sheet(.ribbon(.capo))
+        asked = await model.waitFor(timeout: .seconds(60)) {
+            $0.capoAdvice?.active == true && $0.capoAdvice?.status == CapoAdviceState.ready
+        }
+        XCTAssertTrue(asked, "\(String(describing: model.snapshot.capoAdvice))")
+        let advice = try XCTUnwrap(model.snapshot.capoAdvice)
+        XCTAssertNotNil(model.ui.capoChosen(advice))
+        model.sheet(.capoCancel)
+        done = await model.waitFor(timeout: .seconds(10)) { $0.capoAdvice?.active == false }
+        XCTAssertTrue(done)
+
+        // The chord identifier: C, E and G tapped, C picked and inserted at the cursor.
+        model.sheet(.ribbon(.identify))
+        XCTAssertEqual(model.ui.route, .identify)
+        for key in PianoKeyboard().keys where [60, 64, 67].contains(key.midi) {
+            model.sheet(.identifierTap(key))
+        }
+        let named = await model.waitFor(timeout: .seconds(30)) { $0.identifier?.candidates.contains("C") == true }
+        XCTAssertTrue(named, "\(String(describing: model.snapshot.identifier))")
+        XCTAssertEqual(model.ui.tools.identifier.typed, model.snapshot.identifier?.notesText)
+        model.sheet(.identifierPick("C", rolled: false))
+        caretAtStart(editor)
+        revision = model.snapshot.textRevision
+        model.sheet(.identifierInsert(nil))
+        done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
+        XCTAssertTrue(done)
+        XCTAssertTrue(editor.model.text.hasPrefix("C {bpm: 110}"), "\(editor.model.text.prefix(60))")
+        model.sheet(.dismiss)
+        XCTAssertEqual(model.ui.route, MainRoute.none)
+    }
+
+    /// The caret to the song's start, as a tap there puts it.
+    private func caretAtStart(_ editor: EditorController) {
+        editor.run { model in
+            _ = model.viewChanged(text: model.text, selection: UTF16Range(0, 0), composing: false)
+            return []
+        }
+    }
+
+    /// The chords on the line above the first line that starts with `lyric`.
+    private func chordsAbove(_ lyric: String, in text: String) -> [String] {
+        let lines = text.components(separatedBy: "\n")
+        guard let index = lines.firstIndex(where: { $0.hasPrefix(lyric) }), index > 0 else { return [] }
+        return lines[index - 1].split(separator: " ").map(String.init)
     }
 
     /// Play mode, live: the same text view, frozen, with the playhead marker.

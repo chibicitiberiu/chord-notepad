@@ -5,12 +5,14 @@
 # Diagnostics, whose self-test also tries live CoreAudio playback, one of Play
 # with the chord sheet shown (its buffer from the live session), one of
 # Edit after the app typed into the editor (the session's highlight checked),
+# the speed sheet and the ribbon's Insert › Tempo, Suggest Capo and Identify,
 # and one of the export picker after an audio export (export.json checked).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
 # Writes <out-dir>/<label>-main.png, <label>-menu.png, <label>-selftest.png,
-# <label>-chordsheet.png, <label>-editor.png, <label>-export.png, the app's
+# <label>-chordsheet.png, <label>-editor.png, <label>-speed.png,
+# <label>-insert.png, <label>-capo.png, <label>-identify.png, <label>-export.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -118,6 +120,31 @@ for attempt in 1 2; do
 done
 [ "$edited" -eq 0 ] || status=1
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-editor.png"
+
+# The player's speed sheet and the Edit ribbon's tools, live: the app opens
+# each as a person would and writes tool-<name>.json when it is ready (the
+# speed at 125 %, Insert › Tempo with the session's check, Suggest Capo
+# scored, the identifier with Cmaj7). Same retry as the chord sheet.
+for tool in speed insert capo identify; do
+    rm -f "$DIAG/tool-$tool.json"
+    shown=1
+    for attempt in 1 2; do
+        xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen "$tool"
+        if wait_for "$DIAG/tool-$tool.json" 150; then
+            cat "$DIAG/tool-$tool.json"
+            sleep 3
+            if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/tool-$tool.json"; then
+                shown=0
+            else
+                echo "The $tool screen didn't get ready" >&2
+            fi
+            break
+        fi
+        echo "Attempt $attempt: no $tool screen" >&2
+    done
+    [ "$shown" -eq 0 ] || status=1
+    xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-$tool.png"
+done
 
 # Export audio with the real player's SoundFont: the app writes export.json
 # when the store has the WAV (or why it has none), then opens the export
