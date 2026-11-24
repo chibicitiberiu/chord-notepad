@@ -57,6 +57,15 @@ final class AppShortcutsTests: XCTestCase {
                        ["Find…", "Find and Replace…", "Find Next", "Find Previous"])
         XCTAssertEqual(AppShortcut.listed(in: .view).map(\.title), ["Larger Text", "Smaller Text", "Reset Text Size"])
         XCTAssertEqual(AppShortcut.listed(in: .help).map(\.title), ["User Guide"])
+        // Open and the find keys are the system menu's own items (UIKit reports a second
+        // binding as a conflict); the app answers their actions.
+        XCTAssertEqual(AppShortcut.appListed(in: .file).map(\.title), ["New Song", "Save", "Save As…"])
+        XCTAssertEqual(AppShortcut.appListed(in: .edit), [])
+        for (action, command) in [("open:", AppCommand.open), ("find:", .find), ("findAndReplace:", .findAndReplace),
+                                  ("findNext:", .findNext), ("findPrevious:", .findPrevious)] {
+            XCTAssertEqual(AppShortcut.command(systemAction: action), command)
+        }
+        XCTAssertNil(AppShortcut.command(systemAction: "paste:"))
         XCTAssertEqual(AppShortcut.of(.saveAs)?.shift, true)
         // The text view's untitled Command-+ isn't listed twice.
         XCTAssertEqual(EditorKeyBinding.all.filter { $0.title.isEmpty }.map(\.action), [.fontBigger, .fontBigger])

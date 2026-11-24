@@ -20,32 +20,27 @@ final class UserDefaultsPreferences: PreferenceStore {
 }
 
 /// The app's keyboard shortcuts as menu commands (the kit's ``AppShortcut``
-/// table): File (New Song, Open…, Save, Save As…), Edit (Find…, Find and
-/// Replace…, Find Next, Find Previous), View (the text size) and Help (the
-/// user guide). As menu
-/// commands they act wherever the keys are, Play mode included (Android's
-/// are the song screen's root handler), and the iPad lists them when Command
-/// is held, and in iPadOS's menu bar.
+/// table): File (New Song, Save, Save As…), View (the text size) and Help
+/// (the user guide). As menu commands they act wherever the keys are, Play
+/// mode included (Android's are the song screen's root handler), and the iPad
+/// lists them when Command is held, and in iPadOS's menu bar. Open… and the
+/// find keys are already the system menu's (`open:`, `find:`,
+/// `findAndReplace:`, `findNext:`, `findPrevious:`): listing them again is a
+/// conflict UIKit reports (run 45493241329), so the editor's text view, first
+/// responder in both tabs, answers those actions (``EditorTextView``).
 struct AppCommands: Commands {
     let model: AppModel
 
     var body: some Commands {
-        CommandGroup(replacing: .newItem) { buttons(.file, upTo: .open) }
-        CommandGroup(replacing: .saveItem) { buttons(.file, from: .save) }
-        CommandGroup(replacing: .textEditing) { buttons(.edit) }
-        CommandGroup(before: .toolbar) { buttons(.view) }
-        CommandGroup(replacing: .help) { buttons(.help) }
+        CommandGroup(replacing: .newItem) { buttons([.newSong]) }
+        CommandGroup(replacing: .saveItem) { buttons([.save, .saveAs]) }
+        CommandGroup(before: .toolbar) { buttons(AppShortcut.appListed(in: .view).map(\.command)) }
+        CommandGroup(replacing: .help) { buttons(AppShortcut.appListed(in: .help).map(\.command)) }
     }
 
-    /// The shortcuts listed in `menu` (optionally from or up to a command, for
-    /// the File menu's two groups).
-    @ViewBuilder
-    private func buttons(_ menu: AppShortcutMenu, from first: AppCommand? = nil, upTo last: AppCommand? = nil)
-        -> some View {
-        let all = AppShortcut.listed(in: menu)
-        let start = first.flatMap { f in all.firstIndex { $0.command == f } } ?? 0
-        let end = last.flatMap { l in all.firstIndex { $0.command == l } } ?? all.count - 1
-        ForEach(Array(all[start...end]), id: \.command) { shortcut in
+    /// A button with its key for each of `commands`.
+    private func buttons(_ commands: [AppCommand]) -> some View {
+        ForEach(commands.compactMap { AppShortcut.of($0) }, id: \.command) { shortcut in
             Button(shortcut.title) {
                 MainActor.assumeIsolated { model.shortcut(shortcut.command) }
             }
@@ -99,13 +94,18 @@ extension AppModel {
     /// Replace with "the" typed and "a" as the replacement, then
     /// `Diagnostics/tool-find.json`, which the screenshot waits for.
     func runFindScreen() async {
-        _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
+        // The song's own open decides the tab (Play, as a saved song): switch after it.
+        _ = await waitFor(timeout: .seconds(120)) {
+            $0.highlight?.spans.isEmpty == false && $0.document?.documentId != nil
+        }
+        try? await Task.sleep(for: .seconds(1))
         selectMode(.edit)
+        _ = await waitFor(timeout: .seconds(10)) { _ in self.ui.mode == .edit }
         editor.find(.open(replace: true))
         editor.find(.query("the"))
         editor.find(.replacement("a"))
         let bar = editor.model.find
-        let ok = bar.open && bar.replacing && bar.current > 0 && bar.matches.count > 1
+        let ok = ui.mode == .edit && bar.open && bar.replacing && bar.current > 0 && bar.matches.count > 1
         Log.ui.info("Find screen: \(ok ? "ready" : "failed", privacy: .public) \(bar.countText, privacy: .public)")
         Diagnostics.shared.writeJSON(ToolScreenReport(name: "find", ok: ok, route: bar.countText),
                                      name: "tool-find.json")

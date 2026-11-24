@@ -55,6 +55,16 @@ extension SessionTests {
         XCTAssertEqual(editor.model.find.countText, "2 of 3")
         model.shortcut(.findPrevious)
         XCTAssertEqual(editor.model.find.countText, "1 of 3")
+        // The system menu's Find Next and Find Previous (Command-G, Shift-Command-G) reach the
+        // text view through the responder chain.
+        let findNext = NSSelectorFromString("findNext:")
+        XCTAssertTrue(view.canPerformAction(findNext, withSender: nil))
+        XCTAssertTrue(view.canPerformAction(NSSelectorFromString("open:"), withSender: nil))
+        XCTAssertTrue(UIApplication.shared.sendAction(findNext, to: view, from: nil, for: nil))
+        XCTAssertEqual(editor.model.find.countText, "2 of 3")
+        XCTAssertTrue(UIApplication.shared.sendAction(NSSelectorFromString("findPrevious:"), to: view, from: nil,
+                                                      for: nil))
+        XCTAssertEqual(editor.model.find.countText, "1 of 3")
 
         // -- Replace all: the session's one edit, its status, one undo step ----------------------
         editor.find(.replacement("Em"))

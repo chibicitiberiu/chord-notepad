@@ -72,7 +72,7 @@ final class EditorController: ObservableObject {
                 self?.apply(self?.model.find(.clearNotice) ?? EditorEffects())
             }
         }
-        if action == .close, !playMode, !model.readOnly {
+        if action == .close, playMode || !model.readOnly {
             textView?.becomeFirstResponder()
         }
     }
@@ -148,6 +148,7 @@ final class EditorController: ObservableObject {
         view.onScrub = { [weak self] in self?.scrubbed($0, at: $1) }
         view.onHold = { [weak self] in self?.held(at: $0) }
         view.onPinch = { [weak self] in self?.pinched($0, scale: $1) }
+        view.onCommand = { [weak self] in self?.onAppCommand?($0) }
         view.onWidthChanged = { [weak self] in self?.updateMarker() }
         view.markerScrub.grabs = { [weak self] in self?.scrubGrabs($0) ?? false }
         view.markerScrub.touchDown = { [weak self] in
@@ -167,6 +168,9 @@ final class EditorController: ObservableObject {
     }
 
     // MARK: - Play mode
+
+    /// The system menu's Open… and find actions, from the text view (the app's shortcuts).
+    var onAppCommand: ((AppCommand) -> Void)?
 
     /// What Play mode's touches do (the app model's commands).
     var playHandlers: PlayHandlers?
@@ -194,9 +198,14 @@ final class EditorController: ObservableObject {
         let on = mode == .play
         if on != playMode {
             playMode = on
+            // Play finds without the Replace row, as the desktop's Play workspace.
+            apply(model.findModeChanged(canReplace: !on))
             if let view = textView {
                 view.setPlayMode(on, editable: !model.readOnly)
                 if !on { scrubTo = nil }
+                // The frozen text has the keys (no keyboard), so the system menu's
+                // Open… and find actions reach it (``EditorTextView/onCommand``).
+                if on && view.window != nil && !model.find.open { view.becomeFirstResponder() }
             }
         }
         updateMarker()

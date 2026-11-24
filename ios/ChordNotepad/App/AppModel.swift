@@ -175,6 +175,7 @@ final class AppModel: ObservableObject {
                 })
             editor.submit = { session.submit($0) }
             editor.playHandlers = playHandlers
+            editor.onAppCommand = { [weak self] in self?.shortcut($0) }
             timings.sessionStart = elapsed()
             Log.bridge.info("Session started in \(self.timings.sessionStart ?? 0, format: .fixed(precision: 3)) s")
             reader = Task { [weak self] in

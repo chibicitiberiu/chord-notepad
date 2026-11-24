@@ -32,6 +32,11 @@ public struct AppShortcut: Sendable, Hashable {
     public var command: AppCommand
     public var title: String
     public var menu: AppShortcutMenu
+    /// The system's own menu already has this key, sending this action up
+    /// the responder chain (`open:`, `find:`, ...): the app answers the action
+    /// (the editor's text view, first responder in both tabs) instead of
+    /// listing the key again, which UIKit reports as a conflict.
+    public var systemAction: String? = nil
 
     /// Every shortcut, in the order the menus list them; each takes Command.
     ///
@@ -46,15 +51,18 @@ public struct AppShortcut: Sendable, Hashable {
     ///   media key on an iPad's keyboard, and SwiftUI's commands can't take it.
     public static let all: [AppShortcut] = [
         AppShortcut(input: "n", shift: false, option: false, command: .newSong, title: "New Song", menu: .file),
-        AppShortcut(input: "o", shift: false, option: false, command: .open, title: "Open…", menu: .file),
+        AppShortcut(input: "o", shift: false, option: false, command: .open, title: "Open…", menu: .file,
+                    systemAction: "open:"),
         AppShortcut(input: "s", shift: false, option: false, command: .save, title: "Save", menu: .file),
         AppShortcut(input: "s", shift: true, option: false, command: .saveAs, title: "Save As…", menu: .file),
-        AppShortcut(input: "f", shift: false, option: false, command: .find, title: "Find…", menu: .edit),
+        AppShortcut(input: "f", shift: false, option: false, command: .find, title: "Find…", menu: .edit,
+                    systemAction: "find:"),
         AppShortcut(input: "f", shift: false, option: true, command: .findAndReplace, title: "Find and Replace…",
-                    menu: .edit),
-        AppShortcut(input: "g", shift: false, option: false, command: .findNext, title: "Find Next", menu: .edit),
+                    menu: .edit, systemAction: "findAndReplace:"),
+        AppShortcut(input: "g", shift: false, option: false, command: .findNext, title: "Find Next", menu: .edit,
+                    systemAction: "findNext:"),
         AppShortcut(input: "g", shift: true, option: false, command: .findPrevious, title: "Find Previous",
-                    menu: .edit),
+                    menu: .edit, systemAction: "findPrevious:"),
         AppShortcut(input: "=", shift: false, option: false, command: .fontBigger, title: "Larger Text", menu: .view),
         AppShortcut(input: "-", shift: false, option: false, command: .fontSmaller, title: "Smaller Text", menu: .view),
         AppShortcut(input: "0", shift: false, option: false, command: .fontReset, title: "Reset Text Size",
@@ -72,6 +80,16 @@ public struct AppShortcut: Sendable, Hashable {
         guard command else { return nil }
         let key = input.count == 1 ? input.lowercased() : input
         return all.first { $0.input == key && $0.shift == shift && $0.option == option }?.command
+    }
+
+    /// The command a system menu action stands for (`find:` is Find), or nil.
+    public static func command(systemAction action: String) -> AppCommand? {
+        all.first { $0.systemAction == action }?.command
+    }
+
+    /// The shortcuts the app lists itself (the rest are the system menu's).
+    public static func appListed(in menu: AppShortcutMenu) -> [AppShortcut] {
+        listed(in: menu).filter { $0.systemAction == nil }
     }
 
     /// The shortcut for `command`.

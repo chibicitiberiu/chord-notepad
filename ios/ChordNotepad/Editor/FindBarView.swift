@@ -107,6 +107,13 @@ struct FindBarView: View {
                         act(.previous)
                         return .handled
                     }
+                    // Command-G and Shift-Command-G while the field has the keys (the
+                    // system menu's find actions go to the text view, out of this chain).
+                    .onKeyPress(characters: CharacterSet(charactersIn: "gG"), phases: .down) { press in
+                        guard press.modifiers.contains(.command) else { return .ignored }
+                        act(press.modifiers.contains(.shift) ? .previous : .next)
+                        return .handled
+                    }
                     .onKeyPress(.escape) {
                         act(.close)
                         return .handled

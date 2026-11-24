@@ -365,6 +365,21 @@ final class FindReplaceTests: XCTestCase {
         XCTAssertEqual(MainUiState(mode: .edit).findCanReplace, true)
     }
 
+    func testSwitchingToPlayDropsTheReplaceRow() {
+        song()
+        act(.open(replace: true))
+        XCTAssertTrue(model.find.replacing)
+        _ = model.findModeChanged(canReplace: false)
+        XCTAssertFalse(model.find.replacing)
+        XCTAssertFalse(model.find.canReplace)
+        XCTAssertTrue(model.find.open, "the bar stays, finding only")
+        _ = model.findModeChanged(canReplace: true)
+        XCTAssertTrue(model.find.canReplace)
+        XCTAssertFalse(model.find.replacing, "the row stays closed until asked for")
+        act(.showReplace(true))
+        XCTAssertTrue(model.find.replacing)
+    }
+
     func testUndoKeepsTheMatchesCurrent() {
         song()
         act(.open(replace: false))

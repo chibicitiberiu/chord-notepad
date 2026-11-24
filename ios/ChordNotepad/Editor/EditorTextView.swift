@@ -113,6 +113,7 @@ final class EditorTextView: UITextView {
         addGestureRecognizer(playHold)
         textPinch.addTarget(self, action: #selector(pinched(_:)))
         addGestureRecognizer(textPinch)
+        _ = Self.systemActions
     }
 
     @objc private func pinched(_ recognizer: UIPinchGestureRecognizer) {
@@ -308,6 +309,38 @@ final class EditorTextView: UITextView {
             return command
         }
         return (super.keyCommands ?? []) + own
+    }
+
+    // MARK: - The system menu's Open… and find actions
+
+    /// The system menu's Open… and find items (``AppShortcut/systemAction``)
+    /// go to the app: the text view is first responder in both tabs.
+    var onCommand: ((AppCommand) -> Void)?
+
+    /// First responder in Play too (frozen: no keyboard, no selection), so the
+    /// system menu's actions reach it there, as Android's focusable root takes
+    /// the keys.
+    override var canBecomeFirstResponder: Bool { true }
+
+    /// The system menu's actions are added at run time under their selectors
+    /// (`open:`, `find:`, ...): the SDK declares some of them on UIResponder
+    /// and not others, and a Swift method can't both override the one and
+    /// define the other the same way.
+    private static let systemActions: Void = {
+        for shortcut in AppShortcut.all {
+            guard let name = shortcut.systemAction else { continue }
+            let command = shortcut.command
+            let block: @convention(block) (EditorTextView, Any?) -> Void = { view, _ in
+                MainActor.assumeIsolated { view.onCommand?(command) }
+            }
+            class_replaceMethod(EditorTextView.self, NSSelectorFromString(name),
+                                imp_implementationWithBlock(block), "v@:@")
+        }
+    }()
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if AppShortcut.command(systemAction: NSStringFromSelector(action)) != nil { return onCommand != nil }
+        return super.canPerformAction(action, withSender: sender)
     }
 
     @objc private func runKeyCommand(_ command: UIKeyCommand) {

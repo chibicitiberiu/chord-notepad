@@ -258,6 +258,18 @@ extension EditorModel {
         }
     }
 
+    /// The tab changed: Play finds without the Replace row (the desktop's
+    /// `onCanReplaceChanged`), Edit offers it again (the row stays closed).
+    public mutating func findModeChanged(canReplace: Bool) -> EditorEffects {
+        let can = canReplace && !readOnly
+        guard can != find.canReplace else { return EditorEffects() }
+        find.canReplace = can
+        if !can { find.replacing = false }
+        var effects = EditorEffects()
+        effects.restyle = true
+        return effects
+    }
+
     /// The matches to tint while the bar is open (nil when it is closed).
     public var findPaint: FindPaint? {
         guard find.open, !find.matches.isEmpty else { return nil }

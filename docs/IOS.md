@@ -173,7 +173,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 451 tests, about 47 s after the first build
+make ios-kit-test      # swift test: 452 tests, about 47 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -1411,16 +1411,23 @@ or the schema changed: the session already had `replace_match`,
   `step_font_size`, as Android's does, so the session keeps and saves it
   like Command-= and Settings; the model's size isn't read again until the
   pinch ends, since the `EditorState` comes back behind the fingers.
-- **The keys** are SwiftUI menu commands from `AppShortcut`, so they act
-  wherever the keys are (Play mode included, as Android's root key handler),
-  the iPad lists them while Command is held, and iPadOS's menu bar shows
-  them: File: New Song ⌘N, Open… ⌘O, Save ⌘S, Save As… ⇧⌘S; Edit: Find… ⌘F,
-  Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G; View: Larger
-  Text ⌘=, Smaller Text ⌘-, Reset Text Size ⌘0; Help: User Guide ⌘?
-  (Android's F1). They act only on the bare
-  main screen (Android's are the song screen's: a sheet, a dialog or
-  Settings has the keys then). The text view keeps its own: undo, redo, the
-  line commands, and a hidden Command-+ beside the app's Command-=.
+- **The keys** come from one table, `AppShortcut`, and act wherever the
+  keys are (Play mode included, as Android's root key handler); the iPad
+  lists them while Command is held, and iPadOS's menu bar shows them. New
+  Song ⌘N, Save ⌘S, Save As… ⇧⌘S, Larger Text ⌘=, Smaller Text ⌘-, Reset
+  Text Size ⌘0 and User Guide ⌘? (Android's F1) are SwiftUI menu commands.
+  Open… ⌘O, Find ⌘F, Find & Replace ⌥⌘F, Find Next ⌘G and Find Previous ⇧⌘G
+  are the system menu's own items, sending `open:`, `find:` and the rest up
+  the responder chain: run 45493241329's log showed UIKit reporting the same
+  keys as SwiftUI commands as conflicts ("undefined behavior"). The editor's
+  text view answers those actions (added under their selectors at run time,
+  since the SDK declares some on UIResponder and not others) and is first
+  responder in both tabs: in Play it takes the keys frozen, with no
+  keyboard. While the find field has the keys, ⌘G and ⇧⌘G are the field's
+  own (`onKeyPress`). They act only on the bare main screen (Android's are
+  the song screen's: a sheet, a dialog or Settings has the keys then). The
+  text view keeps its own too: undo, redo, the line commands, and a hidden
+  Command-+ beside the app's Command-=.
 - **The column's width** (Play on its side with the chord sheet): kept in
   UserDefaults under Android's `side_fraction` when the handle is let go,
   clamped to 30–70 % on the way in and out; the privacy manifest lists
@@ -1428,7 +1435,8 @@ or the schema changed: the session already had `replace_match`,
 - **Live check:** `SessionTests` (`ChordNotepadTests/EditorFeaturesTests.swift`)
   restores a song in a real text view, opens Find and Replace through
   `AppModel.shortcut`, checks the selection and the two tints on the text
-  storage, goes next and back, replaces all (the text, "Replaced 3
+  storage, goes next and back (also with the system menu's `findNext:` and
+  `findPrevious:` sent to the text view), replaces all (the text, "Replaced 3
   matches", one undo), pinches (the session's size, the settings' value,
   the view's font), runs Command-0 and the text view's own Command-+ through
   the responder chain, checks the shortcuts wait under the menu, sets the
@@ -1447,6 +1455,10 @@ Deliberate differences:
   there is no Go to line.
 - The ribbon has Find (after Redo), which Android's ribbon hasn't; it opens
   the bar with the Replace row. Play mode has no Find button: Command-F only.
+- Switching to Play with the bar open keeps it, without its Replace row (the
+  desktop's Play workspace); back in Edit, ▸ shows the row again.
+- The menu titles of Open… and the find keys are the system's ("Find",
+  "Find & Replace"), since the system menu lists them.
 - The field isn't selected when the bar opens again (SwiftUI's text field
   can't select its text); a one-line selection still replaces the query.
 - The current match is a stronger tint over the selection rather than the
