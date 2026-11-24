@@ -1,5 +1,6 @@
 import ChordNotepadKit
 import SwiftUI
+import UIKit
 
 // The Edit ribbon's dialogs and the sheets' small dialogs, ported from
 // Android's ui/tools/ToolDialogs.kt and the speed and tempo dialogs of
@@ -115,12 +116,14 @@ struct OutlinedField: View {
         .frame(minHeight: 52)
         .overlay(RoundedRectangle(cornerRadius: 4).stroke(accent, lineWidth: 2))
         .overlay(alignment: .topLeading) {
-            Text(label)
-                .font(.caption)
-                .foregroundColor(accent)
-                .padding(.horizontal, 4)
-                .background(colors.surfaceHigh.swiftUI)
-                .offset(x: 10, y: -8)
+            if !label.isEmpty {
+                Text(label)
+                    .font(.caption)
+                    .foregroundColor(accent)
+                    .padding(.horizontal, 4)
+                    .background(colors.surfaceHigh.swiftUI)
+                    .offset(x: 10, y: -8)
+            }
         }
         .padding(.top, 6)
     }
