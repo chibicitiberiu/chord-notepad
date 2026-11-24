@@ -182,12 +182,28 @@ final class IntegrationTests: XCTestCase {
         session.submit(.setVoicing(voicing: "piano"))
         session.submit(.setChordSheetView(viewId: "keyboard"))
         session.submit(.setChordSheetHeight(px: 330))
-        _ = try await waitForSheet(log, "the piano roll at 330 pt") { $0.activeView == "keyboard" && $0.height == 330 }
+        // The piano voicing's render of the previous song first (fret cards no
+        // longer available), so the revision read below already counts it.
+        _ = try await waitForSheet(log, "the piano roll at 330 pt") {
+            $0.activeView == "keyboard" && $0.height == 330
+                && !$0.views.contains { $0.viewId == "fret" && $0.available }
+        }
         await log.waitQuiet()
+        let revisionBeforeFair = try log.decodeLatest(ChordSheetState.self, "ChordSheetState").songRevision
         mark = log.count
         session.submit(.restoreDraft(document: memoryRef("Scarborough Fair.txt"), modified: false, readOnly: false,
                                      text: scarborough))
         let fair = try await waitForChords(log, since: mark, count: 28)
+        // The strip's render of the new song is debounced and may land after a
+        // quiet spell, so wait for it (the new revision, the playhead's chord,
+        // the song's own sections) rather than for quiet alone: a scene recorded
+        // before it carried the previous song's sheet and timeline.
+        try await log.wait("the chord sheet's render of Scarborough Fair", timeout: 30) {
+            guard let sheet = try? log.decodeLatest(ChordSheetState.self, "ChordSheetState"),
+                  let playback = try? log.decodeLatest(PlaybackState.self, "PlaybackState") else { return false }
+            return sheet.songRevision > revisionBeforeFair && sheet.cursorIndex != nil
+                && playback.sections.map(\.label).contains("verse 2")
+        }
         await log.waitQuiet()
         try await scenes.record("scarborough_edit", "Scarborough Fair (the Android store screenshots' song) in Edit.",
                                 from: mark)

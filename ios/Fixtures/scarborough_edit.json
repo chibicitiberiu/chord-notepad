@@ -30,10 +30,10 @@
   "ChordSheetState": {
    "active_view": "keyboard",
    "current_index": null,
-   "cursor_index": null,
-   "disabled_reason": null,
+   "cursor_index": 0,
+   "disabled_reason": "Pick a fretted voicing, like Guitar, with the Voicing button.",
    "height": 330,
-   "song_revision": 4,
+   "song_revision": 6,
    "views": [
     {
      "available": true,
@@ -46,12 +46,12 @@
      "view_id": "staff"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Fret cards",
      "view_id": "fret"
     },
     {
-     "available": true,
+     "available": false,
      "label": "Tab",
      "view_id": "tab"
     }
@@ -399,32 +399,26 @@
    "sections": [
     {
      "first_bar": 1,
-     "label": "intro",
-     "last_bar": 24,
+     "label": "verse",
+     "last_bar": 14,
      "repeat": false
     },
     {
-     "first_bar": 25,
-     "label": "verse1",
-     "last_bar": 44,
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
      "repeat": false
     },
     {
-     "first_bar": 45,
-     "label": "bridge",
-     "last_bar": 80,
-     "repeat": false
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
     },
     {
-     "first_bar": 81,
-     "label": "enharmonic",
-     "last_bar": 108,
-     "repeat": false
-    },
-    {
-     "first_bar": 109,
-     "label": "outro",
-     "last_bar": 125,
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
      "repeat": false
     }
    ],
@@ -530,7 +524,7 @@
    }
   },
   "StatusState": {
-   "text": "Ready"
+   "text": "Bar 1/56"
   },
   "ToolbarState": {
    "beats": 3,
