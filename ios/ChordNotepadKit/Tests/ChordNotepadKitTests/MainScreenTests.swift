@@ -347,6 +347,18 @@ final class MainScreenTests: XCTestCase {
         XCTAssertNil(bars.shown)
     }
 
+    func testANoticeShowsInEitherModeButNotOverAnError() {
+        var bars = Snackbars()
+        bars.notice("Pause to change the voicing")
+        XCTAssertEqual(bars.shown?.text, "Pause to change the voicing")
+        XCTAssertEqual(bars.shown?.error, false)
+        var s = SessionSnapshot()
+        s.apply(.userError(UserError(message: "Broken", title: "")))
+        bars.update(s, mode: .play, now: 1)
+        bars.notice("Pause first")
+        XCTAssertEqual(bars.shown?.text, "Broken")
+    }
+
     func testWhatTheSnapshotAlreadyHeldDoesntPopUp() {
         let s = snapshot([.statusState(StatusState(text: "Ready")), .userError(UserError(message: "old", title: ""))])
         var bars = Snackbars(s)

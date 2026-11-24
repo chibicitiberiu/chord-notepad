@@ -63,6 +63,12 @@ public struct Snackbars: Sendable, Equatable {
         if !statusSnackbarsShown(mode), shown?.error == false { shown = nil }
     }
 
+    /// A short notice in either mode (why a greyed button does nothing;
+    /// Android shows a Toast). It doesn't replace an error.
+    public mutating func notice(_ text: String) {
+        if shown?.error != true { show(text, error: false) }
+    }
+
     /// The snackbar `id` timed out or was closed.
     public mutating func dismiss(_ id: Int) {
         if shown?.id == id { shown = nil }
