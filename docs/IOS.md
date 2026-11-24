@@ -19,8 +19,10 @@ Save, Save As, Recent, Export MIDI and audio, Examples and songs opened from
 Files ("Files"), and the player's sheets with the ribbon's tools: Voicing,
 Instrument, Playback speed, Playback settings, Insert, Transpose, Suggest
 Capo and the chord identifier ("The player's sheets and the ribbon's
-tools"). Still to come: enrollment, signing and TestFlight (A, E), then the
-other screens (F, in `BACKLOG.md`): Settings, the guide, About and Export PDF.
+tools"), and Settings, About and the licences ("Settings, About and
+Licences"). Still to come: enrollment, signing and TestFlight (A, E), then the
+other screens (F, in `BACKLOG.md`): the guide, the Quick Start tour and Export
+PDF.
 
 ## Decisions and constraints
 
@@ -62,7 +64,8 @@ ios/
                                 ScopedFileAccess, DocumentPicking), diagnostics, self-test
     Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets (the
                                 player's and Insert's sheets), Overlays (menu, dialogs, snackbar),
-                                DiagnosticsView (self-test, export)
+                                DiagnosticsView (self-test, export), SettingsView, VoicingsView,
+                                SettingsWidgets, AboutView (About, the licences)
     Tools/                      ToolDialogs (Transpose, Suggest Capo, the Insert dialogs, Manual… speed,
                                 the tempo), ChordIdentifierView (the identifier and its piano)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
@@ -98,15 +101,21 @@ ios/
                                 the identifier's piano and model, RibbonEdges
       Files/                    file handling's logic: document ids, the store (FileDocumentStore over
                                 DocumentFileAccess), the bookmark table, examples, the session's requests
+      Settings/                 Settings' logic: the draft, SettingsController, the voicing form's schema
+                                and items, pending edits, steppers, the field's echo, the texts
+      About/                    the licence list and texts, About's build info, links and texts
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
+  Licenses/components.json      the licences of what the iOS app ships (About › Open source licences)
   tools/
     gen_swift_bridge.py         writes Generated/Bridge.swift from the schema
     install_python.sh           the app's "Install Python" build phase
     export_glyphs.sh            the "Chord sheet glyphs" build phase
     make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
-    mdi_assets.py               Android's Material Design Icons as SVG image sets
+    mdi_assets.py               Android's Material Design Icons as SVG image sets (and the Settings
+                                and About icons from their Kotlin paths)
+    copy_licences.py            the "Licences" build phase: the list and its texts into the app
     ci_simulators.py, ci_screenshots.sh   CI helpers
   build/                        not committed: frameworks, the Python bundle, DerivedData
 packaging/ios/
@@ -150,7 +159,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 334 tests, about 30 s after the first build
+make ios-kit-test      # swift test: 399 tests, about 35 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -199,8 +208,11 @@ What the tests cover:
 | `PlayerSheetsTests` | Android's `SheetRouteTest`, case for case (the instrument's two levels, the speed dialog, typed and snapped speeds, the badge, the pill and Write into song), the slider letting go once the session has its value, Manual…'s check, Playback settings' rows and choices, Insert's entries |
 | `ToolsTests` | Android's `ToolFormsTest` and `DirectiveVerdictTest`, case for case (selections in code points, Transpose's range, each directive's answer, loop targets, key lists, Suggest Capo's pick and Apply, a stale or foreign check ignored), the messages in the fields' order, the tools' commands from the editor's model, `RibbonEdges` |
 | `IdentifierTests` | Android's `IdentifierTest`, case for case: the piano's keys and hit testing, labels in either notation, the model's field and pick, a notation switch, the layout, key looks, sounding keys and their token |
-| `SheetControllerTests` | every tap in the sheets and the tools through the reducer: the route, the dialogs' fields, the commands (speed, Playback settings and its locked reason, voicing, instrument, Insert, Transpose with and without a selection, an Insert dialog checked as it changes, Suggest from Insert Capo, Suggest Capo's pick and Apply, the identifier) |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; the twenty-five scenes (three of them frozen while a chord sounds) |
+| `SheetControllerTests` | every tap in the sheets and the tools through the reducer: the route, the dialogs' fields, the commands (speed, Playback settings and its locked reason, voicing, instrument, Insert, Transpose with and without a selection, an Insert dialog checked as it changes, Suggest from Insert Capo, Suggest Capo's pick and Apply, the identifier), Edit voicings… opening Settings |
+| `SettingsControllerTests` | Android's `SettingsControllerTest`, case for case but its three `snapshot()`/`restore()` cases (no state restoration on iOS): the edit's life, autosave and the 400 ms rest, a number only saved when valid, the voicing commands each followed by a save, leaving and the problems question, values kept from last time, the navigation on a phone and with two panes, the split, the dialogs, Add voicing's presets and sections, a built-in and a newer release's voicing read-only, pending edits, the key's spelling; the problems' lines, the steppers; `SettingsScenesTests`: every Settings scene folds into an editing screen with its schema |
+| `VoicingFormTests` | Android's `VoicingFormTest`, case for case: the schema, every field and section kind, the three models' forms with their errors and hints, records and the bottom voice's gap, a read-only form, the payloads, pending edits, steppers; the field's echo and the errors banner's timing |
+| `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the order, bad data, the pages' ← and an opened song, the build info, the FOSS support link |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the thirty scenes (three of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -301,7 +313,7 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records twenty-five scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records thirty scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
@@ -331,7 +343,15 @@ its `InsertDirectiveRequest`, the cursor after "me"; the tempo's carries the
 session's check of "999", the label's a clean check of "chorus"),
 `grace_edit` (the song restored again, nothing pending), `capo_advice`
 (Suggest Capo scored for the whole song) and `identifier_cmaj7` (C, E, G and
-B selected, Cmaj7 played). A fixture has no answers, so a request in it
+B selected, Cmaj7 played), then Settings' scenes, last, each from Amazing
+Grace's restore so it carries the text and the schema (an event):
+`settings_open` (the edit begun, the defaults, no voicings of the user's),
+`settings_voicing_form` (My 7-String made from a blank fretboard with strings
+B1 E2 A2 D3 G3 B3 E4, as `android/tools/help_shots.json` has it),
+`settings_voicing_refused` (its strings B1 E2 X9 G3 and a relaxed span of 2:
+two problems, nothing saved), `settings_voicing_ensemble` (Jazz Vocal Trio:
+Lead A3–F5, Harmony F3–D5, Bass E2–C4) and `settings_builtin` (the standard
+guitar read-only). A fixture has no answers, so a request in it
 stays pending; only the question draws, and the scenes after the Insert
 requests start from a fresh restore. Each scene comes after
 the ones whose states it would change, so theirs stay as they were; the
@@ -376,6 +396,7 @@ ChordNotepad.app/
   python/app/                       chordnotepad (the core), chordnotepad_ios (the glue)
   python/app_packages/              the core's packages
   chord_sheet/                      the clef and glyph PNGs and glyphs.json ("Chord sheet glyphs")
+  licenses/                         components.json and the texts it names ("Licences")
   GeneralUser-GS.sf2, Fixtures/, 01_quick_start.txt, PrivacyInfo.xcprivacy
 ```
 
@@ -446,8 +467,8 @@ rebuilt from `TextEdited`. That is the session's edits only: the editor's
 own model (`EditorModel`, fed the same outputs in the same order by
 `AppModel.receive`) owns the text the user sees and types.
 
-**Diagnostics** is the ☰ menu's last entry (a top-level entry, so it works
-before About exists), in every build, TestFlight included: a sheet with the
+**Diagnostics** is the ☰ menu's last entry (a top-level entry of its own,
+not under About), in every build, TestFlight included: a sheet with the
 build stamp, the self-test (run when it opens; "Run again") and "Export
 diagnostics" in its bottom bar.
 
@@ -743,8 +764,8 @@ The third slice: the app's frame, a port of Android's `ui/main/`
 - **The menu** has Android's drawer's entries in its order (New song,
   Open…, Recent, Save as…, the three exports, Settings, Examples, User
   guide, Quick start, About) and Diagnostics last. The file entries,
-  Recent and Examples work ("Files"); Export PDF, Settings, the guide, the
-  Quick Start tour and About are greyed with "Coming soon". The panel runs
+  Recent, Examples, Settings and About work; Export PDF, the guide and the
+  Quick Start tour are greyed with "Coming soon". The panel runs
   the screen's whole height, under the status bar and the home indicator,
   as Android's drawer does; its entries stay inside the safe area.
 - **Layout:** as `ScreenLayout.kt`. The chord sheet is a Play-mode view, so
@@ -762,7 +783,8 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   switches to Edit before typing, `-CNScreen menu` opens the menu,
   `-CNScreen export` exports the song as audio ("Files"), `-CNScreen speed`,
   `insert`, `capo` and `identify` open a sheet or a tool ("The player's sheets
-  and the ribbon's tools").
+  and the ribbon's tools"), `-CNScreen settings`, `voicings` and `about` a
+  page ("Settings, About and Licences").
 
 Deliberate differences from Android:
 
@@ -1041,6 +1063,124 @@ sound of the identifier's notes (the session test has the FakePlayer;
 `-CNScreen identify` plays them in the simulator), VoiceOver, rotation with a
 sheet open.
 
+### Settings, About and Licences
+
+The sixth slice, ported from Android's `ui/settings/` (`SettingsScreen.kt`,
+`SettingsController.kt`, `SettingsDraft.kt`, `SettingsWidgets.kt`,
+`GeneralPages.kt`, `VoicingsPage.kt`, `VoicingForm.kt`, `VoicingFormView.kt`,
+`VoicingSchema.kt`), `ui/about/` and `about/` (`Licences.kt`, `BuildInfo.kt`).
+The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
+`cancel_settings_edit`, `discard_settings_problems`, the voicing commands,
+`request_voicing_editor_schema`); nothing in the core or the schema changed.
+
+- **In the kit** (`Sources/ChordNotepadKit/Settings/` and `About/`, tested on
+  Linux): `SettingsDraft` (the key always American, as the config keeps it;
+  `respellKey`, `shownKey`), `NumberSetting` (ranges, labels, the range
+  text), `SettingsController` (Android's, as a value: each call queues its
+  commands in `outbox`, which the app sends; the phases, `SettingsNav`,
+  `SettingsDialog`, the problems' lines, the bar's title, the restored
+  banner, `showing(_:nav:)` for the catalog), `EditorSchema` (the form
+  schema), `buildForm` and `FormItem`, `VoicingEdits`, `PendingEdits`,
+  `stepNumber` and `canStep` (decimal arithmetic, strict number parsing),
+  `FieldEcho` (Android's `StateTextField`: typed text stays until the value
+  becomes something the field didn't send), `ErrorsBanner` (the form's
+  banner after 400 ms), `addVoicingSections`, `Licences` (the list, its
+  sections and texts), `AboutBuildInfo`, `AboutLinks`, `AboutTexts` and
+  `SettingsTexts` (Android's strings word for word). `SessionSnapshot` keeps
+  `VoicingEditorState` and the schema. `MainRoute` gains `.settings`,
+  `.about`, `.licences` and `.licence(id:fromAbout:)` with Android's
+  `Pages.parent` and `onSongOpened`.
+- **In the app** (`Screens/`): `SettingsScreen` (`SettingsView.swift`: the
+  bar, the pages, General, Playback, the dialogs), `VoicingsView.swift` (the
+  list, Add voicing, the voicing's detail, the form by kind, the records as
+  cards or a table through `WeightedRow`), `SettingsWidgets.swift` (the
+  outlined field with its label on the outline, − and +, the dropdown, the
+  Material switch, the segmented buttons, section titles, the error banner,
+  list rows, `PageColumn`) and `AboutView.swift` (About, the licences, a
+  licence's text). `AppModel` keeps the controller while Settings is open
+  (`openSettings`, `settingsAct`: the commands go out, a typed number is
+  saved 400 ms after the last change, the screen goes once the edit ends)
+  and the parsed schema; `MainScreen` draws the page over itself, under the
+  snackbar.
+- **Licences.** Android's list is its own (`assets/licenses/components.json`),
+  not the core's: `core/chordnotepad/services/licence_catalog.py` and
+  `resources/licenses/components.json` are the desktop builds' inventory
+  (`tests/test_licences.py` ties each entry to those builds and their
+  pins). So iOS has its own too, `ios/Licenses/components.json` in Android's
+  format, listing what the iOS app ships: the app and its logo; CPython
+  3.14.10 from BeeWare's support package 3.14-b14 with OpenSSL 3.5.9,
+  libFFI 3.4.7, BZip2 1.0.8, XZ 5.6.4, mpdecimal 4.0.0 and Zstandard 1.5.7
+  (its `VERSIONS` file) and Expat; FluidSynth 2.6.1 (LGPL-2.1, a separate
+  dynamic framework, unmodified, its source and the build script named) and
+  GCE-Math; the Python packages at `android/requirements.txt`'s pins without
+  chardet; GeneralUser GS, Bravura, Material Design Icons and Google's
+  Material Icons (the Settings icons). SQLite and zlib are the system's.
+  The user guide isn't shipped yet, so neither is its group. The "Licences"
+  build phase (`ios/tools/copy_licences.py`) copies the list and the texts it
+  names from `resources/licenses/texts` into `<app>/licenses`; a missing
+  text fails the build. `licence_catalog.detect_build` still returns None
+  on iOS; nothing there calls it.
+- **The flows**, as Android's: ☰ › Settings begins the edit (and asks for the
+  schema once per process); a phone shows the pages list, then a page, then
+  the voicing form; from 600 pt the pages list stays on the left (General
+  when none is picked), and the voicings list and form sit side by side when
+  the window less the pages list is 720 pt or more (an iPad on its side). A
+  switch, a dropdown or the notation is saved at once (`commit_settings`); a
+  typed number 400 ms after the last change, only when it is a whole number
+  in range (else its range shows in red and the text is staged in Python
+  for next time). Every voicing command is followed by `commit_settings`;
+  the core writes each voicing's valid fields and returns the rest as
+  `problems` (a value it can't build is never saved). ← goes up a page, then
+  leaves (`cancel_settings_edit`), asking first while something is wrong
+  (Discard, or Edit to go to the first). Values kept from last time come
+  back with the restored banner. A built-in is read-only (`select_builtin`)
+  with Copy to a new voicing. Edit voicings… in the Voicing sheet opens
+  Settings › Voicings. About shows the version, build type, build number
+  and commit (Info.plist), the licence (the app's own text), the source and
+  the FOSS flavour's Ko-fi link, then Open source licences; each opens in
+  the browser only when tapped.
+- **Live check:** `SessionTests` toggles word wrap (saved and applied to the
+  editor), types a tempo (nothing until the typing rests, then saved), one
+  out of range (staged, not saved), makes a voicing from a blank fretboard,
+  renames it, types its strings (in the Voicing sheet), then a string that
+  isn't a note (refused: a problem, the voicing invalid, leaving asks, Edit
+  goes back to it), fixes and removes it, opens Settings from Edit
+  voicings…, and checks About's routes and every licence text in the
+  bundle. `-CNScreen settings` (General), `voicings` (the built-in standard
+  guitar's form) and `about` open each live for CI's screenshots.
+
+Deliberate differences from Android:
+
+- The pages are drawn by the main screen over itself (no navigation stack),
+  with Android's bar; there is no edge swipe back.
+- The dialogs (problems, remove, model, rename) are cards over a dimmed
+  screen, like the other dialogs, so the catalog draws them.
+- The dropdowns and Add voicing's menu are iOS pop-up menus with the same
+  choices and group titles; the catalog draws Add voicing's menu as a card.
+- Switches are drawn in Material's shape (a UISwitch looks like iOS's and
+  the catalog can't draw it); VoiceOver reads them as switches.
+- The voicing form's number fields bring up the numbers and punctuation
+  keyboard (the number and decimal pads have no minus sign, and weights are
+  negative); General's and Playback's take the number pad.
+- The rename dialog opens with the caret after the name; Android selects
+  the whole name, ready to type over (SwiftUI's text field can't select).
+- No support card above the pages: the FOSS flavour hides it (no purchase),
+  and iOS has no StoreKit yet.
+- No state restoration: SwiftUI keeps Settings across a rotation, and the
+  app doesn't bring a screen back after the system ends it, so Android's
+  three `snapshot()`/`restore()` cases have no counterpart.
+- The licences list has no Android libraries group (no AboutLibraries);
+  Apple's frameworks are the system's.
+- About's build type is Debug or Release of the Xcode build; the build
+  number is CI's run number.
+
+What CI doesn't test: a person typing into the fields (the echo of a late
+state, the software keyboard over a field low on the page, the keyboard's
+Done), the pop-up menus, a tap on the switches, Edit in the problems
+question putting the cursor in a number field, scrolling a long form on a
+small phone, links opening in Safari, rotation with Settings open (two
+panes to one), VoiceOver.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -1049,7 +1189,7 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 340 PNGs.
+`accessibility2` text: 440 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1069,6 +1209,13 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `insert_error` | `insert_bpm` with "999" typed: the session's check under the field, Insert off | iPhone, iPad |
 | `capo` | `capo_advice`: Suggest Capo scored | iPhone, iPad |
 | `identify` | `identifier_cmaj7`, Cmaj7 picked: full screen, side by side on the phone on its side, a card on the iPad | iPhone, iPad, iPhone on its side |
+| `settings`, `settings_general`, `settings_playback` | `settings_open`: the pages list (two panes on the iPad: General), General, Playback | iPhone, iPad; iPhone; iPhone, iPad |
+| `settings_voicings`, `settings_add_voicing` | `settings_voicing_form`: the Voicings list; with Add voicing's menu open (a stand-in) | iPhone, iPad; iPhone |
+| `settings_voicing_form` | My 7-String's form; on the iPad on its side the list and the form side by side | iPhone, iPad, iPad on its side |
+| `settings_voicing_voices`, `settings_voicing_ensemble` | Jazz Vocal Trio: its voices as cards (the form scrolled to them, drawn from its records item); the whole form as a table | iPhone; iPad on its side |
+| `settings_voicing_refused`, `settings_problems` | `settings_voicing_refused`: the banner and the red fields; leaving with them and a tempo of 1000 | iPhone, iPad |
+| `settings_builtin`, `settings_rename` | the standard guitar read-only with Copy; My 7-String's rename dialog | iPhone, iPad on its side; iPhone |
+| `about`, `licences`, `licence` | About (a sample build), the licences from the bundle's list, FluidSynth's page with its text | iPhone, iPad; iPhone, iPad; iPhone |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
 its scroll view (live only) is UIKit. ImageRenderer can't draw a
@@ -1103,9 +1250,12 @@ Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
 
 `.github/workflows/ios.yml` runs on every push to main that touches `ios/`,
 `core/`, `packaging/ios/`, the schema, the Python pins, the SoundFont, the
-glyph export script, Android's chord sheet fixtures, the help screenshots'
-songs the scenes use (the kit's tests read them), the examples or Android's
-icons the asset catalog copies, and by hand (workflow_dispatch). A newer push cancels a running build.
+glyph export script, Android's chord sheet and voicing form fixtures, the
+help screenshots' songs the scenes use (the kit's tests read them), the
+examples, Android's icons the asset catalog copies (the drawables and
+`SettingsIcons.kt`), the licence texts, Android's FOSS support link and
+`VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
+newer one doesn't cancel an older one.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
 `ios.yml` or this file. Two jobs on `macos-26` (arm64):
 
@@ -1148,7 +1298,9 @@ Artifacts of each run:
   painted, the keyboard up), `<iphone|ipad>-speed.png`, `-insert.png`,
   `-capo.png` and `-identify.png` (the speed sheet at 125 %, Insert › Tempo
   with the keyboard up, Suggest Capo scored, the identifier with Cmaj7
-  picked; `tool-<name>.json` says each got there),
+  picked; `tool-<name>.json` says each got there), `<iphone|ipad>-settings.png`,
+  `-voicings.png` and `-about.png` (Settings › General, Settings › Voicings
+  with the standard guitar's form, About),
   `<iphone|ipad>-export.png` (the export picker
   over the song after an audio export), the app's Diagnostics
   folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`,
@@ -1287,6 +1439,21 @@ expires, her tester status and the issue list. By hand:
      the app running and with it closed; a `.txt` from Mail's attachments.
   8. Delete a recent song in Files, then open it from Recent: "File not
      found" and it leaves the list.
+
+  Standing items for Settings, About and the licences:
+  1. General: change the font family, size (type a value and wait, then out
+     of range), word wrap, notation, default key and recent files; each shows
+     in the editor or the menus. Playback: tempo, time signature, clicked
+     chords.
+  2. A wrong number, then ←: the question; Edit puts the cursor in the field.
+     Quit the app with a wrong number, reopen Settings: the restored banner.
+  3. Voicings on a phone upright and on its side, and on an iPad both ways:
+     Add voicing's menu, rename, type a tuning that isn't a note (red, the
+     banner after a moment), Edit voicings… from the Voicing sheet, a
+     built-in's Copy, the ensemble's voices (↑, ↓, copy, ✕, Add voice), the
+     keyboard over a field low on the page.
+  4. About: each link opens Safari; the licence pages scroll and their text
+     selects.
 
   Standing items for the sheets and the tools:
   1. Speed: drag the slider end to end and back (the value follows, the
