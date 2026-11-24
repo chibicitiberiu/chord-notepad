@@ -774,7 +774,10 @@ extension SessionTests {
         configuration.setURLSchemeHandler(HelpSchemeHandler(root: UserGuideFiles.directory),
                                           forURLScheme: HelpLinks.scheme)
         let web = WKWebView(frame: CGRect(x: 0, y: 0, width: 402, height: 800), configuration: configuration)
-        let window = UIWindow(frame: web.frame)
+        // In the app's scene, so a change of look reaches the page as it does live.
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = web.frame
         window.addSubview(web)
         window.isHidden = false
         web.load(URLRequest(url: URL(string: HelpLinks.startURL)!))
@@ -811,10 +814,15 @@ extension SessionTests {
         png.lifetime = .keepAlways
         add(png)
         // Dark: the page follows the view's look (GuideWebView sets it from the app's).
+        window.overrideUserInterfaceStyle = .dark
         web.overrideUserInterfaceStyle = .dark
-        try await Task.sleep(for: .seconds(1))
-        let dark = try await web.evaluateJavaScript("window.matchMedia('(prefers-color-scheme: dark)').matches")
-            as? Bool
+        var dark: Bool?
+        let darkDeadline = ContinuousClock.now + .seconds(10)
+        while dark != true, ContinuousClock.now < darkDeadline {
+            try await Task.sleep(for: .milliseconds(250))
+            dark = try await web.evaluateJavaScript("window.matchMedia('(prefers-color-scheme: dark)').matches")
+                as? Bool
+        }
         XCTAssertEqual(dark, true, "the guide's page follows the dark look")
         let darkImage = try await web.takeSnapshot(configuration: nil)
         let darkPng = XCTAttachment(image: darkImage)
