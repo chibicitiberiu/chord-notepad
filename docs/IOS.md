@@ -1749,6 +1749,9 @@ expires, her tester status and the issue list. By hand:
      third-party provider if she has one; change and Save each in place.
   3. Quit the app (swipe it away), reopen, reopen each from Recent; again
      after a reboot.
+     Then delete one of them in Files and open it from Recent: how long
+     until "File not found" (the log's "A bookmark doesn't resolve after …
+     s"; it took about a minute once in CI).
   4. A song in iCloud Drive removed from the device ("Remove Download"),
      then opened from Recent online and in flight mode: it downloads, or
      the "not downloaded yet" message after 20 s.

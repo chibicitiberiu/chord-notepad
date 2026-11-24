@@ -33,13 +33,19 @@ struct ScopedFileAccess: DocumentFileAccess {
 
     func resolveBookmark(_ bookmark: Data) throws -> (url: URL, stale: Bool) {
         var stale = false
+        let started = Date()
         do {
-            let url = try URL(resolvingBookmarkData: bookmark, options: [.withoutUI], relativeTo: nil,
-                              bookmarkDataIsStale: &stale)
+            // `.withoutMounting`: a bookmark to a file that is gone may make
+            // the system look on other volumes; never mount one for that.
+            let url = try URL(resolvingBookmarkData: bookmark, options: [.withoutUI, .withoutMounting],
+                              relativeTo: nil, bookmarkDataIsStale: &stale)
             return (url, stale)
         } catch {
-            // Deleted, or on a provider that is gone.
-            Log.store.info("A bookmark doesn't resolve: \(error.localizedDescription, privacy: .public)")
+            // Deleted, or on a provider that is gone. Resolving a deleted
+            // file's bookmark took about a minute once in CI (run 45495034883),
+            // so the time is logged for the device sessions.
+            let seconds = Date().timeIntervalSince(started)
+            Log.store.info("A bookmark doesn't resolve after \(seconds, format: .fixed(precision: 1), privacy: .public) s: \(error.localizedDescription, privacy: .public)")
             throw FileAccessError.notFound
         }
     }

@@ -241,7 +241,9 @@ final class SessionTests: XCTestCase {
         let morningRef = try XCTUnwrap(model.snapshot.recentDocuments?.items.first { $0.id == morningId })
         let messagesBefore = model.snapshot.messageCount
         model.choose(.openRecent(morningRef))
-        let failed = await model.waitFor(timeout: .seconds(30)) { $0.messageCount > messagesBefore }
+        // Resolving a deleted file's bookmark took about a minute once on a
+        // freshly booted simulator (run 45495034883); the log says how long.
+        let failed = await model.waitFor(timeout: .seconds(120)) { $0.messageCount > messagesBefore }
         XCTAssertTrue(failed)
         XCTAssertTrue(model.snapshot.messages.last?.contains("Failed to open file:\nMorning.txt (session-test)") == true,
                       "\(model.snapshot.messages)")
