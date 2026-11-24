@@ -739,7 +739,8 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   keeps its room. The player (a fixed 110 pt) follows it up to `xxLarge`.
 - **Launch hooks:** `-CNScreen selftest` opens Diagnostics,
   `-CNScreen chordsheet` opens Play with the sheet shown, `-CNScreen editor`
-  switches to Edit before typing, `-CNScreen menu` opens the menu.
+  switches to Edit before typing, `-CNScreen menu` opens the menu,
+  `-CNScreen export` exports the song as audio ("Files").
 
 Deliberate differences from Android:
 
@@ -901,10 +902,19 @@ Deliberate differences from Android:
   Support: not in Files, not removed by anything but the app.
 - No Quick Start tour yet, and no Export PDF.
 
-What CI doesn't test (`SessionTests` drives the real store on files in the
-app's Documents with a stand-in for the pickers; see the device checklist
-below): `UIDocumentPickerViewController` itself (Open, the Save As move, the
-export copy) and the security scope of a URL from it or from Files, a file
+What CI checks: `SessionTests` drives the real store on files in the app's
+Documents with a stand-in for the pickers (Open, Save, Save As, Export
+MIDI, Recent after a second store reads the lists, a song from Files
+renamed, an example, a song that has gone, New's question). Audio export
+needs the real player's SoundFont, which the test's FakePlayer hasn't (the
+core refuses before asking for a file), so `-CNScreen export` runs it in the
+launched app: `export.json` must report a WAV of more than 10 KB that the
+store wrote from the export's worker, and `<device>-export.png` shows the
+export picker that follows.
+
+What CI doesn't test (see the device checklist below):
+`UIDocumentPickerViewController` driven by a person (Open, the Save As
+move, choosing where the export goes) and the security scope of a URL from it or from Files, a file
 outside the container (iCloud Drive, On My iPhone, a third-party provider),
 a bookmark resolved after a reboot or an app update, an iCloud file that
 isn't downloaded, renaming a picked file, a song opened from the Files app
@@ -1009,8 +1019,10 @@ Artifacts of each run:
   `<iphone|ipad>-chordsheet.png` (Play with the chord sheet shown, its
   buffer from the live session), `<iphone|ipad>-editor.png` (Edit after the
   app typed a long chord line into the editor, the session's highlight
-  painted, the keyboard up), the app's Diagnostics
-  folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`, `selftest.json` with the live
+  painted, the keyboard up), `<iphone|ipad>-export.png` (the export picker
+  over the song after an audio export), the app's Diagnostics
+  folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`,
+  `export.json`, `selftest.json` with the live
   audio result, the core's log) and `<device>-app.log` (the unified log of
   the app's process).
 - `ios-results`: the `.xcresult` bundles (open in Xcode, or

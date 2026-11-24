@@ -60,6 +60,8 @@ final class AppModel: ObservableObject {
     /// Exports written and waiting for the export picker, oldest first.
     private var exportsToOffer: [(id: String, file: URL)] = []
     private var offeringExport = false
+    /// `-CNScreen export` waits for its export (``runExportCheck()``).
+    private var exportCheck = false
     private var reader: Task<Void, Never>?
     private var startedAt = ContinuousClock.now
     private var auditionState: OSSignpostIntervalState?
@@ -144,6 +146,9 @@ final class AppModel: ObservableObject {
                 // CI's live editor check and screenshot: type into the text view in Edit.
                 selectMode(.edit)
                 Task { await self.runEditorCheck() }
+            case "export":
+                // CI's live audio export: the real player's SoundFont, the store's file, the export picker.
+                Task { await self.runExportCheck() }
             case "menu":
                 // CI's screenshot of the menu, over the song.
                 ui.route = .menu
@@ -490,6 +495,15 @@ final class AppModel: ObservableObject {
 
     /// The store wrote an export's file: offer it with the export picker, one at a time.
     private func exportWritten(id: String, file: URL) {
+        if exportCheck {
+            // `-CNScreen export`: what the store got, before the picker opens over it.
+            let data = (try? Data(contentsOf: file)) ?? Data()
+            let riff = data.prefix(4) == Data("RIFF".utf8)
+            Diagnostics.shared.writeJSON(ExportReport(file: file.lastPathComponent, bytes: data.count, riff: riff,
+                                                      ok: riff && data.count > 10_000, problem: nil),
+                                         name: "export.json")
+            exportCheck = false
+        }
         exportsToOffer.append((id, file))
         offerNextExport()
     }
@@ -579,6 +593,27 @@ final class AppModel: ObservableObject {
         Diagnostics.shared.writeJSON(report, name: "editor.json")
     }
 
+    /// `-CNScreen export` (CI): once the song is on screen, export it as audio
+    /// with the real player's SoundFont (the session test's FakePlayer has
+    /// none, so the core refuses there). `Diagnostics/export.json` says what
+    /// the store got, written before the export picker opens; the screenshot
+    /// then shows the picker.
+    func runExportCheck() async {
+        _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
+        let before = snapshot.messageCount
+        exportCheck = true
+        choose(.exportAudio)
+        _ = await waitFor(timeout: .seconds(120)) { snapshot in
+            !self.exportCheck || snapshot.messageCount > before
+        }
+        if exportCheck {
+            exportCheck = false
+            let problem = snapshot.messageCount > before ? snapshot.messages.last : "no export after 120 s"
+            Diagnostics.shared.writeJSON(ExportReport(file: nil, bytes: 0, riff: false, ok: false, problem: problem),
+                                         name: "export.json")
+        }
+    }
+
     /// Wait until `condition` holds for the snapshot (polled), or `timeout` passes.
     func waitFor(timeout: Duration, _ condition: (SessionSnapshot) -> Bool) async -> Bool {
         let deadline = ContinuousClock.now + timeout
@@ -612,6 +647,16 @@ extension ContinuousClock.Instant {
     }
 
     private static let reference = ContinuousClock.now
+}
+
+/// `Diagnostics/export.json` (`-CNScreen export`): the audio export the store
+/// wrote, or why there was none.
+struct ExportReport: Codable {
+    var file: String?
+    var bytes: Int
+    var riff: Bool
+    var ok: Bool
+    var problem: String?
 }
 
 /// `Diagnostics/launch.json`: written once the first song is on screen (CI

@@ -3,13 +3,14 @@
 # (docs/IOS.md, "CI"): a screenshot of the main screen with the quick-start
 # song (in Play, as a saved song opens), one of the ☰ menu, one of
 # Diagnostics, whose self-test also tries live CoreAudio playback, one of Play
-# with the chord sheet shown (its buffer from the live session), and one of
-# Edit after the app typed into the editor (the session's highlight checked).
+# with the chord sheet shown (its buffer from the live session), one of
+# Edit after the app typed into the editor (the session's highlight checked),
+# and one of the export picker after an audio export (export.json checked).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
 # Writes <out-dir>/<label>-main.png, <label>-menu.png, <label>-selftest.png,
-# <label>-chordsheet.png, <label>-editor.png, the app's
+# <label>-chordsheet.png, <label>-editor.png, <label>-export.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -117,6 +118,28 @@ for attempt in 1 2; do
 done
 [ "$edited" -eq 0 ] || status=1
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-editor.png"
+
+# Export audio with the real player's SoundFont: the app writes export.json
+# when the store has the WAV (or why it has none), then opens the export
+# picker over the song. Same retry as the chord sheet.
+rm -f "$DIAG/export.json"
+exported=1
+for attempt in 1 2; do
+    xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen export
+    if wait_for "$DIAG/export.json" 300; then
+        cat "$DIAG/export.json"
+        sleep 4
+        if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/export.json"; then
+            exported=0
+        else
+            echo "The audio export check failed" >&2
+        fi
+        break
+    fi
+    echo "Attempt $attempt: no audio export" >&2
+done
+[ "$exported" -eq 0 ] || status=1
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 
 rm -rf "$OUT/$LABEL-diagnostics"
