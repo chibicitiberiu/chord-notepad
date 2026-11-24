@@ -10,12 +10,14 @@ repeated here.
 
 **Status (2026-11-24):** the core knows the `ios` platform (section B of the
 plan), `ios/ChordNotepadKit` is built and tested on Linux (section C), and
-CI builds the bare app shell and tests it on iPhone and iPad simulators
-with no Apple account (section D, `.github/workflows/ios.yml`). The first
-screen slices are the chord sheet ("The chord sheet" below) and the song
-editor with the Edit ribbon ("The song editor"), both in the shell. Still to
-come: enrollment, signing and TestFlight (A, E), then the other screens (F,
-in `BACKLOG.md`), the Play tab and the main screen's navigation first.
+CI builds the app and tests it on iPhone and iPad simulators with no Apple
+account (section D, `.github/workflows/ios.yml`). The screen slices so far:
+the chord sheet ("The chord sheet" below), the song editor with the Edit
+ribbon ("The song editor") and the main screen with the Edit / Play tabs, the
+player and the ☰ menu ("The main screen"). Still to come: enrollment,
+signing and TestFlight (A, E), then the other screens (F, in `BACKLOG.md`):
+the player's and the ribbon's sheets, Settings, the guide and the document
+picker.
 
 ## Decisions and constraints
 
@@ -55,12 +57,13 @@ ios/
   ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
     App/                        AppModel (the session), paths, document store,
                                 diagnostics, self-test
-    Screens/                    ShellScreen (pure), ShellView (live), self-test
+    Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets,
+                                Overlays (menu, dialogs, snackbar), DiagnosticsView (self-test, export)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
-                                EditRibbon, EditorAppearance and EditorPreview, EditorScript (CI)
+                                PlayText (Play mode), EditRibbon, EditorAppearance, EditorPreview, EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
-    Assets.xcassets             the app icon (ios/tools/make_app_icon.py)
+    Assets.xcassets             the app icon (ios/tools/make_app_icon.py), Icons/ (ios/tools/mdi_assets.py)
     PrivacyInfo.xcprivacy       the app's privacy manifest
   ChordNotepadTests/            XCTest hosted in the app: the session, the catalog
   ChordNotepadKit/              SwiftPM package, no UIKit or SwiftUI
@@ -81,6 +84,8 @@ ios/
       ChordSheet/               the chord sheet's logic: geometry, theme, split, loader, painter
       Editor/                   the song editor's logic: EditorModel, EditHistory, text arithmetic,
                                 styles, paste and wrap, scrolling, shortcuts, directive hints
+      Main/                     the main screen's logic: modes, layout, playback, rename, menus,
+                                playhead gestures, snackbars, the screen's own state, AppColors
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
@@ -89,6 +94,7 @@ ios/
     install_python.sh           the app's "Install Python" build phase
     export_glyphs.sh            the "Chord sheet glyphs" build phase
     make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
+    mdi_assets.py               Android's Material Design Icons as SVG image sets
     ci_simulators.py, ci_screenshots.sh   CI helpers
   build/                        not committed: frameworks, the Python bundle, DerivedData
 packaging/ios/
@@ -132,7 +138,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 168 tests, about 12 s after the first build
+make ios-kit-test      # swift test: 221 tests, about 18 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -162,7 +168,7 @@ What the tests cover:
 | `BridgeCodecTests` | generated facts against the schema file, every builder (null and set) accepted by the core's own `decode_args` and answer decoders, required nullable keys written as null, decoding by type name |
 | `OffsetMapperTests` | Android's `OffsetMapperTest`, case for case (lone surrogates through UTF-16 code units) |
 | `SheetBufferTests` | Android's `ChordSheetBufferTest` on the same fixtures, plus every truncation throwing, huge counts, `Data` slices |
-| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap), every fixture folding into a screen's snapshot, the chord sheet scenes' buffers (view, zoom, playhead, heights), the editor scenes folded into the editor (the selection a command made, every span kind, the notation) |
+| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap), every fixture folding into a screen's snapshot, the chord sheet scenes' buffers (view, zoom, playhead, heights), the Scarborough Fair scenes frozen while their chord sounds, the editor scenes folded into the editor (the selection a command made, every span kind, the notation) |
 | `EditorTextTests` | Android's `SpanShiftTest` and `TextEditsTest`, case for case: the one changed range, surrogate pairs, spans moving like Tk tags, a session edit's cursor before, inside and after its replacement against a code-point reference (500 random edits), the anchor's selection |
 | `EditorModelTests` | Android's `EditorControllerTest` and `EditorWiringTest` as behaviour (tokens, stale highlights, spans moving with typing, no echo, `group`/`plain`/`reset`, a highlight that arrives before its edit, code-point taps and cursor, the playing chord), plus the undo history (typing runs, a new line or a caret move ends one, redo, undone text highlighted under its token, read-only), composition, paste, Convert and the line commands, every fixture folding into the editor |
 | `EditorLookTests` | Android's `EditorLookTest` (font kinds, points × 4/3, the pinch, the redundant directive's alpha, tag priority) and `ShortcutsTest` with Command; the style runs (no overlaps, priority, the playing chord on top, clamping, merging) |
@@ -173,7 +179,9 @@ What the tests cover:
 | `ChordSheetLoaderTests` | Android's `ChordSheetControllerTest`: one fetch per distinct request after the settle time, no song, a newer version, the loading flag, stale replies dropped |
 | `SheetPainterTests` | the painter on the Android fixtures with a recording canvas: paint order, clips and translations, glyph rectangles and tints (widths against `clef_assets.scaled_width`), text anchoring and pixel snapping, lane clips, the playhead marks, the key bed, culling |
 | `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the eight scenes |
+| `MainScreenTests` | Android's `ModeControllerTest`, `ScreenLayoutTest`, `PlaybackUiTest`, `RenameFlowTest` and `MenuModelsTest`, case for case; the chord sheet pane's height upright and on its side, the speed badge, the snackbars, the menu's entries, the rename dialog's state, the player's state from a snapshot |
+| `PlayheadGesturesTests` | Android's `PlayheadGesturesTest`, case for case, and the marker's shape |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the twelve scenes (three of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -274,13 +282,18 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records eight scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records twelve scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
 chord sheet shown as the piano roll and the playhead on the third chord),
 `errors` (a document that can't be opened, a rename the storage refuses),
 `chord_sheet_staff` (the staff, zoomed in one step, playhead on chord 24),
 `chord_sheet_fret` (fret cards after `set_voicing guitar:standard`, which
-makes the view available), `editor_mid_edit` (the quick-start song with a
+makes the view available), four of Scarborough Fair as the Android store
+screenshots show it (`android/tools/store_shots.json`, the song in
+`android/tools/help_shot_songs/`, the strip 330 pt tall): `scarborough_edit`,
+then `scarborough_piano_roll`, `scarborough_fret` (`guitar:standard`, zoom
+0.5) and `scarborough_tab` (zoom 0.833) frozen while chord 4, 3 and 6 sound,
+`editor_mid_edit` (the quick-start song with a
 line of an invalid and a redundant directive and an unknown chord put in by
 `insert_text`, then two lines commented out by `toggle_comment`, whose
 `anchor` leaves them selected: every span kind) and `editor_european` (the
@@ -289,7 +302,15 @@ the ones whose states it would change, so theirs stay as they were; the
 editor's come last, with the sheet hidden again. A scene starts at the mark
 before its song's `restore_draft`, so it carries the `TextEdited` with the
 text. The user's own typing can't be recorded (the session doesn't echo
-`set_text`), so the editor scenes are made of the session's edits. Each file has the newest JSON of every state (the whole
+`set_text`), so the editor scenes are made of the session's edits. A
+playing scene can't be recorded as it is either: the FakePlayer plays the
+whole song at once, so the scene is the session's output up to the status
+that names the chord (`PlaybackState` playing with that `chord_index`, then
+"Bar 5/56 · Playing G"; the strip's `current_index` agrees). Android's store
+screenshots freeze playback the same way, by publishing the states seen
+while the chord sounded again. The later scenes' states change with these
+(the voicing, the strip's view and height), and the editor's stay stale
+from the sheet's last render, as before. Each file has the newest JSON of every state (the whole
 screen) and the other outputs of the scene in order, exactly as they crossed
 the bridge, sorted and indented, with the temporary files folder written
 `$FILES_DIR`. A normal run checks them; `make ios-fixtures` rewrites them.
@@ -297,10 +318,12 @@ They are the same on every run.
 
 The catalog can't call Python, so each scene with the sheet shown also keeps
 its op buffers: `chord_sheet_buffers`, a list of `{height, base64}`, packed at
-the content heights the catalog's iPhone and iPad ask for (102 and 355 pt:
-the split's height for a 160 pt sheet in each window, less the pane's header,
-progress bar, inset and the 20 pt marker lane). `CatalogTests` checks the
-heights still match the catalog's devices. The theme is applied at paint
+the content heights the main screen asks for in Play in the catalog's four
+windows (`MainSheetPane`: below the text upright, the split's height; in the
+side column on its side, the window less the app bar and the player; then
+less the pane's header, progress bar, inset and the 20 pt marker lane): 102,
+185, 355 and 603 pt for a 160 pt sheet, 185, 272 and 603 pt for 330.
+`CatalogTests` checks the heights still match the catalog's devices. The theme is applied at paint
 time, so light and dark share the recordings.
 
 ## The app
@@ -368,8 +391,8 @@ ChordNotepad.app/
   `python/app` and `python/app_packages` in front of `sys.path`, and
   `CHORD_NOTEPAD_LIBFLUIDSYNTH=<app>/Frameworks/FluidSynth.framework/FluidSynth`;
   then the session with `files_dir` = Application Support and the bundled
-  SoundFont. The shell opens the quick-start song as a draft (store id
-  `bundle:01_quick_start.txt`).
+  SoundFont. The app opens the quick-start song as a draft (store id
+  `bundle:01_quick_start.txt`), so it starts in Play, as a saved song does.
 - **Kit headers on iOS:** `Package.swift` gives `CNBridge` `-F
   ios/build/Frameworks/Python.xcframework/ios-arm64` for iOS (both slices
   have the same headers); the app target links and embeds the framework.
@@ -379,17 +402,18 @@ ChordNotepad.app/
   Python.framework. The kit imports `CNBridge` with `internal import`, so
   the app and its tests never need the C module.
 
-### The shell and its diagnostics
+### Diagnostics
 
-Phase 1 has one screen: the song's title, the Edit ribbon, the song editor
-("The song editor" below), the chord sheet while it is shown, and the
-status line. `SessionSnapshot` (in the kit, tested on Linux) folds the
-session's output into what a screen reads; `EditorState` carries no text,
-so its `text` is rebuilt from `TextEdited`. That is the session's edits
-only: the editor's own model (`EditorModel`, fed the same outputs in the
-same order by `AppModel.receive`) owns the text the user sees and types.
-Buttons: play the first chord, show the chord sheet, the self-test, export
-diagnostics.
+`SessionSnapshot` (in the kit, tested on Linux) folds the session's output
+into what a screen reads; `EditorState` carries no text, so its `text` is
+rebuilt from `TextEdited`. That is the session's edits only: the editor's
+own model (`EditorModel`, fed the same outputs in the same order by
+`AppModel.receive`) owns the text the user sees and types.
+
+**Diagnostics** is the ☰ menu's last entry (a top-level entry, so it works
+before About exists), in every build, TestFlight included: a sheet with the
+build stamp, the self-test (run when it opens; "Run again") and "Export
+diagnostics" in its bottom bar.
 
 - **Logs:** `os_log` subsystem `com.tibich.chordnotepad`, categories
   `bridge`, `python`, `audio`, `store`, `ui`. Python's own output reaches
@@ -414,7 +438,7 @@ diagnostics.
   that folder (`NSFileCoordinator`'s `.forUploading`) for the share sheet.
 - **Build stamp:** Info.plist `CNGitCommit` and `CNBuildDate`, passed by CI
   on the xcodebuild command line, with `MARKETING_VERSION` from `VERSION`
-  and the run number as the build. The status line shows it.
+  and the run number as the build. Diagnostics shows it.
 - **Self-test** (also `-CNScreen selftest` at launch): Python boot, session
   start and first-text times; an offline render of a C major chord on a
   FluidSynth synth with no audio driver (the core's audio export renderer,
@@ -424,9 +448,9 @@ diagnostics.
 
 ### The chord sheet
 
-The first screen slice: the Play tab's strip, shown under the shell's text
-while `ChordSheetState.visible` (the shell's header has a toggle until the
-player exists). It is a port of Android's `ui/chordsheet/`.
+The first screen slice: the Play tab's strip, shown under the text (or
+beside it on its side) in Play while `ChordSheetState.visible`; the player's
+last button shows and hides it. It is a port of Android's `ui/chordsheet/`.
 
 - **In the kit** (`Sources/ChordNotepadKit/ChordSheet/`, tested on Linux):
   `ChordSheetGeometry` (anchors, the desktop's 25 % / 70 % auto-scroll,
@@ -485,8 +509,8 @@ Deliberate differences from Android:
 
 ### The song editor
 
-The second slice: the shell's text is the song editor, a port of Android's
-`ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
+The second slice: the main screen's text is the song editor, a port of
+Android's `ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
 
 - **In the kit** (`Sources/ChordNotepadKit/Editor/`, tested on Linux):
   `EditorModel` is the whole editor as a value: the text the view shows,
@@ -527,15 +551,15 @@ The second slice: the shell's text is the song editor, a port of Android's
   `TextInput.swift` has the paste normalisation, the chord join points and
   `JoinedText`, and `TextScroll`; `EditorShortcuts.swift` the key bindings;
   `DirectiveHints.swift` Play mode's long-press explanation (Android's
-  controller as plain state, for the Play slice: the editor shows no hint).
+  controller as plain state; Edit mode shows no hint).
 - **In the app** (`ChordNotepad/Editor/`): `EditorTextView` (a UITextView on
   a TextKit 1 stack built by hand) in its `EditorHost` (the sideways
   scroll), `EditorController` (the main actor's
   `ObservableObject` over the model; it applies the effects to the view and
   sends the commands), `SongEditor` (the `UIViewRepresentable` and its
   delegate), `EditRibbon`, `EditorAppearance` (fonts and attributes from the
-  kit's runs) and `EditorPreview` (the catalog's drawing), `EditorScript`
-  (CI's typing).
+  kit's runs), `EditorPreview` (the catalog's drawing), `PlayText` (Play
+  mode, "The main screen" below) and `EditorScript` (CI's typing).
 - **The text is never assigned.** SwiftUI only places the view
   (`updateUIView` does nothing). The session's edits, undo and redo go into
   the text storage with `replaceCharacters`, the delegate's callbacks
@@ -596,8 +620,7 @@ Deliberate differences from Android:
 
 - The ribbon has Undo, Redo, AB/Do and Convert. Insert, Transpose, Capo and
   Identify open sheets that come with later slices; until then the row fits
-  every screen, so it has no chevron or fades. There is no floating undo
-  chip: the header doesn't collapse, and iOS has its own undo gestures.
+  every screen, so it has no chevron or fades (`RibbonEdges` isn't ported).
 - Hardware keys use Command, not Ctrl; redo is Shift-Command-Z (no
   Command-Y). The Qt desktop's line commands come along: Command-/ (toggle
   comment), Command-D (duplicate), Shift-Command-K (delete lines) and
@@ -622,25 +645,143 @@ do finger scrolling and the selection handles inside the host. The live
 placeholder is the system's monospaced body font in the secondary colour;
 the catalog's is the editor's font at 45 % of the text colour (Android's).
 
+### The main screen
+
+The third slice: the app's frame, a port of Android's `ui/main/`
+(`SongScreen.kt`, `AppBar.kt`, `ModeController.kt`, `ScreenLayout.kt`,
+`PlaybackUi.kt`, `RenameFlow.kt`, `AppDrawer.kt`) and `ui/play/` (`Player.kt`,
+`PlayheadGestures.kt`). It replaces the shell and its test buttons.
+
+- **In the kit** (`Sources/ChordNotepadKit/Main/`, tested on Linux):
+  `ModeController` (which tab is open: the first document decides, a saved
+  one opens in Play, an untitled one in Edit; Edit while a song plays or is
+  paused stops it), `ScreenLayout` and `MainMetrics` (phone or tablet, the
+  one-line header of a phone on its side in Edit, the chord sheet below the
+  text upright or in a side column on its side, the collapsing header, the
+  column's share), `MainSheetPane` (the pane's height in a window, for the
+  screen and the recorded buffers), `PlaybackUi.swift` (starting, keeping the
+  screen awake, when a status is a snackbar, the speed badge, `PlayerState`
+  from a snapshot), `RenameFlow.swift`, `MenuModels.swift` (the voicing and
+  instrument lists, the recent songs), `PlayheadGestures.swift` (chord boxes,
+  taps, the marker's grab strip, scrubbing, the explainable directives, the
+  marker's shape), `Snackbars` (what shows, and for how long), `AppMenu`
+  (the ☰ menu's entries) and `MainUiState` (the tab, what is open over the
+  screen, the keyboard's height, the rename dialog's refusal), and
+  `AppColors` (Android's). `SessionSnapshot` keeps the toolbar, the song
+  defaults, the voicing and instrument menus, the recent songs, the
+  settings, the directive hint and a refused rename (no longer a message).
+- **In the app** (`Screens/`): `MainScreen` draws the whole screen from a
+  snapshot, the editor's model and a `MainUiState` (the catalog makes one
+  per scene); `MainView` keeps the live state in `AppModel` and presents the
+  sheets. `AppBar` (☰, the title with its • and tap to rename, Edit / Play,
+  Save), `PlayerBar`, `Overlays` (the menu, the dialogs, the snackbar),
+  `PlayerSheets`, `DiagnosticsView`. Play mode is `Editor/PlayText.swift`
+  with `EditorController`'s Play part.
+- **Icons:** Android's Material Design Icons, so the bar and the player look
+  the same: `ios/tools/mdi_assets.py` turns Android's generated vector
+  drawables into SVG image sets rendered as templates
+  (`Assets.xcassets/Icons`), tinted like Android's `MdiIcon`. The ribbon
+  keeps its SF Symbols; Diagnostics has the stethoscope.
+- **Play mode** is the same `EditorTextView`, frozen: not editable or
+  selectable (the keyboard goes), so both tabs share the layout and the
+  scroll position. The marker is a `CAShapeLayer` in the text's own
+  coordinates; the chord boxes come from TextKit (`rect(of:)`). A tap
+  (`tap_chord_at`, or `set_playhead` for the nearest chord when it misses
+  and nothing plays), the scrub (`MarkerScrub`, a pan that fails at once
+  unless it starts on the marker, so the text's scroll views, which wait for
+  it, scroll without delay; one `set_playhead` on release) and the
+  long-press on a red or faded directive (`request_directive_hint`; the
+  answer in a `HintCardView` by the directive for 6 s or until the next
+  touch) are decided by the kit; the controller's handlers are plain
+  methods, so `SessionTests` calls them. The sounding chord is painted and
+  followed by the editor, as before.
+- **The player** is Android's: the song pill ("𝄞 100 · 3/4 · Am ⌄", the
+  session's `SongDefaultsState.summary`), voicing, instrument, ⏮, ▶/⏸ (a
+  ring while the song renders), metronome, speed (with its badge) and the
+  chord sheet's toggle, then the status line ("Bar 5/56 · Playing G", the
+  session's `StatusState`). The voicing button is greyed while a song plays
+  and a tap says why (`locked_reason`). Voicing and Instrument open lists
+  from the session's menus (`set_voicing`, `set_instrument`); Speed and the
+  pill open sheets that only show the values until the sheets slice.
+- **Rename** (tap the title): the name without its extension, "Saved as
+  “name.txt”" or why the name can't be used under it; a name the session
+  refuses stays in the dialog with the reason, a storage that can't rename
+  closes it and says so (Android offers Save As there; it needs the document
+  picker).
+- **The menu** has Android's drawer's entries in its order (New song,
+  Open…, Recent, Save as…, the three exports, Settings, Examples, User
+  guide, Quick start, About) and Diagnostics last. Only Diagnostics works
+  now: the others need the document picker, Settings, the guide, About or
+  the discard question (`ConfirmDiscardRequest`), and are greyed with
+  "Coming soon".
+- **Layout:** as `ScreenLayout.kt`. The chord sheet is a Play-mode view, so
+  the shell's case of the keyboard up with the sheet showing doesn't arise
+  any more; the header collapses in Edit with the keyboard up when the text
+  would get less than 170 pt (a phone on its side), and undo and redo then
+  float by the keyboard, as on Android. Edit has no status line: the
+  session's status shows as a snackbar there, errors in both modes.
+- **Large text:** the bar is a fixed 48 pt; its title is body text, which
+  follows Dynamic Type up to `accessibility2`, and on a phone at the
+  accessibility sizes the tabs drop their captions (icons only) so the title
+  keeps its room. The player (a fixed 110 pt) follows it up to `xxLarge`.
+- **Launch hooks:** `-CNScreen selftest` opens Diagnostics,
+  `-CNScreen chordsheet` opens Play with the sheet shown, `-CNScreen editor`
+  switches to Edit before typing, `-CNScreen menu` opens the menu.
+
+Deliberate differences from Android:
+
+- The menu is a panel from the leading edge over a dimmed screen, opened by
+  ☰ only; there's no edge swipe (Android allows the swipe only while the
+  drawer is open, and an edge swipe would fight the marker's grab strip at
+  a line's first chord). It lists Diagnostics, which Android doesn't have.
+- The dialogs (rename, a refused rename) are cards in the app's colours over
+  a dimmed screen, so the catalog draws them; Diagnostics and the player's
+  lists are iOS sheets.
+- Snackbars are drawn by the screen (no Material snackbar host); a greyed
+  button's reason is a short snackbar (Android: a Toast).
+- The screen stays awake while a song plays through the idle timer.
+- The side column's width isn't kept across launches (Android keeps it in
+  its preferences; on iOS that needs UserDefaults and its privacy reason).
+- The tabs drop their captions on a phone at the accessibility text sizes.
+
+What CI doesn't test: a finger on the marker (the scrub's recognizer and
+the scroll views waiting for it), the long-press and its card, the menu,
+the dialogs and the sheets live (the catalog draws them), the keyboard
+collapsing the header live, rotation, VoiceOver.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
-with; adding a screen is one line there. `#Preview`s use the same
-`PreviewCatalog.snapshot("<scene>")`. `CatalogTests` renders each entry with
-`ImageRenderer` at iPhone 17 (402×874 pt, @3x) and iPad Air 11-inch
-(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 72
-PNGs (the shell with eight scenes, the self-test with a sample report). The
-chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only its
-scroll view (live only) is UIKit. ImageRenderer can't draw a `ScrollView` (or other UIKit-backed
+with and the windows it is drawn in; adding a screen is one line there.
+`#Preview`s use the same `PreviewCatalog.scene("<scene>")`. `CatalogTests`
+renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
+iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
+1180×820) where the layout differs, light and dark, default and
+`accessibility2` text: 192 PNGs.
+
+| Screen | Scenes | Windows |
+|---|---|---|
+| `edit` | `scarborough_edit`, `empty_song`, `editor_mid_edit`, `editor_european` | iPhone, iPad, iPad on its side |
+| `play` | the three Scarborough Fair scenes, `play_with_chord_sheet`, `chord_sheet_staff`, `quick_start_edit` (no sheet) | all four |
+| `keyboard` | `scarborough_edit` in Edit with a grey stand-in for the keyboard (the header collapses on the phone on its side) | iPhone on its side, iPhone |
+| `menu`, `rename` | `scarborough_edit`; `errors` for the refused rename | iPhone, iPad |
+| `diagnostics` | a sample self-test report | iPhone, iPad |
+| `voicing`, `instrument` | the player's lists, `scarborough_fret` | iPhone |
+
+The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
+its scroll view (live only) is UIKit. ImageRenderer can't draw a
+`ScrollView`, a `TextField`, a sheet or an alert (or other UIKit-backed
 views), so a screen takes `scrolls: false` in the catalog and draws plain
-SwiftUI. The editor's UITextView is one of those: the catalog draws
-`EditorPreview`, a SwiftUI `Text` of the same `EditorModel` (folded from the
-scene's outputs) with the same font and the same `styleRuns` as attributes,
-word joiners keeping the chords whole when it wraps, and the selection as a
-25 % tint of the primary colour. It has no caret, the live view's selection
-colour is the system's, and SwiftUI's line height can differ slightly from
-TextKit's; unwrapped lines run past the right edge, as the live view shows
-them before it is scrolled.
+SwiftUI: the menu doesn't scroll, the rename field is drawn as text, and
+what is presented as a sheet live (Diagnostics, the player's lists) is drawn
+on its own. The editor's UITextView is one of those: the catalog draws
+`EditorPreview`, the same `EditorModel` (folded from the scene's outputs)
+laid out and drawn by TextKit 1 into a `Canvas` the way the live view lays
+it out (the same storage attributes from `styleRuns`, container width, chord
+breaks and insets), so the playhead marker lands where the live view puts
+it, and the selection as a 25 % tint of the primary colour. It has no caret,
+and the live view's selection colour is the system's; unwrapped lines run
+past the right edge, as the live view shows them before it is scrolled.
 
 ### App Store requirements already in place
 
@@ -694,18 +835,19 @@ Artifacts of each run:
 
 - `ios-catalog`: the catalog PNGs,
   `<screen>-<scene>-<iphone|ipad>-<light|dark>-<default|large>.png`.
-- `ios-screenshots`: `<iphone|ipad>-shell.png` (the quick-start song with
-  its status line), `<iphone|ipad>-selftest.png`,
-  `<iphone|ipad>-chordsheet.png` (the quick-start song with the chord sheet
-  shown, its buffer from the live session), `<iphone|ipad>-editor.png` (the
-  editor after the app typed a long chord line into it, the session's
-  highlight painted, the keyboard up), the app's Diagnostics
+- `ios-screenshots`: `<iphone|ipad>-main.png` (the quick-start song in
+  Play, as it opens), `<iphone|ipad>-menu.png` (`-CNScreen menu`),
+  `<iphone|ipad>-selftest.png` (Diagnostics),
+  `<iphone|ipad>-chordsheet.png` (Play with the chord sheet shown, its
+  buffer from the live session), `<iphone|ipad>-editor.png` (Edit after the
+  app typed a long chord line into the editor, the session's highlight
+  painted, the keyboard up), the app's Diagnostics
   folder from each simulator (`launch.json`, `chordsheet.json`, `editor.json`, `selftest.json` with the live
   audio result, the core's log) and `<device>-app.log` (the unified log of
   the app's process).
 - `ios-results`: the `.xcresult` bundles (open in Xcode, or
   `xcrun xcresulttool` on a Mac; the catalog PNGs and the test's
-  `selftest.json`, `chordsheet-live.png` and `editor-live.png` are attached) and the xcodebuild logs.
+  `selftest.json`, `chordsheet-live.png`, `editor-live.png` and `play-live.png` are attached) and the xcodebuild logs.
 - `ios-kit-tests`: the kit's `swift test` output on macOS.
 
 `gh run download <run> -n ios-screenshots` fetches one on Linux.
@@ -717,8 +859,9 @@ render peaks at about 5700 of 32767; the live player started on both
 simulators (route Speaker, 48 kHz, 10 ms buffer); the simulator app is
 141 MB and the device build 114 MB (the SoundFont is 32 MB of it). The kit's
 45 tests pass on the Mac host as on Linux, fixtures included. The first
-layout issue the catalog shows (for S1's list): at accessibility text sizes
-the shell's title truncates beside its three buttons.
+layout issue the catalog showed: at accessibility text sizes the shell's
+title truncated beside its three buttons; the main screen's app bar has
+Android's buttons only and drops the tabs' captions there on a phone.
 
 To build the same on a Mac (S0's `mac_bootstrap.sh` will do this):
 
