@@ -41,7 +41,8 @@ final class SnapshotTests: XCTestCase {
 
     func testEveryFixtureFolds() throws {
         let all = try Fixture.all(in: fixtures)
-        XCTAssertEqual(all.map(\.scene), ["empty_song", "errors", "play_with_chord_sheet", "quick_start_edit"])
+        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "empty_song", "errors",
+                                          "play_with_chord_sheet", "quick_start_edit"])
         for fixture in all {
             let snapshot = try fixture.snapshot()
             XCTAssertNotNil(snapshot.editor, fixture.scene)
@@ -65,5 +66,34 @@ final class SnapshotTests: XCTestCase {
         let snapshot = try Fixture(contentsOf: fixtures.appendingPathComponent("errors.json")).snapshot()
         XCTAssertTrue(snapshot.messages.contains { $0.contains("File not found: missing") }, "\(snapshot.messages)")
         XCTAssertEqual(snapshot.text, "C G\n")
+    }
+
+    func testTheChordSheetScenesCarryBuffersForTheirViewAtThePhoneAndTabletHeights() throws {
+        let expected = ["play_with_chord_sheet": ("keyboard", 1.0, 2), "errors": ("keyboard", 1.0, 0),
+                        "chord_sheet_staff": ("staff", 1.2, 24), "chord_sheet_fret": ("fret", 1.0, 0)]
+        for (scene, (view, zoom, cursor)) in expected {
+            let fixture = try Fixture(contentsOf: fixtures.appendingPathComponent("\(scene).json"))
+            let sheet = try XCTUnwrap(try fixture.snapshot().chordSheet, scene)
+            XCTAssertTrue(sheet.visible, scene)
+            XCTAssertEqual(sheet.activeView, view, scene)
+            XCTAssertEqual(sheet.zoom, zoom, accuracy: 1e-9, scene)
+            XCTAssertEqual(sheet.cursorIndex, cursor, scene)
+            XCTAssertNil(sheet.currentIndex, scene)
+            XCTAssertEqual(fixture.chordSheetBuffers.keys.sorted(), SceneRecorder.catalogHeights(stored: sheet.height))
+            for (height, data) in fixture.chordSheetBuffers {
+                let buffer = try SheetBuffer.decode(data)
+                XCTAssertEqual(buffer.viewId, view, scene)
+                XCTAssertEqual(buffer.height, Float(height), scene)
+                XCTAssertEqual(buffer.slots.count, scene == "errors" ? 2 : 133, scene)
+            }
+            // Another height takes the tallest recorded one below it, else the shortest.
+            XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 200), fixture.chordSheetBuffers[102])
+            XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 50), fixture.chordSheetBuffers[102])
+            XCTAssertEqual(fixture.chordSheetBuffer(forHeight: 355), fixture.chordSheetBuffers[355])
+        }
+        let quickStart = try Fixture(contentsOf: fixtures.appendingPathComponent("quick_start_edit.json"))
+        XCTAssertTrue(quickStart.chordSheetBuffers.isEmpty)
+        XCTAssertNil(quickStart.chordSheetBuffer(forHeight: 102))
+        XCTAssertEqual(try quickStart.snapshot().chordSheet?.visible, false)
     }
 }

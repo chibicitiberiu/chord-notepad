@@ -1,4 +1,5 @@
 {
+ "chord_sheet_buffers": [],
  "description": "A new, empty song: the replay of every state at start.",
  "events": [],
  "scene": "empty_song",

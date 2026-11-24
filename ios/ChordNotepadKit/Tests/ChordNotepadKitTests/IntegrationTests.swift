@@ -112,7 +112,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertGreaterThan(buffer.content.count, 100)
         try await scenes.record("play_with_chord_sheet",
                                 "The complete American example in Play: chord sheet shown, playhead on the third chord.",
-                                from: mark)
+                                from: mark, buffers: try await scenes.buffers(session, for: sheet))
 
         // -- errors and statuses ------------------------------------------------------------
         mark = log.count
@@ -137,7 +137,40 @@ final class IntegrationTests: XCTestCase {
         XCTAssertEqual(refused.name, "Better name")
         await log.waitQuiet()
         try await scenes.record("errors", "A document that can't be opened, then a rename the storage refuses.",
-                                from: mark)
+                                from: mark,
+                                buffers: try await scenes.buffers(session, for: try log.decodeLatest(ChordSheetState.self, "ChordSheetState")))
+
+        // -- the chord sheet's other views (after errors, so its states stay as they were) --
+        mark = log.count
+        session.submit(.restoreDraft(document: memoryRef("examples/02_american_complete.txt"), modified: false,
+                                     readOnly: false, text: complete))
+        let chords = try await waitForChords(log, since: mark, count: 133)
+        session.submit(.setChordSheetView(viewId: "staff"))
+        session.submit(.chordSheetZoom(step: 1))
+        session.submit(.setPlayhead(offset: chords[24].start))
+        let staff = try await waitForSheet(log, "the zoomed staff with the playhead on chord 24") {
+            $0.activeView == "staff" && abs($0.zoom - 1.2) < 1e-9 && $0.cursorIndex == 24
+        }
+        await log.waitQuiet()
+        try await scenes.record("chord_sheet_staff",
+                                "The complete example on the staff, zoomed in one step, playhead on chord 24.",
+                                from: mark, buffers: try await scenes.buffers(session, for: staff))
+
+        // Fret cards need a fretted voicing; until then the view is unavailable (and ignored).
+        mark = log.count
+        session.submit(.setVoicing(voicing: "guitar:standard"))
+        _ = try await waitForSheet(log, "the fret view to become available") {
+            $0.views.contains { $0.viewId == "fret" && $0.available }
+        }
+        session.submit(.setChordSheetView(viewId: "fret"))
+        session.submit(.setPlayhead(offset: chords[0].start))
+        let fret = try await waitForSheet(log, "the fret cards with the playhead on the first chord") {
+            $0.activeView == "fret" && $0.cursorIndex == 0
+        }
+        await log.waitQuiet()
+        try await scenes.record("chord_sheet_fret",
+                                "The complete example as guitar fret cards (standard tuning), playhead on the first chord.",
+                                from: mark, buffers: try await scenes.buffers(session, for: fret))
 
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {
@@ -212,6 +245,24 @@ final class EventLog: @unchecked Sendable {
     }
 }
 
+/// The chord spans of the newest highlight once it has `count` of them.
+private func waitForChords(_ log: EventLog, since mark: Int, count: Int) async throws -> [Span] {
+    try await log.wait("the song's \(count) chords") {
+        (try? log.decode(HighlightState.self, log.latest("HighlightState", since: mark)))?
+            .spans.filter { $0.kind == .chord }.count == count
+    }
+    return try log.decodeLatest(HighlightState.self, "HighlightState").spans.filter { $0.kind == .chord }
+}
+
+/// The newest `ChordSheetState` once `condition` holds for it.
+private func waitForSheet(_ log: EventLog, _ what: String,
+                          _ condition: @escaping (ChordSheetState) -> Bool) async throws -> ChordSheetState {
+    try await log.wait(what, timeout: 30) {
+        (try? log.decodeLatest(ChordSheetState.self, "ChordSheetState")).map(condition) ?? false
+    }
+    return try log.decodeLatest(ChordSheetState.self, "ChordSheetState")
+}
+
 /// Writes or checks the ios/Fixtures scenes (canonical JSON, by Python).
 struct SceneRecorder {
     let runtime: PythonRuntime
@@ -221,9 +272,42 @@ struct SceneRecorder {
     static let directory = TestPython.repo.appendingPathComponent("ios/Fixtures")
     static var recording: Bool { TestPython.environment["CN_RECORD_FIXTURES"] == "1" }
 
+    /// The windows the preview catalog renders in, in points (the app's
+    /// `CatalogRenderer.devices`: iPhone 17 and iPad Air 11-inch).
+    static let catalogWindows: [(width: Double, height: Double)] = [(402, 874), (820, 1180)]
+
+    /// The content heights the catalog's chord sheet asks for in those
+    /// windows, for a sheet whose stored height is `stored` (the app's split
+    /// and pane metrics, from the kit).
+    static func catalogHeights(stored: Int) -> [Int] {
+        Array(Set(catalogWindows.map { window in
+            let pane = ChordSheetSplit.wantedHeight(stored: stored, windowWidth: window.width,
+                                                    windowHeight: window.height)
+            return ChordSheetPaneMetrics.contentHeight(stripHeight: ChordSheetPaneMetrics.stripHeight(paneHeight: pane))
+        })).sorted()
+    }
+
+    /// The chord sheet's buffers for `sheet` at the catalog's heights,
+    /// checked against the state they were packed for.
+    func buffers(_ session: Session, for sheet: ChordSheetState) async throws -> [Int: Data] {
+        var buffers: [Int: Data] = [:]
+        for height in Self.catalogHeights(stored: sheet.height) {
+            let fetched = await session.chordSheetBuffer(height: Double(height))
+            let data = try XCTUnwrap(fetched, "no buffer at \(height)")
+            let buffer = try SheetBuffer.decode(data)
+            XCTAssertEqual(buffer.viewId, sheet.activeView)
+            XCTAssertEqual(Double(buffer.zoom), sheet.zoom, accuracy: 1e-6)
+            XCTAssertEqual(buffer.height, Float(height))
+            buffers[height] = data
+        }
+        return buffers
+    }
+
     /// One scene: the newest JSON of every state (the whole screen) and the
-    /// other outputs since `index`, in order, all as they crossed the bridge.
-    func record(_ name: String, _ description: String, from index: Int) async throws {
+    /// other outputs since `index`, in order, all as they crossed the bridge,
+    /// with the chord sheet's `buffers` (base64, by content height).
+    func record(_ name: String, _ description: String, from index: Int,
+                buffers: [Int: Data] = [:]) async throws {
         var states: [String: String] = [:]
         for event in log.events(since: 0) {
             if (try? SessionOutput.decode(typeName: event.typeName, json: event.json))?.kind == .state {
@@ -236,10 +320,14 @@ struct SceneRecorder {
         }
         let stateMembers = states.keys.sorted().map { "\(quoted($0)): \(states[$0]!)" }
         let eventMembers = others.map { "{\"type\": \(quoted($0.typeName)), \"json\": \($0.json)}" }
+        let bufferMembers = buffers.keys.sorted().map {
+            "{\"height\": \($0), \"base64\": \(quoted(buffers[$0]!.base64EncodedString()))}"
+        }
         let scene = """
             {"scene": \(quoted(name)), "description": \(quoted(description)),
              "states": {\(stateMembers.joined(separator: ", "))},
-             "events": [\(eventMembers.joined(separator: ", "))]}
+             "events": [\(eventMembers.joined(separator: ", "))],
+             "chord_sheet_buffers": [\(bufferMembers.joined(separator: ", "))]}
             """
         let path = Self.directory.appendingPathComponent("\(name).json").path
         let problem = try await runtime.call("cn_kit_testmod", "scene_fixture",
