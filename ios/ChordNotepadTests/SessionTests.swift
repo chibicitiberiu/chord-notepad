@@ -235,7 +235,11 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(model.snapshot.messages.last?.contains("Failed to open file:\nMorning.txt (session-test)") == true,
                       "\(model.snapshot.messages)")
         XCTAssertTrue(model.snapshot.messages.last?.contains("File not found") == true, "\(model.snapshot.messages)")
-        XCTAssertFalse(model.snapshot.recentDocuments?.items.contains { $0.id == morningId } ?? true)
+        // The session publishes the pruned list after the error.
+        let pruned = await model.waitFor(timeout: .seconds(10)) {
+            $0.recentDocuments?.items.contains { $0.id == morningId } == false
+        }
+        XCTAssertTrue(pruned, "\(String(describing: model.snapshot.recentDocuments))")
 
         // New with changes: Cancel keeps the song, Don't save gives an empty one in Edit.
         session.submit(.insertText(at: 0, text: "{capo: 1}\n"))
