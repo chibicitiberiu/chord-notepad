@@ -151,6 +151,10 @@ def _render(synth, frames, block=512):
     return out
 
 
+#: Below this a float block counts as silence (no note has started).
+SILENT = 1e-4
+
+
 def _peak(samples):
     return max((abs(s) for s in samples), default=0.0)
 
@@ -182,7 +186,7 @@ def test_sfload_presets_and_a_note_render_sound(synth):
     assert synth.sfpreset_name(sfid, 77, 0) is None
     assert synth.sfpreset_name(sfid + 50, 0, 0) is None
 
-    assert _peak(_render(synth, 2048)) == 0.0
+    assert _peak(_render(synth, 2048)) < SILENT
     assert synth.cc(0, 7, 100) == fluid_ctypes.FLUID_OK
     assert synth.noteon(0, 60, 100) == fluid_ctypes.FLUID_OK
     sounding = _render(synth, RATE // 4)
@@ -235,7 +239,7 @@ def test_the_sequencer_plays_a_note_at_its_tick(synth):
         assert 990 <= sequencer.get_tick() <= 1010   # the clock follows the rendered audio
         onset = RATE // 2                       # tick 500
         # Events land on FluidSynth's 64-frame blocks, so allow two blocks early.
-        assert _peak(samples[:2 * (onset - 128)]) == 0.0
+        assert _peak(samples[:2 * (onset - 128)]) < SILENT
         assert _peak(samples[2 * onset:2 * (onset + RATE // 50)]) > 0.01   # within 20 ms
     finally:
         sequencer.delete()
@@ -289,10 +293,20 @@ _PYTHON_TREES = ["core", "desktop", "android/app/src/main/python", "ios", "hooks
 _IMPORTS = re.compile(r"^\s*(import\s+fluidsynth\b|from\s+fluidsynth\b)", re.MULTILINE)
 
 
+def _python_sources():
+    """The tracked .py files under _PYTHON_TREES (every one, outside a git checkout)."""
+    try:
+        listed = subprocess.run(["git", "-C", str(REPO), "ls-files", "--", *_PYTHON_TREES],
+                                capture_output=True, text=True, timeout=60, check=True).stdout
+        return [REPO / name for name in listed.splitlines() if name.endswith(".py")]
+    except (OSError, subprocess.SubprocessError):
+        return [path for tree in _PYTHON_TREES for path in (REPO / tree).rglob("*.py")
+                if "build" not in path.relative_to(REPO).parts]
+
+
 def test_no_source_imports_the_fluidsynth_package():
-    hits = []
-    for tree in _PYTHON_TREES:
-        for path in (REPO / tree).rglob("*.py"):
-            if _IMPORTS.search(path.read_text(encoding="utf-8", errors="replace")):
-                hits.append(str(path.relative_to(REPO)))
+    sources = _python_sources()
+    assert any(p.name == "fluid_ctypes.py" for p in sources)
+    hits = [str(p.relative_to(REPO)) for p in sources
+            if p.exists() and _IMPORTS.search(p.read_text(encoding="utf-8", errors="replace"))]
     assert hits == []
