@@ -282,5 +282,4 @@ Getting Chord Notepad
 
    .. only:: ios
 
-      Every feature is free. If you'd like to support development, there is a
-      Ko-fi link under **☰ → About**.
+      Every feature is free.

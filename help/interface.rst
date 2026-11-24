@@ -1216,9 +1216,9 @@ The User Interface
 
       **About**
          The version and build, the copyright, the licence (GNU AGPL-3.0 with
-         additional terms), a link to the source code, the no-warranty notice, a
-         link to support development on Ko-fi, and **Open source licences**: the
-         licences of everything the app is built from.
+         additional terms), a link to the source code, the no-warranty notice,
+         and **Open source licences**: the licences of everything the app is
+         built from.
 
       **Diagnostics**
          A page with what the app's audio and Python engine report, and an **Export
