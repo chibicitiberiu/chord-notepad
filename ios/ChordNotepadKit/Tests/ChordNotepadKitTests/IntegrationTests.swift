@@ -40,6 +40,12 @@ final class IntegrationTests: XCTestCase {
              "PlaybackState", "SettingsState", "ChordSheetState"].allSatisfy { log.latest($0) != nil }
         }
         await log.waitQuiet()
+        // The self-test's audio status sees the running session's player
+        // (here the FakePlayer, which counts as started and plays no SoundFont).
+        let audio = try jsonObject(try await runtime.call("chordnotepad_ios.diagnostics", "audio_status"))
+        XCTAssertEqual(audio["session"] as? Bool, true, "\(audio)")
+        XCTAssertEqual(audio["initialized"] as? Bool, true, "\(audio)")
+        XCTAssertTrue(audio["error"] is NSNull, "\(audio)")
         try await scenes.record("empty_song", "A new, empty song: the replay of every state at start.", from: 0)
 
         // -- a draft with a supplementary character: offsets are code points ---------

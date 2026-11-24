@@ -1,4 +1,4 @@
-import CNBridge
+internal import CNBridge
 import Foundation
 
 /// A failure inside Python (or starting it); `message` holds Python's

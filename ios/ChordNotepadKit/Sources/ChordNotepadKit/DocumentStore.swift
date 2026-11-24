@@ -1,4 +1,4 @@
-import CNBridge
+internal import CNBridge
 import Foundation
 
 /// The documents Python reads and writes, by id (on iOS a security-scoped

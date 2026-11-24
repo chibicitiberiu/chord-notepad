@@ -70,6 +70,11 @@ class SessionHandle:
         """The session's host (tests)."""
         return self._host
 
+    @property
+    def services(self) -> CoreServices:
+        """The core's services (tests, and the iOS self-test's audio status)."""
+        return self._services
+
     def submit(self, command: str, args_json: str) -> None:
         """Queue ``command`` for the session thread and return at once.
 

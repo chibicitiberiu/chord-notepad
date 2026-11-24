@@ -26,6 +26,10 @@ from chordnotepad.session.callback_store import CallbackDocumentStore
 from chordnotepad.session.platform import IOS
 
 
+#: The running session's handle, for ``diagnostics`` (one session per process).
+current_handle: Optional[Any] = None
+
+
 class SwiftStoreCallbacks:
     """The callbacks object ``session.callback_store`` expects, over ``_cnbridge``."""
 
@@ -85,8 +89,9 @@ def start(options_json: str) -> Any:
     Returns:
         ``session.embedded_host.SessionHandle``.
     """
+    global current_handle
     options = json.loads(options_json)
-    return embedded_host.start(
+    current_handle = embedded_host.start(
         platform=options.get("platform") or IOS,
         files_dir=options["files_dir"],
         document_store=SwiftStoreCallbacks(),
@@ -96,3 +101,4 @@ def start(options_json: str) -> Any:
         store_class=IOSDocumentStore,
         configure_logging=bool(options.get("configure_logging", True)),
     )
+    return current_handle

@@ -123,6 +123,7 @@ def test_ios_session_reaches_its_first_state_and_runs_commands(ios):
     sink.wait_for("EditorState")
     assert sink.threads == {"python-session"}
     assert handle.session._platform == IOS
+    assert handle.services.playback is not None  # the iOS self-test's audio status reads it
     handle.submit("set_text", json.dumps({"text": "C Am", "client_token": 3}))
     state = sink.wait_for("HighlightState", lambda d: d["client_token"] == 3 and d["spans"])
     assert [s["kind"] for s in state["spans"]] == ["chord", "chord"]

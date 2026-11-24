@@ -1,4 +1,4 @@
-import CNBridge
+internal import CNBridge
 import Foundation
 
 /// A running core session behind the JSON bridge (docs/IOS.md, "Bridge contract").

@@ -15,12 +15,20 @@ import PackageDescription
 //  - macOS: only when CN_PYTHON_PKGCONFIG names a pkg-config package (CI's
 //    kit tests on a Mac). A manifest is evaluated for the host, so an
 //    unconditional pkgConfig would hand a Mac's Homebrew flags to the iOS build.
+//
+// On iOS, CNBridge finds <Python/Python.h> in the Python.xcframework that
+// packaging/ios/fetch_python.sh puts in ios/build/Frameworks (both slices have
+// the same headers, so the device slice serves the simulator too); the app
+// target links and embeds the framework. Set CN_PYTHON_PKGCONFIG only for a
+// host `swift test`, never for an Xcode build: the manifest is evaluated on the
+// Mac either way.
 let environment = ProcessInfo.processInfo.environment
 #if os(Linux)
 let pythonPkgConfig: String? = environment["CN_PYTHON_PKGCONFIG"] ?? "python3-embed"
 #else
 let pythonPkgConfig: String? = environment["CN_PYTHON_PKGCONFIG"]
 #endif
+let iosPythonHeaders = Context.packageDirectory + "/../build/Frameworks/Python.xcframework/ios-arm64"
 
 let package = Package(
     name: "ChordNotepadKit",
@@ -42,7 +50,12 @@ let package = Package(
             name: "CNBridge",
             dependencies: ["CPython"],
             path: "Sources/CNBridge",
-            linkerSettings: [
+            cSettings: [
+                .unsafeFlags(["-F", iosPythonHeaders], .when(platforms: [.iOS])),
+            ],
+            // A host build links the pkg-config package's libpython; an iOS
+            // build links nothing here (the app links Python.framework).
+            linkerSettings: pythonPkgConfig == nil ? [] : [
                 .linkedLibrary("python3.14", .when(platforms: [.linux, .macOS])),
             ]
         ),
