@@ -1,4 +1,4 @@
-.PHONY: run test tests fuzz build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check flatpak-qt-check snap snap-check snap-qt-check ios-kit-test ios-fixtures ios-bridge-gen
+.PHONY: run test tests fuzz build clean setup-dev icons docs docs-html docs-html-android docs-html-ios docs-pdf docs-check flatpak flatpak-check flatpak-qt-check snap snap-check snap-qt-check ios-kit-test ios-fixtures ios-bridge-gen
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -119,6 +119,12 @@ docs-html:
 docs-html-android:
 	$(SPHINX_BUILD) -t android -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-android
 	@echo "Android HTML documentation built in $(DOCS_BUILD)/html-android"
+
+# Build the iOS variant of the HTML documentation (the Android text unless the
+# source has its own iOS text; ios/tools/build_help.sh builds the app's copy)
+docs-html-ios:
+	$(SPHINX_BUILD) -t ios -b html $(DOCS_SOURCE) $(DOCS_BUILD)/html-ios
+	@echo "iOS HTML documentation built in $(DOCS_BUILD)/html-ios"
 
 # Check both editions of the guide: warnings (a missing screenshot for an
 # edition, a broken link, ...) fail the build. The PDF too when rinohtype is
