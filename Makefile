@@ -206,9 +206,13 @@ snap-qt-check:
 IOS_KIT := ios/ChordNotepadKit
 SWIFTLY_TOOLCHAINS ?= /mnt/data_linux/Bin/swiftly/toolchains
 SWIFT_TOOLCHAIN_BIN ?= $(SWIFTLY_TOOLCHAINS)/$(shell cat $(IOS_KIT)/.swift-version)/usr/bin
-IOS_SITE_PACKAGES = $(shell $(PYTHON) -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+# `pipenv --venv` finds the venv without creating one (in a git worktree it
+# finds none: pass IOS_SITE_PACKAGES=...). CN_REQUIRE_CORE makes a missing venv
+# a failure rather than a skipped integration test.
+IOS_VENV = $(shell pipenv --venv 2>/dev/null)
+IOS_SITE_PACKAGES = $(if $(IOS_VENV),$(IOS_VENV)/lib/python3.14/site-packages)
 IOS_ENV = PATH="$(SWIFT_TOOLCHAIN_BIN)$(if $(SWIFT_TOOLCHAIN_BIN),:)$$PATH" \
-	CN_SITE_PACKAGES="$(IOS_SITE_PACKAGES)"
+	CN_SITE_PACKAGES="$(IOS_SITE_PACKAGES)" CN_REQUIRE_CORE=1
 
 ios-kit-test:
 	cd $(IOS_KIT) && $(IOS_ENV) nice swift test

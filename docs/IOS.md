@@ -107,12 +107,13 @@ make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 
 Never run bare `make`: its default target starts the desktop app.
 
-- `make ios-kit-test` sets `CN_SITE_PACKAGES` to the venv's `purelib` (from
-  `pipenv run python`). In a git worktree pipenv would make a new, empty venv
-  for the worktree's folder, so pass the main checkout's:
+- `make ios-kit-test` sets `CN_SITE_PACKAGES` to the venv's site-packages,
+  found with `pipenv --venv` (which never creates one). A git worktree has no
+  venv of its own, so pass the main checkout's:
   `make ios-kit-test IOS_SITE_PACKAGES=$HOME/.local/share/virtualenvs/chord-notepad-IF5b83s2/lib/python3.14/site-packages`.
-- Without `CN_SITE_PACKAGES` (a bare `swift test`) the tests that need the
-  core are skipped; the runtime, decoder and offset tests still run.
+- The make targets also set `CN_REQUIRE_CORE=1`: without the core's packages
+  the tests that need them fail. In a bare `swift test` they are skipped,
+  and the runtime, decoder and offset tests still run.
 - `CN_CORE_DIR` points the tests at another `core/` (default: the checkout's).
 - `tests/test_ios_swift_bridge.py` (pytest, no Swift needed) fails while the
   generated Swift is stale.

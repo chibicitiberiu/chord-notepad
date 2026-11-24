@@ -114,10 +114,18 @@ final class IntegrationTests: XCTestCase {
         try await log.wait("the open failure") { !log.events(since: mark, type: "UserError").isEmpty }
         let failure = try log.decode(UserError.self, log.events(since: mark, type: "UserError").last)
         XCTAssertTrue(failure.message.contains("File not found: missing"), failure.message)
+        let revisionBefore = try log.decodeLatest(ChordSheetState.self, "ChordSheetState").songRevision
         session.submit(.restoreDraft(document: memoryRef("locked.txt"), modified: false, readOnly: false,
                                      text: "C G\n"))
         session.submit(.renameDocument(name: "Better name"))
         try await log.wait("the refused rename") { !log.events(since: mark, type: "RenameFailed").isEmpty }
+        // The scene records the strip's render of "C G" and the status it gives
+        // ("Bar 1/2"); the render is debounced, so wait for it, not for quiet.
+        try await log.wait("the chord sheet's render of the new text", timeout: 30) {
+            guard let sheet = try? log.decodeLatest(ChordSheetState.self, "ChordSheetState"),
+                  let status = try? log.decodeLatest(StatusState.self, "StatusState") else { return false }
+            return sheet.songRevision > revisionBefore && sheet.cursorIndex != nil && status.text.hasPrefix("Bar ")
+        }
         let refused = try log.decode(RenameFailed.self, log.events(since: mark, type: "RenameFailed").last)
         XCTAssertTrue(refused.canSaveAs, "a storage refusal offers Save As")
         XCTAssertEqual(refused.name, "Better name")

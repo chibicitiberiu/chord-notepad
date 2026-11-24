@@ -43,8 +43,21 @@ enum TestPython {
         try await PythonRuntime.start(configuration)
     }
 
-    static func requireCore() throws {
-        try XCTSkipUnless(hasCore, "Set CN_SITE_PACKAGES to the core's site-packages (make ios-kit-test)")
+    /// Skip a test that needs the core when its packages aren't given; with
+    /// `CN_REQUIRE_CORE=1` (the make targets, CI) fail instead, so a run that
+    /// lost the venv can't pass by skipping the integration test.
+    static func requireCore(file: StaticString = #filePath, line: UInt = #line) throws {
+        let message = "Set CN_SITE_PACKAGES to the core's site-packages (make ios-kit-test)"
+        if environment["CN_REQUIRE_CORE"] == "1" {
+            let packages = sitePackages ?? ""
+            let pychord = URL(fileURLWithPath: packages).appendingPathComponent("pychord").path
+            guard FileManager.default.fileExists(atPath: pychord) else {
+                XCTFail("CN_REQUIRE_CORE=1, but \(packages.isEmpty ? "CN_SITE_PACKAGES is unset" : "\(packages) has no pychord"). \(message)",
+                        file: file, line: line)
+                throw PythonError(message)
+            }
+        }
+        try XCTSkipUnless(hasCore, message)
     }
 }
 
