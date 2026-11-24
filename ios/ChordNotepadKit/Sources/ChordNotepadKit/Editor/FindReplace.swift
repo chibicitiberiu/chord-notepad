@@ -179,6 +179,8 @@ public enum FindAction: Sendable, Hashable {
 /// editor's text.
 public struct FindBar: Sendable, Equatable {
     public internal(set) var open = false
+    /// How many times the bar was opened (the view gives the find field the keys each time).
+    public internal(set) var opened = 0
     /// The Replace row is shown.
     public internal(set) var replacing = false
     /// Replace is offered (Edit mode, a writable song); Play finds only.
@@ -238,6 +240,17 @@ public struct FindPaint: Sendable, Equatable {
 }
 
 extension EditorModel {
+    /// The catalog's bar: `bar` (``FindBar/showing(_:query:replacement:current:canReplace:matchCase:wholeWord:)``)
+    /// as if it had been used, the selection on its current match.
+    public mutating func showFind(_ bar: FindBar) {
+        find = bar
+        if bar.current > 0 && bar.current <= bar.matches.count {
+            let span = bar.matches[bar.current - 1]
+            let mapper = OffsetMapper(text)
+            _ = select(UTF16Range(mapper.toUTF16(span.start), mapper.toUTF16(span.end)))
+        }
+    }
+
     /// The matches to tint while the bar is open (nil when it is closed).
     public var findPaint: FindPaint? {
         guard find.open, !find.matches.isEmpty else { return nil }
@@ -256,6 +269,7 @@ extension EditorModel {
             let mapper = OffsetMapper(text)
             find.origin = mapper.toCodePoint(selection.start)
             find.open = true
+            find.opened += 1
             find.canReplace = canReplace && !readOnly
             find.replacing = replace && find.canReplace
             find.notice = nil

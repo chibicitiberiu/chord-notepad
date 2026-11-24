@@ -441,6 +441,7 @@ final class IntegrationTests: XCTestCase {
 
         try await checkSheetsAndTools(session, log, scenes)
         try await checkSettings(session, log, scenes, filesDir: filesDir)
+        try await checkEditorFeatures(session, log, scenes)
 
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {

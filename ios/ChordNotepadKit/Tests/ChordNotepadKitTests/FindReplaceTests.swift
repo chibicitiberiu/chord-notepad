@@ -384,6 +384,10 @@ final class FindReplaceTests: XCTestCase {
         XCTAssertEqual(bar.countText, "2 of 4")
         let play = FindBar.showing(model, query: "am", replacement: "Em", canReplace: false)
         XCTAssertFalse(play.replacing)
+        model.showFind(bar)
+        XCTAssertEqual(model.selection, UTF16Range(5, 7))
+        XCTAssertEqual(model.find.countText, "2 of 4")
+        XCTAssertEqual(model.findPaint?.current, UTF16Range(5, 7))
     }
 }
 

@@ -43,7 +43,7 @@ final class SnapshotTests: XCTestCase {
         let all = try Fixture.all(in: fixtures)
         XCTAssertEqual(all.map(\.scene), ["capo_advice", "chord_sheet_fret", "chord_sheet_staff",
                                           "discard_question", "editor_european", "editor_mid_edit", "empty_song",
-                                          "errors", "export_done", "files_recent", "grace_edit",
+                                          "errors", "export_done", "files_recent", "find_replaced", "grace_edit",
                                           "identifier_cmaj7",
                                           "insert_bpm", "insert_capo", "insert_key", "insert_label",
                                           "insert_loop", "insert_time", "play_with_chord_sheet", "player_sheets",
