@@ -157,6 +157,9 @@ final class AppModel: ObservableObject {
             Log.ui.error("The quick-start song is missing from the bundle")
             return
         }
+        // The session's start-up replay reports an empty, untitled song first:
+        // the bundled song is the open that decides the tab (Play, as a saved song).
+        ui.modes.expectOpen()
         session.submit(.restoreDraft(document: store.bundledRef(url.lastPathComponent), modified: false,
                                      readOnly: false, text: text))
     }

@@ -141,6 +141,15 @@ final class MainScreenTests: XCTestCase {
         var m = ModeController()
         m.onDocument(doc("bundle:01_quick_start.txt"))
         XCTAssertEqual(m.mode, .play)
+        // The app asks for it as an open: the session's start-up replay (an
+        // empty, untitled song) comes first and must not keep Edit.
+        var app = ModeController()
+        app.expectOpen()
+        app.onDocument(doc(nil))
+        XCTAssertEqual(app.mode, .edit)
+        app.onDocument(doc("bundle:01_quick_start.txt"))
+        XCTAssertEqual(app.mode, .play)
+        XCTAssertEqual(app.opened, 1)
     }
 
     // -- ScreenLayoutTest ----------------------------------------------------------------------
