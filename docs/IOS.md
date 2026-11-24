@@ -1419,12 +1419,17 @@ or the schema changed: the session already had `replace_match`,
   Open… ⌘O, Find ⌘F, Find & Replace ⌥⌘F, Find Next ⌘G and Find Previous ⇧⌘G
   are the system menu's own items, sending `open:`, `find:` and the rest up
   the responder chain: run 45493241329's log showed UIKit reporting the same
-  keys as SwiftUI commands as conflicts ("undefined behavior"). The editor's
-  text view answers those actions (added under their selectors at run time,
-  since the SDK declares some on UIResponder and not others) and is first
-  responder in both tabs: in Play it takes the keys frozen, with no
-  keyboard. While the find field has the keys, ⌘G and ⇧⌘G are the field's
-  own (`onKeyPress`). They act only on the bare main screen (Android's are
+  keys as SwiftUI commands as conflicts ("undefined behavior"). The text's
+  `EditorHost` (the sideways scroll view around the text view) answers
+  those actions (added under their selectors at run time, since the SDK
+  declares some on UIResponder and not others) and takes the keys whenever
+  nothing else has them, as Android's focusable root does: in Play, in Edit
+  before the text is tapped, and after a field elsewhere (rename, Insert,
+  Settings) lets them go. A scroll view has no keyboard, key commands or
+  undo manager, so the frozen text stays frozen; while the text has the
+  keys, the actions pass through it to the host. While the find field has
+  the keys, ⌘G, ⇧⌘G and ⌘F are the field's own (`onKeyPress`); ⌘O does
+  nothing there. They act only on the bare main screen (Android's are
   the song screen's: a sheet, a dialog or Settings has the keys then). The
   text view keeps its own too: undo, redo, the line commands, and a hidden
   Command-+ beside the app's Command-=.
@@ -1436,7 +1441,9 @@ or the schema changed: the session already had `replace_match`,
   restores a song in a real text view, opens Find and Replace through
   `AppModel.shortcut`, checks the selection and the two tints on the text
   storage, goes next and back (also with the system menu's `findNext:` and
-  `findPrevious:` sent to the text view), replaces all (the text, "Replaced 3
+  `findPrevious:` sent to no target, as a key press sends them: to the host
+  with the keys in Edit, through the text once it has them, to the host
+  again in Play, where the Replace row goes), replaces all (the text, "Replaced 3
   matches", one undo), pinches (the session's size, the settings' value,
   the view's font), runs Command-0 and the text view's own Command-+ through
   the responder chain, checks the shortcuts wait under the menu, sets the
@@ -1817,10 +1824,13 @@ expires, her tester status and the issue list. By hand:
      Edit and View with the app's keys), then ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘F, ⌥⌘F,
      ⌘G, ⇧⌘G, ⌘=, ⌘-, ⌘0 and ⌘+ in Edit and in Play; Return, Shift-Return
      and Escape in the find field; the menu bar (iPadOS 26) lists them.
-  4. Pinch the text in Edit and in Play: the size follows the fingers, stays
+  4. ⌘? opens the user guide (or does the key need Shift declared?); after
+     closing the rename dialog, Insert or Settings, ⌘F and ⌘O still work; in
+     Play no keyboard appears and ⌘Z does nothing.
+  5. Pinch the text in Edit and in Play: the size follows the fingers, stays
      after a relaunch, and Settings › General shows it.
-  5. Settings › General: each font family and a typed size, in the editor.
-  6. Play on a phone on its side with the chord sheet: drag the handle,
+  6. Settings › General: each font family and a typed size, in the editor.
+  7. Play on a phone on its side with the chord sheet: drag the handle,
      relaunch, the column keeps its width.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go

@@ -22,12 +22,22 @@ extension SessionTests {
         view.delegate = coordinator
         host.frame = window.bounds
         window.addSubview(host)
-        window.isHidden = false
+        // The key window, so actions sent to no target go to its first responder.
+        let previousKey = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows).first { $0.isKeyWindow }
+        window.makeKeyAndVisible()
         editor.attach(view)
         defer {
             editor.detach(view)
             window.isHidden = true
+            previousKey?.makeKey()
         }
+        /// Send a system menu action as a key press does: to no target, so to whoever has the keys.
+        func sendMenuAction(_ name: String) -> Bool {
+            UIApplication.shared.sendAction(NSSelectorFromString(name), to: nil, from: nil, for: nil)
+        }
+        /// A few main-loop turns (the host takes the keys on the next one).
+        func settle() async { try? await Task.sleep(for: .milliseconds(300)) }
 
         // -- a song with known chords, in Edit --------------------------------------------
         let song = "{key: C}\nAm C Am G\nla am la\nAm7 F Am\n"
@@ -55,15 +65,31 @@ extension SessionTests {
         XCTAssertEqual(editor.model.find.countText, "2 of 3")
         model.shortcut(.findPrevious)
         XCTAssertEqual(editor.model.find.countText, "1 of 3")
-        // The system menu's Find Next and Find Previous (Command-G, Shift-Command-G) reach the
-        // text view through the responder chain.
-        let findNext = NSSelectorFromString("findNext:")
-        XCTAssertTrue(view.canPerformAction(findNext, withSender: nil))
-        XCTAssertTrue(view.canPerformAction(NSSelectorFromString("open:"), withSender: nil))
-        XCTAssertTrue(UIApplication.shared.sendAction(findNext, to: view, from: nil, for: nil))
+        // The system menu's Find Next and Find Previous (Command-G, Shift-Command-G), sent to no
+        // target as a key press sends them: the host has the keys in Edit before the text is
+        // tapped, and they pass through the text once it has them.
+        await settle()
+        XCTAssertTrue(host.isFirstResponder, "the host takes the keys nothing else has")
+        XCTAssertFalse(view.canPerformAction(NSSelectorFromString("find:"), withSender: nil), "the text passes it on")
+        XCTAssertTrue(host.canPerformAction(NSSelectorFromString("open:"), withSender: nil))
+        XCTAssertTrue(sendMenuAction("findNext:"))
         XCTAssertEqual(editor.model.find.countText, "2 of 3")
-        XCTAssertTrue(UIApplication.shared.sendAction(NSSelectorFromString("findPrevious:"), to: view, from: nil,
-                                                      for: nil))
+        XCTAssertTrue(view.becomeFirstResponder())
+        XCTAssertTrue(sendMenuAction("findPrevious:"))
+        XCTAssertEqual(editor.model.find.countText, "1 of 3")
+        // In Play the frozen text lets the keys go and the host takes them: no keyboard, and
+        // the text's own keys (undo, the line commands) don't reach it.
+        model.selectMode(.play)
+        await settle()
+        XCTAssertFalse(view.isFirstResponder)
+        XCTAssertTrue(host.isFirstResponder)
+        XCTAssertFalse(editor.model.find.replacing, "Play finds without the Replace row")
+        XCTAssertTrue(sendMenuAction("findNext:"))
+        XCTAssertEqual(editor.model.find.countText, "2 of 3")
+        model.selectMode(.edit)
+        XCTAssertTrue(editor.model.find.canReplace)
+        editor.find(.showReplace(true))
+        editor.find(.previous)
         XCTAssertEqual(editor.model.find.countText, "1 of 3")
 
         // -- Replace all: the session's one edit, its status, one undo step ----------------------

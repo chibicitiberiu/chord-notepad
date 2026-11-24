@@ -113,7 +113,6 @@ final class EditorTextView: UITextView {
         addGestureRecognizer(playHold)
         textPinch.addTarget(self, action: #selector(pinched(_:)))
         addGestureRecognizer(textPinch)
-        _ = Self.systemActions
     }
 
     @objc private func pinched(_ recognizer: UIPinchGestureRecognizer) {
@@ -311,35 +310,11 @@ final class EditorTextView: UITextView {
         return (super.keyCommands ?? []) + own
     }
 
-    // MARK: - The system menu's Open… and find actions
-
-    /// The system menu's Open… and find items (``AppShortcut/systemAction``)
-    /// go to the app: the text view is first responder in both tabs.
-    var onCommand: ((AppCommand) -> Void)?
-
-    /// First responder in Play too (frozen: no keyboard, no selection), so the
-    /// system menu's actions reach it there, as Android's focusable root takes
-    /// the keys.
-    override var canBecomeFirstResponder: Bool { true }
-
-    /// The system menu's actions are added at run time under their selectors
-    /// (`open:`, `find:`, ...): the SDK declares some of them on UIResponder
-    /// and not others, and a Swift method can't both override the one and
-    /// define the other the same way.
-    private static let systemActions: Void = {
-        for shortcut in AppShortcut.all {
-            guard let name = shortcut.systemAction else { continue }
-            let command = shortcut.command
-            let block: @convention(block) (EditorTextView, Any?) -> Void = { view, _ in
-                MainActor.assumeIsolated { view.onCommand?(command) }
-            }
-            class_replaceMethod(EditorTextView.self, NSSelectorFromString(name),
-                                imp_implementationWithBlock(block), "v@:@")
-        }
-    }()
-
+    /// The system menu's Open… and find actions are the host's (``EditorHost``,
+    /// next in the chain): the text view passes them on rather than answering
+    /// `find:` with UIKit's own find interaction, which is off.
     override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
-        if AppShortcut.command(systemAction: NSStringFromSelector(action)) != nil { return onCommand != nil }
+        if AppShortcut.command(systemAction: NSStringFromSelector(action)) != nil { return false }
         return super.canPerformAction(action, withSender: sender)
     }
 
@@ -385,6 +360,67 @@ final class EditorHost: UIScrollView {
         fatalError("EditorHost is made in code")
     }
 
+    // MARK: - The keys when nothing else has them
+
+    /// The system menu's Open… and find items (``AppShortcut/systemAction``)
+    /// go to the app.
+    var onCommand: ((AppCommand) -> Void)?
+
+    /// The host takes the keys whenever nothing else has them (Play, Edit
+    /// before the text is tapped, after a field elsewhere let them go), as
+    /// Android's focusable root does, so the system menu's Open… and find
+    /// actions reach it. A scroll view has no keyboard, key commands or undo
+    /// manager, so the frozen text stays frozen. While the text has the keys,
+    /// the actions come here through the chain (its superview).
+    override var canBecomeFirstResponder: Bool { true }
+
+    /// The system menu's actions are added at run time under their selectors
+    /// (`open:`, `find:`, ...): the SDK declares some of them on UIResponder
+    /// and not others, and a Swift method can't both override the one and
+    /// define the other the same way.
+    private static let systemActions: Void = {
+        for shortcut in AppShortcut.all {
+            guard let name = shortcut.systemAction else { continue }
+            let command = shortcut.command
+            let block: @convention(block) (EditorHost, Any?) -> Void = { host, _ in
+                MainActor.assumeIsolated { host.onCommand?(command) }
+            }
+            class_replaceMethod(EditorHost.self, NSSelectorFromString(name),
+                                imp_implementationWithBlock(block), "v@:@")
+        }
+    }()
+
+    override func canPerformAction(_ action: Selector, withSender sender: Any?) -> Bool {
+        if AppShortcut.command(systemAction: NSStringFromSelector(action)) != nil { return onCommand != nil }
+        return super.canPerformAction(action, withSender: sender)
+    }
+
+    private var focusObservers: [NSObjectProtocol] = []
+
+    override func didMoveToWindow() {
+        super.didMoveToWindow()
+        _ = Self.systemActions
+        focusObservers.forEach(NotificationCenter.default.removeObserver)
+        focusObservers = []
+        guard window != nil else { return }
+        // A field (or the text) let the keys go: take them, unless another took them.
+        for name in [UITextField.textDidEndEditingNotification, UITextView.textDidEndEditingNotification] {
+            focusObservers.append(NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
+                [weak self] _ in
+                MainActor.assumeIsolated { self?.takeKeysIfFree() }
+            })
+        }
+        takeKeysIfFree()
+    }
+
+    /// Take the keys on the next turn if nothing in the app has them then.
+    func takeKeysIfFree() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self, self.window != nil, FirstResponder.current() == nil else { return }
+            _ = self.becomeFirstResponder()
+        }
+    }
+
     /// Word wrap was switched: only the unwrapped text scrolls sideways.
     func wrapChanged() {
         isScrollEnabled = !textView.wordWrap
@@ -402,6 +438,27 @@ final class EditorHost: UIScrollView {
         }
         let size = CGSize(width: width, height: bounds.height)
         if contentSize != size { contentSize = size }
+    }
+}
+
+/// Which view has the keys: an action sent to no target lands on the first
+/// responder, or with none on the window or the application.
+@MainActor
+enum FirstResponder {
+    fileprivate static weak var found: UIResponder?
+
+    /// The view that has the keys, or nil (none, or only a window).
+    static func current() -> UIView? {
+        found = nil
+        UIApplication.shared.sendAction(#selector(UIResponder.cnReportFirstResponder(_:)), to: nil, from: nil, for: nil)
+        guard let view = found as? UIView, !(view is UIWindow) else { return nil }
+        return view
+    }
+}
+
+extension UIResponder {
+    @objc fileprivate func cnReportFirstResponder(_ sender: Any?) {
+        MainActor.assumeIsolated { FirstResponder.found = self }
     }
 }
 

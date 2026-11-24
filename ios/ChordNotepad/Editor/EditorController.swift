@@ -72,8 +72,12 @@ final class EditorController: ObservableObject {
                 self?.apply(self?.model.find(.clearNotice) ?? EditorEffects())
             }
         }
-        if action == .close, playMode || !model.readOnly {
-            textView?.becomeFirstResponder()
+        if action == .close {
+            if playMode || model.readOnly {
+                textView?.host?.takeKeysIfFree()
+            } else {
+                textView?.becomeFirstResponder()
+            }
         }
     }
 
@@ -148,7 +152,7 @@ final class EditorController: ObservableObject {
         view.onScrub = { [weak self] in self?.scrubbed($0, at: $1) }
         view.onHold = { [weak self] in self?.held(at: $0) }
         view.onPinch = { [weak self] in self?.pinched($0, scale: $1) }
-        view.onCommand = { [weak self] in self?.onAppCommand?($0) }
+        view.host?.onCommand = { [weak self] in self?.onAppCommand?($0) }
         view.onWidthChanged = { [weak self] in self?.updateMarker() }
         view.markerScrub.grabs = { [weak self] in self?.scrubGrabs($0) ?? false }
         view.markerScrub.touchDown = { [weak self] in
@@ -203,9 +207,9 @@ final class EditorController: ObservableObject {
             if let view = textView {
                 view.setPlayMode(on, editable: !model.readOnly)
                 if !on { scrubTo = nil }
-                // The frozen text has the keys (no keyboard), so the system menu's
-                // Open… and find actions reach it (``EditorTextView/onCommand``).
-                if on && view.window != nil && !model.find.open { view.becomeFirstResponder() }
+                // The frozen text let the keys go: its host takes them, so the system
+                // menu's Open… and find actions reach the app (``EditorHost/onCommand``).
+                if on { view.host?.takeKeysIfFree() }
             }
         }
         updateMarker()
