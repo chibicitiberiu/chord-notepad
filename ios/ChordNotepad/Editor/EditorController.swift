@@ -81,6 +81,15 @@ final class EditorController: ObservableObject {
             guard let self, let view = self.textView else { return }
             self.restyle(view)
         }
+        view.onPlayTap = { [weak self] in self?.playTapped(at: $0) }
+        view.onScrub = { [weak self] in self?.scrubbed($0, at: $1) }
+        view.onHold = { [weak self] in self?.held(at: $0) }
+        view.onWidthChanged = { [weak self] in self?.updateMarker() }
+        view.markerScrub.grabs = { [weak self] in self?.scrubGrabs($0) ?? false }
+        view.markerScrub.touchDown = { [weak self] in
+            if self?.playMode == true { self?.playHandlers?.touched() }
+        }
+        view.setPlayMode(playMode, editable: !model.readOnly)
         applying = true
         let storage = view.textStorage
         storage.replaceCharacters(in: NSRange(location: 0, length: storage.length), with: model.text)
@@ -91,6 +100,122 @@ final class EditorController: ObservableObject {
 
     func detach(_ view: EditorTextView) {
         if textView === view { textView = nil }
+    }
+
+    // MARK: - Play mode
+
+    /// What Play mode's touches do (the app model's commands).
+    var playHandlers: PlayHandlers?
+    /// The text is frozen with the playhead marker (the Play tab).
+    private(set) var playMode = false
+    /// The session's playhead (UTF-16) and whether a song plays.
+    private var sessionHead: Int?
+    private var songPlaying = false
+    /// Where a tap or a scrub put the marker, until the session's playhead moves.
+    private var localHead: Int?
+    /// Where a scrub has taken the marker; sent once, on release.
+    private var scrubTo: Int?
+
+    /// The playhead the marker shows (UTF-16).
+    var playhead: Int? { localHead ?? sessionHead }
+
+    /// The tab, the session's playhead (code points) and whether a song plays.
+    func updatePlay(mode: AppMode, playhead: Int?, playing: Bool) {
+        let head = playhead.map { OffsetMapper(model.text).toUTF16($0) }
+        if head != sessionHead {
+            sessionHead = head
+            localHead = nil
+        }
+        songPlaying = playing
+        let on = mode == .play
+        if on != playMode {
+            playMode = on
+            if let view = textView {
+                view.setPlayMode(on, editable: !model.readOnly)
+                if !on { scrubTo = nil }
+            }
+        }
+        updateMarker()
+    }
+
+    /// The chords the playhead can stop at, where they are in the text view.
+    func chordBoxes() -> [ChordBox] {
+        textView?.boxes(of: playableChords(model.spans)) ?? []
+    }
+
+    /// The box of the chord the marker sits before.
+    func markerBox() -> ChordBox? {
+        guard let view = textView, let chord = markerChord(playableChords(model.spans), playhead: playhead) else {
+            return nil
+        }
+        return view.boxes(of: [chord]).first
+    }
+
+    private func updateMarker() {
+        guard let view = textView else { return }
+        view.showMarker(playMode ? markerBox() : nil, color: palette(view).primary.uiColor)
+    }
+
+    /// A tap in Play mode at `point` (the text view's content): a chord plays,
+    /// a miss moves the playhead to the nearest chord unless a song plays.
+    func playTapped(at point: CGPoint) {
+        guard playMode else { return }
+        playHandlers?.touched()
+        guard let tap = resolveTap(chordBoxes(), Double(point.x), Double(point.y), slop: PlayTouch.chordSlop,
+                                   nearestOnMiss: !songPlaying) else { return }
+        localHead = tap.start
+        updateMarker()
+        playHandlers?.tap(tap)
+    }
+
+    /// Whether a drag from `point` scrubs the marker (not while a song plays).
+    func scrubGrabs(_ point: CGPoint) -> Bool {
+        playMode && !songPlaying
+            && grabsMarker(markerBox(), Double(point.x), Double(point.y), grabWidth: PlayTouch.markerGrabWidth)
+    }
+
+    /// The scrub moved or ended: the marker follows chord by chord; the chord
+    /// it ends on goes to the session once (`set_playhead` restarts playback).
+    func scrubbed(_ state: UIGestureRecognizer.State, at point: CGPoint) {
+        switch state {
+        case .began, .changed:
+            if let target = scrubTarget(chordBoxes(), current: playhead, Double(point.x), Double(point.y)) {
+                localHead = target
+                scrubTo = target
+                updateMarker()
+            }
+        case .ended:
+            if let scrubTo { playHandlers?.scrub(scrubTo) }
+            scrubTo = nil
+        default:
+            scrubTo = nil
+        }
+    }
+
+    /// A long-press at `point`: a red or faded directive there is explained.
+    func held(at point: CGPoint) {
+        guard playMode, let view = textView else { return }
+        let boxes = view.boxes(of: explainableDirectives(model.spans))
+        guard let box = explainableAt(boxes, Double(point.x), Double(point.y), slop: PlayTouch.chordSlop) else { return }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        playHandlers?.explain(box.start)
+    }
+
+    /// Show the session's explanation by its directive, or put it away (nil).
+    func showHint(_ explained: ExplainedDirective?) {
+        guard let view = textView else { return }
+        guard playMode, let explained else {
+            view.hideHint()
+            return
+        }
+        let mapper = OffsetMapper(model.text)
+        guard let rect = view.rect(of: UTF16Range(mapper.toUTF16(explained.start), mapper.toUTF16(explained.end)))
+        else {
+            view.hideHint()
+            return
+        }
+        view.showHint(explained.card, at: rect,
+                      colors: AppColors.forScheme(dark: view.traitCollection.userInterfaceStyle == .dark))
     }
 
     // MARK: - Effects
@@ -149,7 +274,9 @@ final class EditorController: ObservableObject {
         view.textChanged()
         view.backgroundColor = palette.background.uiColor
         view.tintColor = palette.primary.uiColor
-        if view.isEditable == model.readOnly { view.isEditable = !model.readOnly }
+        let editable = !model.readOnly && !playMode
+        if view.isEditable != editable { view.isEditable = editable }
+        updateMarker()
     }
 
     private func palette(_ view: UITextView) -> EditorPalette {

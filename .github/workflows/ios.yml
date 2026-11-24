@@ -21,6 +21,9 @@ on:
       - 'android/app/src/test/resources/chord_sheet/**'
       - 'resources/soundfont/**'
       - 'examples/01_quick_start.txt'
+      - 'examples/02_american_complete.txt'
+      - 'android/tools/help_shot_songs/scarborough_fair.txt'
+      - 'android/app/src/main/res/drawable/mdi_*.xml'
       - '.github/workflows/ios.yml'
   workflow_dispatch:
 
@@ -235,10 +238,11 @@ jobs:
             find ios/build/artifacts/catalog -name '*.png' | wc -l
           fi
 
-      # The real app on both simulators: the shell with the quick-start song,
-      # then the self-test screen, with live CoreAudio playback, the chord
-      # sheet, and the editor after the app typed into it (editor.json must
-      # say the session highlighted the typing).
+      # The real app on both simulators: the main screen with the quick-start
+      # song (Play), the menu, Diagnostics with the self-test and live
+      # CoreAudio playback, Play with the chord sheet, and Edit after the app
+      # typed into the editor (editor.json must say the session highlighted
+      # the typing).
       - name: Screenshots
         run: |
           ios/tools/ci_screenshots.sh "$IPHONE_UDID" iphone "$SIM_APP" ios/build/artifacts/screenshots

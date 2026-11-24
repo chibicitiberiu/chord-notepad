@@ -9,7 +9,7 @@ struct ChordNotepadApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ShellView(model: model, editor: model.editor)
+            MainView(model: model, editor: model.editor)
                 .task { await model.launch() }
         }
         .onChange(of: scenePhase) { _, phase in

@@ -11,39 +11,78 @@ struct CatalogScene {
 }
 
 /// One screen in the catalog: its name, the recorded scenes it is shown with
-/// (ios/Fixtures) and how to draw it from a scene.
+/// (ios/Fixtures), the windows it is drawn in and how to draw it.
 struct CatalogScreen {
     let name: String
     let fixtures: [String]
-    let make: @MainActor (CatalogScene) -> AnyView
+    let devices: [CatalogRenderer.Device]
+    let make: @MainActor (CatalogScene, CatalogRenderer.Device) -> AnyView
 
-    init<Screen: View>(_ name: String, fixtures: [String],
-                       make: @escaping @MainActor (CatalogScene) -> Screen) {
+    init<Screen: View>(_ name: String, fixtures: [String], devices: [CatalogRenderer.Device] = CatalogRenderer.upright,
+                       @ViewBuilder make: @escaping @MainActor (CatalogScene, CatalogRenderer.Device) -> Screen) {
         self.name = name
         self.fixtures = fixtures
-        self.make = { AnyView(make($0)) }
+        self.devices = devices
+        self.make = { AnyView(make($0, $1)) }
     }
 }
 
 /// Every screen drawn from the recorded scenes, without Python
 /// (docs/IOS.md, "Preview catalog"). `#Preview`s use the same fixtures, and
-/// CI's CatalogTests render each entry on a phone and a tablet, light and
-/// dark, at the default and a large text size.
+/// CI's CatalogTests render each entry in its windows, light and dark, at the
+/// default and a large text size.
 ///
 /// Adding a screen is one line in ``screens``.
 @MainActor
 enum PreviewCatalog {
     static let screens: [CatalogScreen] = [
-        CatalogScreen("shell", fixtures: ["quick_start_edit", "empty_song", "play_with_chord_sheet", "errors",
-                                          "chord_sheet_staff", "chord_sheet_fret", "editor_mid_edit",
-                                          "editor_european"]) {
-            ShellScreen(snapshot: $0.snapshot, editorModel: $0.editor, build: "catalog", scrolls: false,
-                        chordSheet: $0.chordSheet)
+        CatalogScreen("edit", fixtures: ["scarborough_edit", "empty_song", "editor_mid_edit", "editor_european"],
+                      devices: CatalogRenderer.upright + [CatalogRenderer.ipadLandscape]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
         },
-        CatalogScreen("selftest", fixtures: ["empty_song"]) { _ in
+        CatalogScreen("play", fixtures: ["scarborough_piano_roll", "scarborough_fret", "scarborough_tab",
+                                         "play_with_chord_sheet", "chord_sheet_staff", "quick_start_edit"],
+                      devices: CatalogRenderer.all) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        // The software keyboard up in Edit: a grey stand-in for it under the screen.
+        CatalogScreen("keyboard", fixtures: ["scarborough_edit"],
+                      devices: [CatalogRenderer.iphoneLandscape, CatalogRenderer.devices[0]]) { scene, device in
+            let keyboard = device.keyboardHeight
+            VStack(spacing: 0) {
+                PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit, keyboardHeight: Double(keyboard)))
+                Color(uiColor: .systemGray4)
+                    .frame(height: keyboard)
+                    .overlay { Text("Keyboard").font(.caption).foregroundStyle(.secondary) }
+            }
+        },
+        CatalogScreen("menu", fixtures: ["scarborough_edit"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .menu))
+        },
+        CatalogScreen("rename", fixtures: ["scarborough_edit", "errors"]) { scene, _ in
+            let failure = scene.snapshot.renameFailure
+            let ui = failure.map {
+                MainUiState(mode: .play, route: .renameFailed(name: $0.name, reason: $0.reason,
+                                                               canSaveAs: $0.canSaveAs))
+            } ?? MainUiState(mode: .play, route: .rename)
+            PreviewCatalog.mainScreen(scene, ui, renameName: "Scarborough Fair (live)")
+        },
+        CatalogScreen("diagnostics", fixtures: ["empty_song"]) { _, _ in
             SelfTestContent(report: .sample, timings: SelfTestReport.sample.timings, running: false, scrolls: false)
         },
+        CatalogScreen("voicing", fixtures: ["scarborough_fret"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            CatalogColors { VoicingSheet(state: scene.snapshot.voicingMenu, colors: $0, scrolls: false) }
+        },
+        CatalogScreen("instrument", fixtures: ["scarborough_fret"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            CatalogColors { InstrumentSheet(state: scene.snapshot.instrumentMenu, colors: $0, scrolls: false) }
+        },
     ]
+
+    /// The main screen of a scene in `ui`'s mode, with what is open over it.
+    static func mainScreen(_ scene: CatalogScene, _ ui: MainUiState, renameName: String = "") -> MainScreen {
+        MainScreen(snapshot: scene.snapshot, editorModel: scene.editor, ui: ui, scrolls: false,
+                   chordSheet: scene.chordSheet, renameName: .constant(renameName))
+    }
 
     /// A recorded scene, or nil (logged) when it's missing.
     static func fixture(_ name: String) -> Fixture? {
@@ -94,19 +133,28 @@ enum CatalogRenderer {
         let name: String
         let size: CGSize
         let scale: CGFloat
+        /// The software keyboard's height there (with its suggestions bar).
+        var keyboardHeight: CGFloat = 0
     }
 
-    /// iPhone 17 and iPad Air 11-inch (M4), in points.
+    /// iPhone 17 and iPad Air 11-inch (M4), upright, in points.
     static let devices = [
-        Device(name: "iphone", size: CGSize(width: 402, height: 874), scale: 3),
-        Device(name: "ipad", size: CGSize(width: 820, height: 1180), scale: 2),
+        Device(name: "iphone", size: CGSize(width: 402, height: 874), scale: 3, keyboardHeight: 336),
+        Device(name: "ipad", size: CGSize(width: 820, height: 1180), scale: 2, keyboardHeight: 398),
     ]
+    static let iphoneLandscape = Device(name: "iphone-landscape", size: CGSize(width: 874, height: 402), scale: 3,
+                                        keyboardHeight: 209)
+    static let ipadLandscape = Device(name: "ipad-landscape", size: CGSize(width: 1180, height: 820), scale: 2,
+                                      keyboardHeight: 398)
+    static var upright: [Device] { devices }
+    static var all: [Device] { devices + [iphoneLandscape, ipadLandscape] }
     static let schemes: [(String, ColorScheme)] = [("light", .light), ("dark", .dark)]
     static let textSizes: [(String, DynamicTypeSize)] = [("default", .large), ("large", .accessibility2)]
 
     /// How many images ``renderAll(to:)`` writes.
     @MainActor static var imageCount: Int {
-        PreviewCatalog.screens.reduce(0) { $0 + $1.fixtures.count } * devices.count * schemes.count * textSizes.count
+        PreviewCatalog.screens.reduce(0) { $0 + $1.fixtures.count * $1.devices.count } * schemes.count
+            * textSizes.count
     }
 
     /// Render every entry into `folder` as `<screen>-<fixture>-<device>-<scheme>-<text>.png`.
@@ -116,10 +164,10 @@ enum CatalogRenderer {
         for screen in PreviewCatalog.screens {
             for fixture in screen.fixtures {
                 let scene = PreviewCatalog.scene(fixture)
-                for device in devices {
+                for device in screen.devices {
                     for (schemeName, scheme) in schemes {
                         for (textName, textSize) in textSizes {
-                            let view = screen.make(scene)
+                            let view = screen.make(scene, device)
                                 .frame(width: device.size.width, height: device.size.height)
                                 .environment(\.colorScheme, scheme)
                                 .environment(\.dynamicTypeSize, textSize)
@@ -176,7 +224,7 @@ struct CatalogView: View {
                     Section(screen.name) {
                         ForEach(screen.fixtures, id: \.self) { fixture in
                             NavigationLink(fixture) {
-                                screen.make(PreviewCatalog.scene(fixture))
+                                screen.make(PreviewCatalog.scene(fixture), screen.devices[0])
                             }
                         }
                     }
@@ -187,6 +235,25 @@ struct CatalogView: View {
     }
 }
 
+/// The main screen's colours for the environment's scheme, for a view drawn on its own.
+struct CatalogColors<Content: View>: View {
+    @Environment(\.colorScheme) private var scheme
+    @ViewBuilder let content: (AppColors) -> Content
+
+    var body: some View {
+        content(AppColors.forScheme(dark: scheme == .dark))
+    }
+}
+
 #Preview("Catalog") {
     CatalogView()
+}
+
+#Preview("Play, piano roll") {
+    PreviewCatalog.mainScreen(PreviewCatalog.scene("scarborough_piano_roll"), MainUiState(mode: .play))
+}
+
+#Preview("Edit, dark") {
+    PreviewCatalog.mainScreen(PreviewCatalog.scene("editor_mid_edit"), MainUiState(mode: .edit))
+        .preferredColorScheme(.dark)
 }

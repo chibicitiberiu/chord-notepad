@@ -1,6 +1,7 @@
 import ChordNotepadKit
 import Foundation
 import SwiftUI
+import UIKit
 import os
 
 /// Start-up timings, in seconds from the start of ``AppModel/start(fakePlayer:)``.
@@ -31,7 +32,15 @@ final class AppModel: ObservableObject {
     @Published private(set) var phase: Phase = .idle
     @Published private(set) var snapshot = SessionSnapshot()
     @Published private(set) var timings = LaunchTimings()
-    @Published var showSelfTest = false
+    /// The main screen's own state: the tab, what is open over it, the keyboard.
+    @Published var ui = MainUiState()
+    /// The snackbar on screen.
+    @Published private(set) var snackbars = Snackbars()
+    /// Play mode's long-press explanation.
+    private var hints = DirectiveHintState()
+    private var hintTask: Task<Void, Never>?
+    private var snackbarTask: Task<Void, Never>?
+    private var snackbarShown: Int?
     /// The chord sheet's buffers, once the session runs.
     @Published private(set) var chordSheet: ChordSheetSource?
     /// The song editor: the text the user sees and edits (``snapshot``'s
@@ -60,7 +69,7 @@ final class AppModel: ObservableObject {
     func launch() async {
         guard !AppEnvironment.isRunningTests, phase == .idle else { return }
         if AppEnvironment.startScreen == "selftest" {
-            showSelfTest = true
+            ui.route = .diagnostics
         }
         await start(fakePlayer: false)
     }
@@ -86,6 +95,7 @@ final class AppModel: ObservableObject {
             let session = try await Session.start(runtime: runtime, store: store, options: Self.launchOptions())
             self.session = session
             editor.submit = { session.submit($0) }
+            editor.playHandlers = playHandlers
             timings.sessionStart = elapsed()
             Log.bridge.info("Session started in \(self.timings.sessionStart ?? 0, format: .fixed(precision: 3)) s")
             reader = Task { [weak self] in
@@ -96,13 +106,20 @@ final class AppModel: ObservableObject {
             chordSheet = ChordSheetSource(session: session)
             phase = .running
             openQuickStart()
-            if AppEnvironment.startScreen == "chordsheet" {
-                // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh).
+            switch AppEnvironment.startScreen {
+            case "chordsheet":
+                // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh): Play with the sheet.
+                selectMode(.play)
                 session.submit(.setChordSheetVisible(visible: true))
-            }
-            if AppEnvironment.startScreen == "editor" {
-                // CI's live editor check and screenshot: type into the text view.
+            case "editor":
+                // CI's live editor check and screenshot: type into the text view in Edit.
+                selectMode(.edit)
                 Task { await self.runEditorCheck() }
+            case "menu":
+                // CI's screenshot of the menu, over the song.
+                ui.route = .menu
+            default:
+                break
             }
         } catch {
             Log.python.error("Start failed: \(String(describing: error), privacy: .public)")
@@ -160,8 +177,23 @@ final class AppModel: ObservableObject {
     private func receive(_ event: Session.Event) {
         do {
             let output = try SessionOutput.decode(typeName: event.typeName, json: event.json)
+            let previousName = snapshot.document?.displayName
             snapshot.apply(output)
             editor.receive(output)
+            switch output {
+            case .documentState(let document):
+                ui.modes.onDocument(document)
+                if previousName != nil, document.displayName != previousName { ui.documentRenamed() }
+            case .renameFailed(let event):
+                ui.renameFailed(RenameFailure(event))
+            case .directiveHint(let hint):
+                hints.receive(hint)
+                showHint()
+            default:
+                break
+            }
+            playChanged()
+            scheduleSnackbars()
         } catch {
             Log.bridge.error("Undecodable \(event.typeName, privacy: .public): \(String(describing: error), privacy: .public)")
         }
@@ -177,6 +209,170 @@ final class AppModel: ObservableObject {
             timings.firstText = elapsed()
             Log.ui.info("First text after \(self.timings.firstText ?? 0, format: .fixed(precision: 3)) s")
             Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot), name: "launch.json")
+        }
+    }
+
+    // MARK: - The main screen's actions
+
+    /// The user picked a tab: Edit while a song plays or is paused stops it.
+    func selectMode(_ target: AppMode) {
+        if ui.modes.select(target, playback: snapshot.playback?.status) {
+            session?.submit(.stop())
+        }
+        snackbars.modeChanged(ui.mode)
+        if target == .edit {
+            hints.dismiss()
+            showHint()
+        }
+        playChanged()
+    }
+
+    /// The editor's Play mode follows the tab and the session's playhead; the
+    /// screen stays awake while a song plays.
+    private func playChanged() {
+        let playback = snapshot.playback
+        editor.updatePlay(mode: ui.mode, playhead: playback?.playheadOffset, playing: playback?.status == .playing)
+        let awake = keepScreenOn(playback)
+        if UIApplication.shared.isIdleTimerDisabled != awake {
+            UIApplication.shared.isIdleTimerDisabled = awake
+        }
+    }
+
+    /// What Play mode's touches send (offsets from the text view, UTF-16).
+    var playHandlers: PlayHandlers {
+        PlayHandlers(
+            tap: { [weak self] tap in
+                guard let self else { return }
+                switch tap {
+                case .onChord(let start):
+                    self.tapChord(utf16: start)
+                case .nearest(let start):
+                    self.setPlayhead(utf16: start)
+                }
+            },
+            scrub: { [weak self] in self?.setPlayhead(utf16: $0) },
+            explain: { [weak self] start in
+                guard let self, let session = self.session else { return }
+                self.editor.sync()
+                session.submit(self.hints.explain(OffsetMapper(self.editor.model.text).toCodePoint(start)))
+                self.showHint()
+            },
+            touched: { [weak self] in
+                guard let self, self.hints.explained != nil else { return }
+                self.hints.dismiss()
+                self.showHint()
+            })
+    }
+
+    /// A tapped chord: the playhead goes there and it sounds (`tap_chord_at`).
+    func tapChord(utf16: Int) {
+        guard let session else { return }
+        editor.sync()
+        if let auditionState {
+            Signposts.audio.endInterval("audition", auditionState)
+        }
+        auditionState = Signposts.audio.beginInterval("audition", id: Signposts.audio.makeSignpostID())
+        session.submit(.tapChordAt(offset: OffsetMapper(editor.model.text).toCodePoint(utf16), rolled: false))
+        Signposts.audio.emitEvent("submitted")
+    }
+
+    /// Move the playhead to the chord at `utf16` (silent).
+    func setPlayhead(utf16: Int) {
+        guard let session else { return }
+        editor.sync()
+        session.submit(.setPlayhead(offset: OffsetMapper(editor.model.text).toCodePoint(utf16)))
+    }
+
+    func playPause() {
+        editor.sync()
+        session?.submit(.playPause(fromOffset: nil))
+    }
+
+    /// ⏮: stop and put the playhead back on the first chord.
+    func rewind() {
+        editor.sync()
+        session?.submit(.rewind())
+    }
+
+    func toggleMetronome() {
+        session?.submit(.toggleMetronome())
+    }
+
+    func toggleChordSheet() {
+        guard let sheet = snapshot.chordSheet else { return }
+        session?.submit(.setChordSheetVisible(visible: !sheet.visible))
+    }
+
+    func save() {
+        ui.modes.expectSave()
+        editor.sync()
+        session?.submit(.save())
+    }
+
+    /// Rename to `name` (the session keeps the extension); the dialog stays
+    /// until the title changes or the session refuses.
+    func rename(_ name: String) {
+        ui.modes.expectSave()
+        ui.renameRefusal = nil
+        session?.submit(.renameDocument(name: name))
+    }
+
+    func setVoicing(_ value: String) {
+        session?.submit(.setVoicing(voicing: value))
+    }
+
+    func setInstrument(_ program: Int) {
+        session?.submit(.setInstrument(program: program))
+    }
+
+    /// A menu entry: only what the iOS app has now (``AppMenu/available``).
+    func choose(_ action: MenuAction) {
+        if action == .diagnostics { ui.route = .diagnostics }
+    }
+
+    /// A short notice (why a greyed button does nothing).
+    func notice(_ text: String) {
+        snackbars.notice(text)
+        timeSnackbar()
+    }
+
+    func dismissSnackbar(_ id: Int) {
+        snackbars.dismiss(id)
+    }
+
+    /// Show the explanation the session sent, for 6 s or until the next touch.
+    private func showHint() {
+        editor.showHint(ui.mode == .play ? hints.explained : nil)
+        hintTask?.cancel()
+        guard hints.explained != nil else { return }
+        hintTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(6))
+            guard !Task.isCancelled, let self else { return }
+            self.hints.dismiss()
+            self.editor.showHint(nil)
+        }
+    }
+
+    /// New output: after 150 ms (a song that opens switches to Play along with
+    /// its status), show what's new as a snackbar.
+    private func scheduleSnackbars() {
+        Task { [weak self] in
+            try? await Task.sleep(for: .milliseconds(150))
+            guard let self else { return }
+            self.snackbars.update(self.snapshot, mode: self.ui.mode, now: ContinuousClock.now.seconds)
+            self.timeSnackbar()
+        }
+    }
+
+    /// A new snackbar goes away after its time.
+    private func timeSnackbar() {
+        guard let shown = snackbars.shown, shown.id != snackbarShown else { return }
+        snackbarShown = shown.id
+        snackbarTask?.cancel()
+        snackbarTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(shown.duration))
+            guard !Task.isCancelled else { return }
+            self?.snackbars.dismiss(shown.id)
         }
     }
 
@@ -223,6 +419,16 @@ final class AppModel: ObservableObject {
             break
         }
     }
+}
+
+extension ContinuousClock.Instant {
+    /// Seconds since an arbitrary start (the snackbars' clock).
+    var seconds: Double {
+        let duration = self - ContinuousClock.Instant.reference
+        return Double(duration.components.seconds) + Double(duration.components.attoseconds) / 1e18
+    }
+
+    private static let reference = ContinuousClock.now
 }
 
 /// `Diagnostics/launch.json`: written once the first song is on screen (CI

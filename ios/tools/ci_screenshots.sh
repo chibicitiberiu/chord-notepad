@@ -1,13 +1,14 @@
 #!/bin/bash
 # Run the app in a simulator the way a person would, and keep what it shows
-# (docs/IOS.md, "CI"): a screenshot of the shell with the quick-start song,
-# one of the self-test, which also tries live CoreAudio playback, one of the
-# shell with the chord sheet shown (its buffer from the live session), and one
-# of the editor after the app typed into it (the session's highlight checked).
+# (docs/IOS.md, "CI"): a screenshot of the main screen with the quick-start
+# song (in Play, as a saved song opens), one of the ☰ menu, one of
+# Diagnostics, whose self-test also tries live CoreAudio playback, one of Play
+# with the chord sheet shown (its buffer from the live session), and one of
+# Edit after the app typed into the editor (the session's highlight checked).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
-# Writes <out-dir>/<label>-shell.png, <label>-selftest.png,
+# Writes <out-dir>/<label>-main.png, <label>-menu.png, <label>-selftest.png,
 # <label>-chordsheet.png, <label>-editor.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
@@ -53,7 +54,18 @@ if wait_for "$DIAG/launch.json" 240; then
 else
     status=1
 fi
-xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-shell.png"
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-main.png"
+
+# The menu, opened at launch over the song. launch.json is written again when
+# the song is on screen (both copies go first: the launch mirrors the other).
+rm -f "$DIAG/launch.json" "$DATA/Library/Application Support/Diagnostics/launch.json"
+xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen menu
+if wait_for "$DIAG/launch.json" 240; then
+    sleep 3
+else
+    status=1
+fi
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-menu.png"
 
 rm -f "$DIAG/selftest.json"
 xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen selftest

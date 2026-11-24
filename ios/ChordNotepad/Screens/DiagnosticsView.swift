@@ -1,47 +1,6 @@
 import SwiftUI
 import UIKit
 
-/// The live shell: ``ShellScreen`` over the app's session, with the
-/// self-test sheet and the diagnostics export.
-struct ShellView: View {
-    @ObservedObject var model: AppModel
-    /// The model's editor, observed for the ribbon (undo, redo, notation).
-    @ObservedObject var editor: EditorController
-    @State private var shareItem: ShareItem?
-    @State private var exportError: String?
-
-    var body: some View {
-        ShellScreen(snapshot: model.snapshot, editorModel: editor.model, editor: editor, phaseText: model.phaseText,
-                    actions: ShellActions(playChord: { model.audition(index: 0) },
-                                          selfTest: { model.showSelfTest = true },
-                                          exportDiagnostics: export,
-                                          audition: { model.audition(index: $0) },
-                                          submit: { model.session?.submit($0) }),
-                    chordSheet: model.chordSheet)
-            .sheet(isPresented: $model.showSelfTest) {
-                SelfTestView(model: model)
-            }
-            .sheet(item: $shareItem) { item in
-                ShareSheet(items: [item.url])
-            }
-            .alert("Export failed", isPresented: Binding(get: { exportError != nil },
-                                                          set: { if !$0 { exportError = nil } })) {
-                Button("OK", role: .cancel) {}
-            } message: {
-                Text(exportError ?? "")
-            }
-    }
-
-    private func export() {
-        do {
-            shareItem = ShareItem(url: try Diagnostics.shared.exportArchive())
-        } catch {
-            Log.ui.error("Export failed: \(error.localizedDescription, privacy: .public)")
-            exportError = error.localizedDescription
-        }
-    }
-}
-
 struct ShareItem: Identifiable {
     let id = UUID()
     let url: URL
@@ -58,18 +17,23 @@ struct ShareSheet: UIViewControllerRepresentable {
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
-/// The self-test (docs/IOS.md, "Diagnostics"): runs when it opens, shows
-/// every result and saves them in the Diagnostics folder.
-struct SelfTestView: View {
+/// Diagnostics (the menu's last entry; `-CNScreen selftest` opens it at
+/// launch): the self-test, which runs when the screen opens, shows every
+/// result and saves them in the Diagnostics folder, and "Export diagnostics",
+/// which shares a zip of that folder. Reachable in every build, TestFlight
+/// included: the device sessions use it.
+struct DiagnosticsView: View {
     @ObservedObject var model: AppModel
     @Environment(\.dismiss) private var dismiss
     @State private var report: SelfTestReport?
     @State private var running = false
+    @State private var shareItem: ShareItem?
+    @State private var exportError: String?
 
     var body: some View {
         NavigationStack {
             SelfTestContent(report: report, timings: model.timings, running: running)
-                .navigationTitle("Self-test")
+                .navigationTitle("Diagnostics")
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .cancellationAction) {
@@ -79,7 +43,25 @@ struct SelfTestView: View {
                         Button("Run again") { Task { await run() } }
                             .disabled(running || model.phase != .running)
                     }
+                    ToolbarItem(placement: .bottomBar) {
+                        Button {
+                            export()
+                        } label: {
+                            Label("Export diagnostics", systemImage: "square.and.arrow.up")
+                                .labelStyle(.titleAndIcon)
+                        }
+                        .accessibilityIdentifier("export-diagnostics")
+                    }
                 }
+        }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(items: [item.url])
+        }
+        .alert("Export failed", isPresented: Binding(get: { exportError != nil },
+                                                      set: { if !$0 { exportError = nil } })) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(exportError ?? "")
         }
         .task {
             // Opened at launch (CI): wait for the session first.
@@ -95,6 +77,15 @@ struct SelfTestView: View {
         running = true
         report = await SelfTest.run(model: model)
         running = false
+    }
+
+    private func export() {
+        do {
+            shareItem = ShareItem(url: try Diagnostics.shared.exportArchive())
+        } catch {
+            Log.ui.error("Export failed: \(error.localizedDescription, privacy: .public)")
+            exportError = error.localizedDescription
+        }
     }
 }
 
@@ -131,6 +122,9 @@ struct SelfTestContent: View {
                         row("Status", "Waiting for the session")
                     }
                 }
+                section("Build") {
+                    row("Version", BuildInfo.current.line)
+                }
                 section("Start-up") {
                     row("Python boot", seconds(timings.pythonBoot))
                     row("Session start", seconds(timings.sessionStart))
@@ -155,8 +149,7 @@ struct SelfTestContent: View {
                         row("Sample rate", "\(Int(report.sampleRate)) Hz, buffer \(String(format: "%.1f", report.ioBufferDuration * 1000)) ms")
                         ForEach(report.auditionMessages, id: \.self) { Text($0).font(.footnote).foregroundStyle(.orange) }
                     }
-                    section("Build") {
-                        row("Version", report.build.line)
+                    section("Device") {
                         row("Built", report.build.date.isEmpty ? "?" : report.build.date)
                         row("Device", report.device)
                     }

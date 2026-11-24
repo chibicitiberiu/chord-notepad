@@ -30,16 +30,14 @@ final class CatalogTests: XCTestCase {
     }
 
     func testEveryChordSheetSceneHasABufferAtEachDevicesHeight() throws {
-        for screen in PreviewCatalog.screens where screen.name == "shell" {
+        for screen in PreviewCatalog.screens where screen.name == "play" {
             for name in screen.fixtures {
                 let fixture = try XCTUnwrap(PreviewCatalog.fixture(name), name)
                 guard let state = try fixture.snapshot().chordSheet, state.visible else { continue }
-                for device in CatalogRenderer.devices {
-                    // The shell's split and pane in that window (ChordSheetSplitView, ChordSheetPane).
-                    let pane = ChordSheetSplit.wantedHeight(stored: state.height, windowWidth: device.size.width,
-                                                            windowHeight: device.size.height)
-                    let height = ChordSheetPaneMetrics.contentHeight(
-                        stripHeight: ChordSheetPaneMetrics.stripHeight(paneHeight: pane))
+                for device in screen.devices {
+                    // The main screen's pane in that window (MainScreen, ChordSheetSplitView, ChordSheetPane).
+                    let height = try XCTUnwrap(MainSheetPane.contentHeight(
+                        width: Double(device.size.width), height: Double(device.size.height), stored: state.height))
                     XCTAssertNotNil(fixture.chordSheetBuffers[height],
                                     "\(name) has no buffer for \(device.name)'s \(height) pt: make ios-fixtures")
                 }

@@ -71,62 +71,6 @@ enum EditorAppearance {
         }
         storage.endEditing()
     }
-
-    /// The model's text styled for SwiftUI: the same runs, the chords kept
-    /// whole by word joiners when it wraps (SwiftUI has no break hook), the
-    /// selection tinted.
-    static func attributed(_ model: EditorModel, font: UIFont, palette: EditorPalette) -> AttributedString {
-        let joined = JoinedText(model.joinPoints)
-        var text = AttributedString(joined.display(model.text))
-        text.font = Font(font as CTFont)
-        text.foregroundColor = palette.text.swiftUI
-        func range(_ start: Int, _ end: Int) -> Range<AttributedString.Index>? {
-            let from = joined.toDisplay(start)
-            return Range(NSRange(location: from, length: joined.toDisplay(end) - from), in: text)
-        }
-        for run in model.styleRuns(palette) {
-            guard let r = range(run.start, run.end) else { continue }
-            if let color = run.style.color { text[r].foregroundColor = color.swiftUI }
-            if run.style.underline == true { text[r].underlineStyle = Text.LineStyle.single }
-            if let background = run.style.background { text[r].backgroundColor = background.swiftUI }
-        }
-        if !model.selection.isEmpty, let r = range(model.selection.start, model.selection.end) {
-            text[r].backgroundColor = palette.primary.withAlpha(EditorPalette.selectionAlpha).swiftUI
-        }
-        return text
-    }
-}
-
-/// The catalog's drawing of the editor: the same text, font and style runs as
-/// the live UITextView, in plain SwiftUI (ImageRenderer can't draw UIKit
-/// views). Unwrapped lines run past the right edge, as the live view shows
-/// them before it is scrolled sideways.
-struct EditorPreview: View {
-    let model: EditorModel
-    @Environment(\.colorScheme) private var colorScheme
-    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
-
-    var body: some View {
-        let palette = EditorPalette.forScheme(dark: colorScheme == .dark)
-        let font = EditorAppearance.font(kind: model.fontKind, points: model.fontPoints,
-                                         category: EditorAppearance.category(dynamicTypeSize))
-        palette.background.swiftUI
-            .overlay(alignment: .topLeading) {
-                Group {
-                    if model.text.isEmpty {
-                        Text(EditorPlaceholder.text)
-                            .font(Font(font as CTFont))
-                            .foregroundStyle(palette.text.withAlpha(EditorPalette.placeholderAlpha).swiftUI)
-                    } else {
-                        Text(EditorAppearance.attributed(model, font: font, palette: palette))
-                    }
-                }
-                .fixedSize(horizontal: !model.wordWrap, vertical: true)
-                .padding(.horizontal, EditorTextView.horizontalInset)
-                .padding(.vertical, EditorTextView.verticalInset)
-            }
-            .clipped()
-    }
 }
 
 /// What the empty editor says (never part of the text).

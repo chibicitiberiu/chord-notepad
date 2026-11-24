@@ -44,6 +44,20 @@ final class EditorTextView: UITextView {
     /// The text size or the colour scheme changed.
     var onTraitsChanged: (() -> Void)?
 
+    // Play mode (PlayText.swift): the marker, the touches, the explanation.
+    /// The playhead marker, in the content's coordinates (it scrolls with the text).
+    let markerLayer = CAShapeLayer()
+    /// A drag that starts on the marker; always attached (it fails at once
+    /// elsewhere), so the scroll views can wait for it.
+    let markerScrub = MarkerScrub()
+    let playTap = UITapGestureRecognizer()
+    let playHold = UILongPressGestureRecognizer()
+    var hintCard: HintCardView?
+    /// Play mode's touches, in the content's coordinates.
+    var onPlayTap: ((CGPoint) -> Void)?
+    var onScrub: ((UIGestureRecognizer.State, CGPoint) -> Void)?
+    var onHold: ((CGPoint) -> Void)?
+
     // TextKit 1, built by hand: UITextView keeps only a weak reference to its
     // text storage, so the view keeps the stack.
     private let storage: NSTextStorage
@@ -81,6 +95,31 @@ final class EditorTextView: UITextView {
         adjustsFontForContentSizeCategory = false
         accessibilityIdentifier = "song-editor"
         setWordWrap(false, joinPoints: [])
+        markerLayer.zPosition = 10
+        markerLayer.isHidden = true
+        layer.addSublayer(markerLayer)
+        markerScrub.maximumNumberOfTouches = 1
+        markerScrub.addTarget(self, action: #selector(scrubbed(_:)))
+        addGestureRecognizer(markerScrub)
+        panGestureRecognizer.require(toFail: markerScrub)
+        playTap.addTarget(self, action: #selector(playTapped(_:)))
+        playTap.isEnabled = false
+        addGestureRecognizer(playTap)
+        playHold.addTarget(self, action: #selector(playHeld(_:)))
+        playHold.isEnabled = false
+        addGestureRecognizer(playHold)
+    }
+
+    @objc private func playTapped(_ recognizer: UITapGestureRecognizer) {
+        if recognizer.state == .ended { onPlayTap?(recognizer.location(in: self)) }
+    }
+
+    @objc private func scrubbed(_ recognizer: MarkerScrub) {
+        onScrub?(recognizer.state, recognizer.location(in: self))
+    }
+
+    @objc private func playHeld(_ recognizer: UILongPressGestureRecognizer) {
+        if recognizer.state == .began { onHold?(recognizer.location(in: self)) }
     }
 
     required init?(coder: NSCoder) {
@@ -139,9 +178,18 @@ final class EditorTextView: UITextView {
         }
     }
 
+    /// The width the text was last laid out for; a new one moves the chords.
+    private var laidOutWidth: CGFloat = 0
+    /// The view's width changed (the marker follows its chord).
+    var onWidthChanged: (() -> Void)?
+
     override func layoutSubviews() {
         keepContainerUnwrapped()
         super.layoutSubviews()
+        if bounds.width != laidOutWidth {
+            laidOutWidth = bounds.width
+            onWidthChanged?()
+        }
     }
 
     /// The width the unwrapped text needs: its longest line and the insets.
@@ -284,6 +332,8 @@ final class EditorHost: UIScrollView {
         showsVerticalScrollIndicator = false
         textView.host = self
         addSubview(textView)
+        // A drag from the playhead marker scrubs it rather than scrolling sideways.
+        panGestureRecognizer.require(toFail: textView.markerScrub)
         wrapChanged()
     }
 
@@ -313,7 +363,7 @@ final class EditorHost: UIScrollView {
 
 /// The layout manager's delegate: no soft line break inside a chord
 /// (`D/F#` stays whole), so the song never holds a word joiner.
-private final class ChordBreaks: NSObject, NSLayoutManagerDelegate {
+final class ChordBreaks: NSObject, NSLayoutManagerDelegate {
     var points: [Int] = []
 
     func layoutManager(_ layoutManager: NSLayoutManager,

@@ -73,7 +73,11 @@ final class SessionTests: XCTestCase {
         zipAttachment.lifetime = .keepAlways
         add(zipAttachment)
 
+        // The bundled song has a store id, so it opens in Play, as a saved song does on Android.
+        XCTAssertEqual(model.ui.mode, .play)
+        model.selectMode(.edit)
         try await checkTheEditor(model)
+        try await checkPlayMode(model)
 
         // The chord sheet, live: shown, its buffer fetched on the bridge thread
         // through the app's source, decoded, and painted with CoreGraphics.
@@ -106,6 +110,74 @@ final class SessionTests: XCTestCase {
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
+    }
+
+    /// Play mode, live: the same text view, frozen, with the playhead marker.
+    /// A tap on a chord moves the playhead there (`tap_chord_at`), a drag from
+    /// the marker moves it to the chord it ends on (`set_playhead`), both in
+    /// code points; back in Edit the text is editable again.
+    private func checkPlayMode(_ model: AppModel) async throws {
+        let editor = model.editor
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 600))
+        let host = EditorHost()
+        let view = host.textView
+        let coordinator = SongEditor.Coordinator(controller: editor)
+        view.delegate = coordinator
+        host.frame = window.bounds
+        window.addSubview(host)
+        window.isHidden = false
+        editor.attach(view)
+        defer {
+            editor.detach(view)
+            window.isHidden = true
+        }
+        model.selectMode(.play)
+        XCTAssertTrue(editor.playMode)
+        XCTAssertFalse(view.isEditable)
+        XCTAssertFalse(view.isSelectable)
+        host.layoutIfNeeded()
+        let boxes = editor.chordBoxes()
+        XCTAssertGreaterThan(boxes.count, 5, view.layoutDescription)
+        guard boxes.count > 5 else { return }
+        func middle(_ box: ChordBox) -> CGPoint {
+            CGPoint(x: (box.left + box.right) / 2, y: (box.top + box.bottom) / 2)
+        }
+
+        // A tap on the third chord.
+        let third = boxes[2]
+        editor.playTapped(at: middle(third))
+        let thirdOffset = OffsetMapper(editor.model.text).toCodePoint(third.start)
+        let tapped = await model.waitFor(timeout: .seconds(30)) { $0.playback?.playheadOffset == thirdOffset }
+        XCTAssertTrue(tapped, "playhead \(String(describing: model.snapshot.playback?.playheadOffset)), wanted \(thirdOffset)")
+        XCTAssertEqual(editor.markerBox()?.start, third.start)
+        XCTAssertNotNil(view.markerLayer.path, "the marker is drawn")
+
+        // A scrub from the marker to the fifth chord.
+        let marker = try XCTUnwrap(editor.markerBox())
+        let grab = CGPoint(x: marker.left, y: (marker.top + marker.bottom) / 2)
+        XCTAssertTrue(editor.scrubGrabs(grab))
+        XCTAssertFalse(editor.scrubGrabs(middle(boxes[4])), "only the marker is grabbed")
+        let fifth = boxes[4]
+        editor.scrubbed(.began, at: grab)
+        editor.scrubbed(.changed, at: middle(fifth))
+        XCTAssertEqual(editor.playhead, fifth.start, "the marker follows the finger")
+        editor.scrubbed(.ended, at: middle(fifth))
+        let fifthOffset = OffsetMapper(editor.model.text).toCodePoint(fifth.start)
+        let scrubbed = await model.waitFor(timeout: .seconds(30)) { $0.playback?.playheadOffset == fifthOffset }
+        XCTAssertTrue(scrubbed, "playhead \(String(describing: model.snapshot.playback?.playheadOffset)), wanted \(fifthOffset)")
+
+        let image = UIGraphicsImageRenderer(bounds: view.bounds).image { context in
+            view.layer.render(in: context.cgContext)
+        }
+        let png = XCTAttachment(image: image)
+        png.name = "play-live.png"
+        png.lifetime = .keepAlways
+        add(png)
+
+        model.selectMode(.edit)
+        XCTAssertFalse(editor.playMode)
+        XCTAssertTrue(view.isEditable)
+        XCTAssertNil(view.markerLayer.path)
     }
 
     /// The song editor, live: the real text view (in a window, driven by the
