@@ -49,6 +49,11 @@ final class SnapshotTests: XCTestCase {
             XCTAssertNotNil(snapshot.status, fixture.scene)
             XCTAssertNotNil(snapshot.document, fixture.scene)
             XCTAssertFalse(fixture.description.isEmpty, fixture.scene)
+            // A scene recorded from too late a mark misses the TextEdited and
+            // shows "No song open" under the song's name in the catalog.
+            if snapshot.document?.documentId != nil {
+                XCTAssertFalse(snapshot.text.isEmpty, "\(fixture.scene) has a document but no text")
+            }
         }
     }
 

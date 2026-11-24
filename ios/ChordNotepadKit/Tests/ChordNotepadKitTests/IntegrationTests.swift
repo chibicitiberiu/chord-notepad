@@ -142,6 +142,7 @@ final class IntegrationTests: XCTestCase {
 
         // -- the chord sheet's other views (after errors, so its states stay as they were) --
         mark = log.count
+        let songMark = mark
         session.submit(.restoreDraft(document: memoryRef("examples/02_american_complete.txt"), modified: false,
                                      readOnly: false, text: complete))
         let chords = try await waitForChords(log, since: mark, count: 133)
@@ -157,7 +158,8 @@ final class IntegrationTests: XCTestCase {
                                 from: mark, buffers: try await scenes.buffers(session, for: staff))
 
         // Fret cards need a fretted voicing; until then the view is unavailable (and ignored).
-        mark = log.count
+        // Recorded from the song's restore, like the staff scene: the editor's
+        // text only comes in that TextEdited.
         session.submit(.setVoicing(voicing: "guitar:standard"))
         _ = try await waitForSheet(log, "the fret view to become available") {
             $0.views.contains { $0.viewId == "fret" && $0.available }
@@ -170,7 +172,7 @@ final class IntegrationTests: XCTestCase {
         await log.waitQuiet()
         try await scenes.record("chord_sheet_fret",
                                 "The complete example as guitar fret cards (standard tuning), playhead on the first chord.",
-                                from: mark, buffers: try await scenes.buffers(session, for: fret))
+                                from: songMark, buffers: try await scenes.buffers(session, for: fret))
 
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {
