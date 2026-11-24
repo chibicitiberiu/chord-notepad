@@ -39,7 +39,10 @@ final class SongTextLayout {
         layout.delegate = breaks
         storage.replaceCharacters(in: NSRange(location: 0, length: 0), with: model.text)
         EditorAppearance.paint(model.styleRuns(palette), on: storage, font: font, palette: palette)
-        if selection, !model.selection.isEmpty, model.selection.end <= storage.length {
+        // The find bar's current match shows in its own tint (the live text view, without the keys, draws no
+        // selection while the find field has them).
+        let findCurrent = model.findPaint?.current == model.selection
+        if selection, !findCurrent, !model.selection.isEmpty, model.selection.end <= storage.length {
             storage.addAttribute(.backgroundColor,
                                  value: palette.primary.withAlpha(EditorPalette.selectionAlpha).uiColor,
                                  range: NSRange(location: model.selection.start, length: model.selection.length))

@@ -1472,7 +1472,7 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 460 PNGs.
+`accessibility2` text: 536 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|

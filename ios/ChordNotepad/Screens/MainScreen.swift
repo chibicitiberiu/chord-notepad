@@ -125,7 +125,9 @@ struct MainScreen: View {
         if let snackbar {
             SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
                 .padding(.bottom, ui.route.isFullPage ? 16
-                         : CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)))
+                         : CGFloat(snackbarClearance(mode: ui.mode, sideBySide: layout.sideBySide)
+                                   // Over the find bar, unless the chord sheet lies between them.
+                                   + (layout.sheetBelow ? 0 : editorModel.find.height)))
                 .transition(.move(edge: .bottom).combined(with: .opacity))
         }
     }

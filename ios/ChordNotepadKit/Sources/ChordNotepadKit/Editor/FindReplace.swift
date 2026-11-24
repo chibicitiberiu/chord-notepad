@@ -202,6 +202,13 @@ public struct FindBar: Sendable, Equatable {
 
     public init() {}
 
+    /// The bar's height in points (`FindBarView`: the divider, 4 pt above and
+    /// below, 44 pt rows 4 pt apart, the notice's line), so a snackbar clears it.
+    public var height: Double {
+        guard open else { return 0 }
+        return 1 + 8 + 44 + (replacing ? 4 + 44 : 0) + (notice != nil ? 4 + 16 : 0)
+    }
+
     /// "3 of 7", "7 matches", "No matches" or "".
     public var countText: String { TextFind.countText(query: query, count: matches.count, current: current) }
     /// A query that matches nothing (the bar says so in red).
