@@ -15,7 +15,11 @@ extension SessionTests {
         let editor = model.editor
         let session = try XCTUnwrap(model.session)
         XCTAssertEqual(model.ui.route, MainRoute.none)
-        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 600))
+        // In the app's scene, so it can be the key window (the app's own window holds AppModel.shared's
+        // editor, not this test's model).
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 600)
         let host = EditorHost()
         let view = host.textView
         let coordinator = SongEditor.Coordinator(controller: editor)
@@ -23,9 +27,9 @@ extension SessionTests {
         host.frame = window.bounds
         window.addSubview(host)
         // The key window, so actions sent to no target go to its first responder.
-        let previousKey = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            .flatMap(\.windows).first { $0.isKeyWindow }
+        let previousKey = scene.windows.first { $0.isKeyWindow }
         window.makeKeyAndVisible()
+        XCTAssertTrue(window.isKeyWindow)
         editor.attach(view)
         defer {
             editor.detach(view)
