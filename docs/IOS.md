@@ -559,10 +559,11 @@ The second slice: the shell's text is the song editor, a port of Android's
   (`TextScroll.followCursor`), and the sounding chord on both axes
   (`TextScroll.followChord`). UIKit sizes a text view's container to its
   frame even with `widthTracksTextView` off, so the text view puts the
-  container back to its full width after every layout. A first try let the
-  text view scroll both ways with a widened `contentSize`; UIKit kept
-  putting the content width back to the view's, which reset the sideways
-  offset (the iPhone's caret ended up off screen).
+  container back to its full width after every layout (CI measured 563 pt
+  in a 587 pt view without that). A first try let the text view scroll
+  both ways with a widened `contentSize`: the width was right (868 pt in a
+  402 pt view) but the iPhone's sideways offset still ended at 0 after the
+  typing; the cause wasn't pinned down, and the separate host avoids it.
 - **Undo:** the view's undo manager is an `EditorUndoManager` whose undo,
   redo and "can undo" are the kit's, so the Edit menu, shake to undo, the
   three-finger gestures, the iPad's shortcut bar and Command-Z all reach
@@ -615,7 +616,11 @@ suggestions bar, a long-press menu), input method composition (Japanese,
 Chinese) and dictation on a device, the hardware key commands (XCTest
 sends no key events without UI tests), shake and the three-finger gestures,
 dropping text, rotation, VoiceOver, and the editor's speed on a long song
-(every change repaints the whole text's attributes).
+(every change repaints the whole text's attributes). Word wrap on never runs
+live (the break hook, the tracking container, the host not scrolling), nor
+do finger scrolling and the selection handles inside the host. The live
+placeholder is the system's monospaced body font in the secondary colour;
+the catalog's is the editor's font at 45 % of the text colour (Android's).
 
 ### Preview catalog
 
