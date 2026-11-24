@@ -1,0 +1,2228 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "Jazz Vocal Trio (Lead A3–F5, Harmony F3–D5, Bass E2–C4, unisons off) made from a blank ensemble and selected, as Android's help screenshot of a custom ensemble has it.",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 635,
+    "end": 662,
+    "replacement": "{bpm: 90} {time: 3/4} {key: G}\n\n// Amazing Grace (John Newton, 1779)\n{label: verse}\nG           G7        C      G\nAmazing grace, how sweet the sound\nG               Em      D\nThat saved a wretch like me\nG            G7       C      G\nI once was lost, but now am found\nG      Em       D       G\nWas blind, but now I see\n\nG             G7          C        G\n'Twas grace that taught my heart to fear\nG           Em        D\nAnd grace my fears relieved\nG             G7         C       G\nHow precious did that grace appear\nG       Em      D        G\nThe hour I first believed\n\n{loop: verse 2}\n\n// Ending\nC      G/B    Am7    D7sus4  G*6\n",
+    "start": 0,
+    "text_revision": 28,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  },
+  {
+   "json": {
+    "schema": {
+     "forms": {
+      "ensemble": {
+       "model": "ensemble",
+       "sections": [
+        {
+         "fields": [
+          {
+           "add_help": "Add another voice to the ensemble (2 to 8 voices).",
+           "add_label": "Add voice",
+           "columns": [
+            {
+             "default": "",
+             "help": "Name of this voice, e.g. Soprano. Free text.",
+             "id": "name",
+             "kind": "text",
+             "label": "Name",
+             "width": 12
+            },
+            {
+             "default": "C3",
+             "help": "Lowest note this voice may sing, inclusive (note name or MIDI number).",
+             "id": "low",
+             "kind": "pitch",
+             "label": "Low",
+             "width": 8
+            },
+            {
+             "default": "C4",
+             "help": "Highest note this voice may sing, inclusive (note name or MIDI number).",
+             "id": "high",
+             "kind": "pitch",
+             "label": "High",
+             "width": 8
+            },
+            {
+             "choices": [
+              {
+               "label": "Auto",
+               "value": null
+              },
+              {
+               "label": "Treble",
+               "value": "treble"
+              },
+              {
+               "label": "Bass",
+               "value": "bass"
+              }
+             ],
+             "default": null,
+             "help": "Which staff of a grand-staff chord sheet this voice is drawn on. Auto picks treble or bass from the voice's range (split at middle C, or at C3 with the octave-lower upper staff); Treble/Bass pins it.",
+             "id": "staff",
+             "kind": "choice",
+             "label": "Staff",
+             "width": 8
+            },
+            {
+             "default": "",
+             "disabled_in_last_row": true,
+             "help": "Largest gap, in semitones, allowed between this voice and the one below it. The bottom voice has none.",
+             "id": "gap",
+             "kind": "int",
+             "label": "Max gap to next voice",
+             "max": 127,
+             "min": 1,
+             "step": 1,
+             "width": 6
+            },
+            {
+             "default": "",
+             "help": "How the picker treats this voice moving between chords, per semitone. More negative keeps the voice calmer; positive would encourage it. The bottom voice's is the bass's, normally less negative than the others.",
+             "id": "movement",
+             "kind": "float",
+             "label": "Movement cost",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1,
+             "width": 6
+            }
+           ],
+           "default": [
+            {
+             "gap": "19",
+             "high": "C5",
+             "low": "C4",
+             "movement": "-0.4",
+             "name": "Voice 1",
+             "staff": null
+            },
+            {
+             "gap": "",
+             "high": "C4",
+             "low": "C3",
+             "movement": "-0.15",
+             "name": "Voice 2",
+             "staff": null
+            }
+           ],
+           "drag_help": "Drag to reorder (Alt+Up or Alt+Down moves the focused row)",
+           "duplicate_help": "Duplicate this voice",
+           "duplicate_label": "⧉",
+           "error_path": "voice:{index}:{column}",
+           "help": "",
+           "id": "voices",
+           "kind": "records",
+           "label": "Voices",
+           "max_items": 8,
+           "min_items": 2,
+           "move_down_help": "Move down",
+           "move_down_label": "↓",
+           "move_up_help": "Move up",
+           "move_up_label": "↑",
+           "new_item": {
+            "gap": "",
+            "high": "C4",
+            "low": "C3",
+            "movement": "",
+            "name": "Voice {n}",
+            "staff": null
+           },
+           "remove_help": "Remove this voice from the ensemble.",
+           "remove_label": "✕"
+          }
+         ],
+         "id": "voices",
+         "kind": "table",
+         "title": "Voices"
+        },
+        {
+         "fields": [
+          {
+           "choices": [
+            {
+             "label": "Treble",
+             "value": "treble"
+            },
+            {
+             "label": "Treble, octave lower (tenors)",
+             "value": "treble_8vb"
+            }
+           ],
+           "default": "treble",
+           "help": "The clef of the Staff view's upper staff; octave lower writes its notes an octave above how they sound, as tenor parts are.",
+           "id": "upper_clef",
+           "kind": "choice",
+           "label": "Upper staff"
+          }
+         ],
+         "id": "staff",
+         "kind": "stack",
+         "title": null
+        },
+        {
+         "fields": [
+          {
+           "default": true,
+           "help": "Whether two neighbouring voices may land on the same pitch.",
+           "id": "allow_unisons",
+           "kind": "bool",
+           "label": "Allow unisons"
+          }
+         ],
+         "id": "spacing",
+         "kind": "stack",
+         "title": null
+        },
+        {
+         "blurb": "Each weight adds to a voicing's score, so a higher number always means more preferred. Positive values pull the picker toward a trait; negative values push it away. Zero is neutral. The defaults suit most music, so change these only if the results aren't to your taste.",
+         "fields": [
+          {
+           "default": "-2.0",
+           "help": "How the picker treats a voice jumping more than a fifth between chords. More negative avoids large leaps.",
+           "id": "weight:leap_penalty",
+           "kind": "float",
+           "label": "Large leap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-6.0",
+           "help": "How the picker treats a voice jumping more than an octave, on top of the large-leap weight. More negative avoids octave leaps.",
+           "id": "weight:octave_leap_penalty",
+           "kind": "float",
+           "label": "Octave leap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.0",
+           "help": "How the picker treats the top or bottom voice leaping more than a fifth, per semitone beyond it, on top of the large-leap weight, so a wider leap costs more. 0 turns it off. More negative keeps the outer lines smoother.",
+           "id": "weight:outer_leap_penalty",
+           "kind": "float",
+           "label": "Wide outer leap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-4.5",
+           "help": "How the picker treats a voice leaping exactly a tritone (six semitones). More negative avoids tritone leaps.",
+           "id": "weight:tritone_leap_penalty",
+           "kind": "float",
+           "label": "Tritone leap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "1.5",
+           "help": "How the picker treats a voice singing the same note again (same pitch, same octave) on the next chord. More positive rewards holding common tones.",
+           "id": "weight:common_tone_bonus",
+           "kind": "float",
+           "label": "Common tone held",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-25.0",
+           "help": "How the picker treats a pair of voices moving in parallel fifths or octaves. More negative avoids them; set strongly negative by default. With five voices or more, two voices both playing the bass line may move in octaves for free.",
+           "id": "weight:parallel_perfect_penalty",
+           "kind": "float",
+           "label": "Parallel fifths/octaves",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-2.0",
+           "help": "How the picker treats the top and bottom voices moving the same way into a fifth or an octave while the top voice leaps (more than a whole tone). More negative avoids these hidden fifths and octaves; a top voice moving by step is never charged.",
+           "id": "weight:hidden_perfect_penalty",
+           "kind": "float",
+           "label": "Hidden fifths/octaves",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.8",
+           "help": "How the picker treats the outer two voices moving in opposite directions. More positive encourages it.",
+           "id": "weight:contrary_motion_bonus",
+           "kind": "float",
+           "label": "Contrary motion",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "1.5",
+           "help": "How the picker treats a chordal seventh resolving down by step. More positive encourages that resolution.",
+           "id": "weight:seventh_resolution_bonus",
+           "kind": "float",
+           "label": "Seventh resolves down",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "1.5",
+           "help": "How the picker treats the leading tone rising a semitone to the tonic, in the same voice. The key is the song's {key:}, or else inferred from the chords around (not in a chromatic passage); a dominant's third before the chord a fifth below counts too. More positive encourages it.",
+           "id": "weight:leading_tone_resolution_bonus",
+           "kind": "float",
+           "label": "Leading tone resolves",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-8.0",
+           "help": "How the picker treats two or more voices on the leading tone (of the song's {key:}, or of the key inferred from the chords around). More negative avoids doubling it.",
+           "id": "weight:double_leading_tone_penalty",
+           "kind": "float",
+           "label": "Doubled leading tone",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.5",
+           "help": "How the picker treats a voice sitting in the outer 2 semitones of its range, per semitone into that edge. More negative keeps voices off their extremes.",
+           "id": "weight:range_comfort_penalty",
+           "kind": "float",
+           "label": "Out-of-comfort range",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.0",
+           "help": "How the picker treats a voice sitting outside the middle half of its range (a quarter of the range in from each end), per semitone outside it; the bottom voice only above it, so the bass may sit low. 0 turns it off. More negative keeps each voice in one register through a song and from key to key.",
+           "id": "weight:middle_range_penalty",
+           "kind": "float",
+           "label": "Outside the middle range",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.5",
+           "help": "How the picker treats a pair of neighbouring voices on the same pitch, when unisons are allowed. More negative avoids unisons.",
+           "id": "weight:unison_penalty",
+           "kind": "float",
+           "label": "Unison between voices",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-2.0",
+           "help": "How the picker treats two neighbouring voices up to a tenth apart down where that interval sounds muddy: a minor third below C3, a major third below Bb2, a fourth below A2, a fifth below Bb1, a major second below Eb3, a minor second below E3, a major ninth below Eb2. Charged per semitone below that point, so a pair just under it costs little and one far under it a lot. More negative spreads the low voices wider and leaves the third to the upper voices.",
+           "id": "weight:low_interval_limit_penalty",
+           "kind": "float",
+           "label": "Muddy low interval",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-4.0",
+           "help": "How the picker treats a voice moving an augmented second, three semitones between neighbouring letters as the chords spell them (F to G# from F to E in A minor, not F to Ab). More negative avoids it; keep it beyond Tritone leap, or the voice leaps a tritone instead.",
+           "id": "weight:augmented_second_penalty",
+           "kind": "float",
+           "label": "Augmented second",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.15",
+           "help": "How the picker treats a gap between two neighbouring voices above the bass that is wider than Upper spacing allowed, per semitone beyond it. More negative favors closer spacing above the bass.",
+           "id": "weight:upper_spacing_penalty",
+           "kind": "float",
+           "label": "Wide upper spacing",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "7.0",
+           "help": "Not a score but a size: the widest gap, in semitones, two neighbouring voices above the bass may have before Wide upper spacing applies. 7 (a fifth) keeps a choir close; the String Quartet allows 12 (an octave).",
+           "id": "weight:upper_spacing_threshold",
+           "kind": "float",
+           "label": "Upper spacing allowed",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-8.0",
+           "help": "How the picker treats two neighbouring chords that are the same chord over different written basses (C and C/E) but would sound the same lowest note. More negative keeps a plain chord next to its slash chord on its own root.",
+           "id": "weight:same_bass_penalty",
+           "kind": "float",
+           "label": "Same chord, same bass",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats a voice moving past where its neighbour just was, such as the tenor going below the bass's previous note; the two lines blur for singers and on the staff. More negative keeps each voice on its own side.",
+           "id": "weight:voice_overlap_penalty",
+           "kind": "float",
+           "label": "Voice overlap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "2.0",
+           "help": "How the picker treats a voice on a tone the chord altered chromatically from the chord before (A to Ab from F to Fdim, C to C# from C to A7) moving on by a step the way it was altered: a raised tone rising, a lowered one falling (Ab on to G). A semitone between two letters (E to F) isn't an alteration, and the leading tone has its own rule. More positive keeps chromatic lines going.",
+           "id": "weight:chromatic_tendency_bonus",
+           "kind": "float",
+           "label": "Chromatic line continues",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.75",
+           "help": "How the picker treats the top voice reaching the song's last chord on its root by a step or by holding it (B to C or D to C over the final C). More positive ends the melody on the root more often.",
+           "id": "weight:final_root_step_bonus",
+           "kind": "float",
+           "label": "Ending on the root",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          }
+         ],
+         "id": "weights",
+         "kind": "grid",
+         "title": "Weights"
+        },
+        {
+         "groups": [
+          {
+           "fields": [
+            {
+             "default": "2.0",
+             "help": "How much to favor doubling the root when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:root",
+             "kind": "float",
+             "label": "Root",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "0.5",
+             "help": "How much to favor doubling the fifth when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:fifth",
+             "kind": "float",
+             "label": "Fifth",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-2.0",
+             "help": "How much to favor doubling the third when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:third",
+             "kind": "float",
+             "label": "Third",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-6.0",
+             "help": "How much to favor doubling the seventh when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:seventh",
+             "kind": "float",
+             "label": "Seventh",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-6.0",
+             "help": "How much to favor doubling the color when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:color",
+             "kind": "float",
+             "label": "Color",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-6.0",
+             "help": "How much to favor doubling the extension when there are more voices than chord tones, per extra copy. Positive encourages it, negative avoids it.",
+             "id": "nested:doubling:extension",
+             "kind": "float",
+             "label": "Extension",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            }
+           ],
+           "id": "nested:doubling",
+           "kind": "grid",
+           "title": "Doubling"
+          },
+          {
+           "fields": [
+            {
+             "default": "-20.0",
+             "help": "How reluctant the picker is to drop the root when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:root",
+             "kind": "float",
+             "label": "Root",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-40.0",
+             "help": "How reluctant the picker is to drop the third when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:third",
+             "kind": "float",
+             "label": "Third",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-3.0",
+             "help": "How reluctant the picker is to drop the fifth when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:fifth",
+             "kind": "float",
+             "label": "Fifth",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-40.0",
+             "help": "How reluctant the picker is to drop the seventh when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:seventh",
+             "kind": "float",
+             "label": "Seventh",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-30.0",
+             "help": "How reluctant the picker is to drop the color when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:color",
+             "kind": "float",
+             "label": "Color",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-6.0",
+             "help": "How reluctant the picker is to drop the extension when there are fewer voices than chord tones. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:extension",
+             "kind": "float",
+             "label": "Extension",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            }
+           ],
+           "id": "nested:omit",
+           "kind": "grid",
+           "title": "Omission"
+          },
+          {
+           "fields": [
+            {
+             "default": "0.0",
+             "help": "How much to favor root position (the root in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
+             "id": "nested:inversion:root",
+             "kind": "float",
+             "label": "Root",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-1.5",
+             "help": "How much to favor first inversion (the third in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
+             "id": "nested:inversion:first",
+             "kind": "float",
+             "label": "First",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-5.0",
+             "help": "How much to favor second inversion (the fifth in the bass; also a 6th, sus tone or extension in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
+             "id": "nested:inversion:second",
+             "kind": "float",
+             "label": "Second",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-3.0",
+             "help": "How much to favor third inversion (the 7th in the bass). Not used for slash chords, whose bass is fixed. Higher is more preferred; 0 is neutral.",
+             "id": "nested:inversion:third",
+             "kind": "float",
+             "label": "Third",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            }
+           ],
+           "id": "nested:inversion",
+           "kind": "grid",
+           "title": "Inversion"
+          }
+         ],
+         "id": "nested",
+         "kind": "groups",
+         "title": null
+        }
+       ],
+       "title": "Ensemble"
+      },
+      "fretboard": {
+       "model": "fretboard",
+       "sections": [
+        {
+         "fields": [
+          {
+           "default": "E2 A2 D3 G3 B3 E4",
+           "help": "Open-string pitches in string order, starting with the string you strum first (the thickest on a guitar), so a ukulele is G4 C4 E4 A4 (Sol4 Do4 Mi4 La4). 3 to 12 strings. Required.",
+           "hint": "(note names or MIDI numbers, e.g. E2 A2 D3 G3 B3 E4)",
+           "id": "tuning",
+           "kind": "pitch_list",
+           "label": "Strings",
+           "max_items": 12,
+           "min_items": 3
+          }
+         ],
+         "id": "strings",
+         "kind": "stack",
+         "title": null
+        },
+        {
+         "fields": [
+          {
+           "default": "12",
+           "help": "Highest fret the picker will reach; higher allows shapes further up the neck.",
+           "id": "max_fret",
+           "kind": "int",
+           "label": "Max fret",
+           "max": 24,
+           "min": 5,
+           "step": 1
+          },
+          {
+           "default": "4",
+           "help": "How many fretting fingers the hand has available.",
+           "id": "fingers",
+           "kind": "int",
+           "label": "Fingers",
+           "max": 5,
+           "min": 1,
+           "step": 1
+          },
+          {
+           "default": "4",
+           "help": "Widest fret stretch the hand holds on a normal pass.",
+           "id": "max_span",
+           "kind": "int",
+           "label": "Max span",
+           "max": 8,
+           "min": 1,
+           "step": 1
+          },
+          {
+           "default": "5",
+           "help": "Widest stretch accepted as a last resort when no shape fits Max span; must be at least Max span.",
+           "id": "relaxed_span",
+           "kind": "int",
+           "label": "Relaxed span",
+           "max": 10,
+           "min": 1,
+           "step": 1
+          }
+         ],
+         "id": "physical",
+         "kind": "grid",
+         "title": null
+        },
+        {
+         "fields": [
+          {
+           "default": true,
+           "help": "Whether one finger flattened across several strings can stand in for several fretted fingers at once.",
+           "id": "allow_barres",
+           "kind": "bool",
+           "label": "Allow barre chords"
+          }
+         ],
+         "id": "options",
+         "kind": "stack",
+         "title": null
+        },
+        {
+         "blurb": "Each weight adds to a voicing's score, so a higher number always means more preferred. Positive values pull the picker toward a trait; negative values push it away. Zero is neutral. The defaults suit most music, so change these only if the results aren't to your taste.",
+         "fields": [
+          {
+           "default": "1.2",
+           "help": "How the picker treats strings that actually sound. More positive favors fuller-sounding fingerings; negative would favor sparser ones.",
+           "id": "weight:sounding_string_bonus",
+           "kind": "float",
+           "label": "Sounding string",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.5",
+           "help": "How the picker treats open strings (fret 0), on top of the sounding-string weight, while the shape stays within the first frets (one fewer than the fingers). Up the neck an open string earns nothing. More positive favors open strings.",
+           "id": "weight:open_string_bonus",
+           "kind": "float",
+           "label": "Open string",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "8.0",
+           "help": "How the picker treats the root as the lowest-sounding note, judged by pitch, not string. Added when it is and subtracted when it isn't; more positive insists on a root bass.",
+           "id": "weight:bass_note_bonus",
+           "kind": "float",
+           "label": "Correct bass note",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "12.0",
+           "help": "How the picker treats a slash chord's named bass (the G in C/G) as the lowest-sounding note, judged by pitch. Added when it is and subtracted when it isn't; more positive insists on it.",
+           "id": "weight:slash_bass_bonus",
+           "kind": "float",
+           "label": "Correct slash bass",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.2",
+           "help": "How the picker treats each fret between a shape's lowest and highest fretted notes (open strings don't count). More negative favors compact shapes.",
+           "id": "weight:span_penalty",
+           "kind": "float",
+           "label": "Wide stretch",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.7",
+           "help": "How the picker treats a shape's overall fret span beyond a single fret. More negative favors compact shapes; a one-fret span costs nothing.",
+           "id": "weight:stretch_penalty",
+           "kind": "float",
+           "label": "Compact shape",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-6.0",
+           "help": "How the picker treats a shape spanning three frets or more (say 2 to 5), unless one finger on an outer string makes the reach and the rest stay within a fret of the lowest; such a shape spanning four frets or more isn't considered at all. Also charged for a cramped grip (every finger, two side by side on the lowest fret, no barre: F 10321x), unless the thumb can take a low bass (D/F# 2x0232). Set strongly negative to reject shapes no hand can hold.",
+           "id": "weight:awkward_stretch_penalty",
+           "kind": "float",
+           "label": "Awkward stretch",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.6",
+           "help": "How the picker treats fingerings further up the neck. More negative keeps fingerings closer to the nut.",
+           "id": "weight:position_penalty",
+           "kind": "float",
+           "label": "High neck position",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.5",
+           "help": "How the picker treats each fretted string, counting a barre as one finger however many strings it holds down. More negative favors shapes with more open or muted strings.",
+           "id": "weight:fretted_finger_penalty",
+           "kind": "float",
+           "label": "Fretted finger",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats a shape that frets more strings than there are fingers, so it needs a barre; charged once, on top of the fretted-finger weight. More negative avoids barres.",
+           "id": "weight:barre_penalty",
+           "kind": "float",
+           "label": "Barre",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.5",
+           "help": "How the picker treats a ring finger or pinky flattened across two or three strings above the index, as in E9 076777; charged per string under it, on top of the barre weight. More negative avoids such grips.",
+           "id": "weight:finger_barre_penalty",
+           "kind": "float",
+           "label": "Ring or pinky barre",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-4.0",
+           "help": "How the picker treats a muted string buried between two sounding strings; charged twice for each, except the one right above a fretted bass (Damped string above the bass). Also charged once for an open string ringing between two fretted strings up the neck. More negative avoids those shapes.",
+           "id": "weight:interior_mute_penalty",
+           "kind": "float",
+           "label": "Muted inner string",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats the hand shifting from the previous chord, across the whole song. More negative steadies the hand.",
+           "id": "weight:movement_penalty",
+           "kind": "float",
+           "label": "Hand movement",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "0.4",
+           "help": "How the picker treats a finger staying on the same string and fret between chords. More positive rewards keeping it there.",
+           "id": "weight:kept_finger_bonus",
+           "kind": "float",
+           "label": "Kept finger",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-2.4",
+           "help": "How the picker treats a four-note chord voiced without its plain fifth (C6 x32210, C7 x32310), when a full voicing also fits and the shape still sounds all strings but two. More negative keeps the fifth.",
+           "id": "weight:omitted_fifth_penalty",
+           "kind": "float",
+           "label": "Left-out fifth",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-3.0",
+           "help": "How the picker treats a muted string right above a fretted bass, which the bass finger leans over and damps (G 3x0033, D/F# 2x0232). Not above an open bass or under a barre. More negative avoids that shape.",
+           "id": "weight:damped_mute_penalty",
+           "kind": "float",
+           "label": "Damped string above the bass",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-3.0",
+           "help": "How the picker treats a bass on the upper half of the strings that sits an octave or more above where that note is lowest on the neck (C/G xxx010); charged per octave. More negative keeps the bass low.",
+           "id": "weight:bass_register_penalty",
+           "kind": "float",
+           "label": "High bass",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-3.0",
+           "help": "How the picker treats a shape sounding fewer strings than a full strum (all but two, at least three: 4 of 6); charged once, not for a two-note chord. More negative favors fuller shapes.",
+           "id": "weight:thin_shape_penalty",
+           "kind": "float",
+           "label": "Thin shape",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.5",
+           "help": "How the picker treats two neighbouring notes a third or less apart below G2, or a second or less below C3, which blur into a rumble; charged per semitone the lower note sits below that, for the muddiest pair. More negative keeps the low notes apart.",
+           "id": "weight:low_interval_penalty",
+           "kind": "float",
+           "label": "Muddy low notes",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats a shape leaving the top string (the high e) muted; charged once, not for a two-note chord. More negative favors shapes that ring to the top.",
+           "id": "weight:muted_treble_penalty",
+           "kind": "float",
+           "label": "Muted top string",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          }
+         ],
+         "id": "weights",
+         "kind": "grid",
+         "title": "Weights"
+        }
+       ],
+       "title": "Fretboard"
+      },
+      "piano": {
+       "model": "piano",
+       "sections": [
+        {
+         "columns": [
+          "Low",
+          "High"
+         ],
+         "id": "ranges",
+         "kind": "range_table",
+         "rows": [
+          {
+           "fields": [
+            {
+             "default": "C1",
+             "help": "Lowest note the left hand may play (note name or MIDI number).",
+             "id": "range:lh_range:low",
+             "kind": "pitch",
+             "label": "Low",
+             "width": 8
+            },
+            {
+             "default": "C3",
+             "help": "Highest note the left hand may play (note name or MIDI number).",
+             "id": "range:lh_range:high",
+             "kind": "pitch",
+             "label": "High",
+             "width": 8
+            }
+           ],
+           "help": "Lowest note the left hand may play (note name or MIDI number).",
+           "id": "lh_range",
+           "label": "Left hand"
+          },
+          {
+           "fields": [
+            {
+             "default": "C3",
+             "help": "Lowest note of the right-hand range, used only by the fallback voicing; the RH lowest-note anchor sets where the right hand really starts.",
+             "id": "range:rh_range:low",
+             "kind": "pitch",
+             "label": "Low",
+             "width": 8
+            },
+            {
+             "default": "C6",
+             "help": "Highest note the right hand may play (note name or MIDI number).",
+             "id": "range:rh_range:high",
+             "kind": "pitch",
+             "label": "High",
+             "width": 8
+            }
+           ],
+           "help": "Lowest note of the right-hand range, used only by the fallback voicing; the RH lowest-note anchor sets where the right hand really starts.",
+           "id": "rh_range",
+           "label": "Right hand"
+          },
+          {
+           "fields": [
+            {
+             "default": "C2",
+             "help": "Lowest note of the preferred bass register. Sitting below it costs the bass-below-range weight per semitone.",
+             "id": "range:bass_range:low",
+             "kind": "pitch",
+             "label": "Low",
+             "width": 8
+            },
+            {
+             "default": "B2",
+             "help": "Highest note of the preferred bass register. Sitting above it costs the bass-above-range weight per semitone.",
+             "id": "range:bass_range:high",
+             "kind": "pitch",
+             "label": "High",
+             "width": 8
+            }
+           ],
+           "help": "Lowest note of the preferred bass register. Sitting below it costs the bass-below-range weight per semitone.",
+           "id": "bass_range",
+           "label": "Bass (preferred)"
+          },
+          {
+           "fields": [
+            {
+             "default": "C3",
+             "help": "Lowest pitch the right hand's bottom note may sit on; a hard limit.",
+             "id": "range:rh_low_anchor:low",
+             "kind": "pitch",
+             "label": "Low",
+             "width": 8
+            },
+            {
+             "default": "E4",
+             "help": "Highest pitch the right hand's bottom note may sit on; a hard limit.",
+             "id": "range:rh_low_anchor:high",
+             "kind": "pitch",
+             "label": "High",
+             "width": 8
+            }
+           ],
+           "help": "Lowest pitch the right hand's bottom note may sit on; a hard limit.",
+           "id": "rh_low_anchor",
+           "label": "RH lowest-note anchor"
+          }
+         ],
+         "title": "Hands & range"
+        },
+        {
+         "fields": [
+          {
+           "default": "63.0",
+           "help": "Target for the right hand's mean pitch. Drifting from it costs the right-hand center weight per semitone.",
+           "id": "rh_center",
+           "kind": "float",
+           "label": "RH center",
+           "max": 127,
+           "min": 0,
+           "step": 0.5
+          },
+          {
+           "default": "52",
+           "help": "Neighbouring right-hand notes 4 semitones or less apart, with the lower one below this note, count as muddy and cost the muddy-low-interval weight.",
+           "id": "rh_low_interval_floor",
+           "kind": "int",
+           "label": "Muddy floor",
+           "max": 127,
+           "min": 0,
+           "step": 1
+          },
+          {
+           "default": "14",
+           "help": "Widest reach of the right hand, in semitones (a ninth by default); extensions that won't fit are dropped. The left hand plays one bass note or an octave.",
+           "id": "hand_span",
+           "kind": "int",
+           "label": "Hand span",
+           "max": 24,
+           "min": 1,
+           "step": 1
+          },
+          {
+           "default": "5",
+           "help": "Most notes the right hand may play at once; extensions are dropped first. The left hand plays one bass note or an octave.",
+           "id": "max_notes_per_hand",
+           "kind": "int",
+           "label": "Max notes/hand",
+           "max": 10,
+           "min": 1,
+           "step": 1
+          },
+          {
+           "default": "10",
+           "help": "Most notes both hands may play together.",
+           "id": "max_total_notes",
+           "kind": "int",
+           "label": "Max total notes",
+           "max": 20,
+           "min": 1,
+           "step": 1
+          },
+          {
+           "default": "2",
+           "help": "The right hand's lowest note should sit more than this many semitones above the left hand's top note, or it costs the hands-too-close weight.",
+           "id": "hand_gap_floor",
+           "kind": "int",
+           "label": "Hand gap floor",
+           "max": 24,
+           "min": 0,
+           "step": 1
+          }
+         ],
+         "id": "physical",
+         "kind": "grid",
+         "title": null
+        },
+        {
+         "fields": [
+          {
+           "default": true,
+           "help": "Whether the left hand plays a bass note. Off, the right hand plays alone, so a slash chord's bass note isn't heard.",
+           "id": "add_bass",
+           "kind": "bool",
+           "label": "Add bass note"
+          }
+         ],
+         "id": "options",
+         "kind": "stack",
+         "title": null
+        },
+        {
+         "blurb": "Each weight adds to a voicing's score, so a higher number always means more preferred. Positive values pull the picker toward a trait; negative values push it away. Zero is neutral. The defaults suit most music, so change these only if the results aren't to your taste.",
+         "fields": [
+          {
+           "default": "0.6",
+           "help": "How the picker treats a note kept in the right hand. More positive favors fuller voicings; negative would favor sparser ones.",
+           "id": "weight:rh_note_bonus",
+           "kind": "float",
+           "label": "Right-hand note",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.4",
+           "help": "How the picker treats the right hand's mean pitch straying from its target center. More negative keeps it closer to center.",
+           "id": "weight:rh_center_penalty",
+           "kind": "float",
+           "label": "Right-hand center",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.5",
+           "help": "How the picker treats the bass sitting below the preferred bass range. More negative discourages a bass that's too low.",
+           "id": "weight:lh_below_bass_penalty",
+           "kind": "float",
+           "label": "Bass below range",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.5",
+           "help": "How the picker treats the bass sitting above the preferred bass range. More negative discourages a bass that's too high.",
+           "id": "weight:lh_above_bass_penalty",
+           "kind": "float",
+           "label": "Bass above range",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats octave-doubling the bass note. More negative avoids doubling it.",
+           "id": "weight:lh_double_penalty",
+           "kind": "float",
+           "label": "Doubled bass",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.0",
+           "help": "How the picker treats an octave-doubled bass sitting below the preferred bass range, on top of the doubling weight. More negative avoids it.",
+           "id": "weight:lh_double_low_penalty",
+           "kind": "float",
+           "label": "Doubled bass low",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-2.0",
+           "help": "How the picker treats neighbouring right-hand notes 4 semitones or less apart whose lower note is below the muddy floor, per pair. More negative avoids muddy low intervals.",
+           "id": "weight:rh_low_interval_penalty",
+           "kind": "float",
+           "label": "Muddy low interval",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.6",
+           "help": "How the picker treats a right-hand gap wider than an octave. Rarely applies: the right hand is stacked within an octave, so only the fallback voicing can leave such a gap.",
+           "id": "weight:rh_wide_gap_penalty",
+           "kind": "float",
+           "label": "Wide right-hand gap",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.5",
+           "help": "How the picker treats the right hand sitting within the hand gap floor of the left hand's top note, per semitone. More negative keeps the hands apart.",
+           "id": "weight:muddy_gap_penalty",
+           "kind": "float",
+           "label": "Hands too close",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "1.5",
+           "help": "How the picker treats a note holding the same pitch across a chord change. More positive rewards holding common tones.",
+           "id": "weight:common_tone_bonus",
+           "kind": "float",
+           "label": "Common tone held",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-0.35",
+           "help": "How the picker treats a note's nearest-neighbour movement across a chord change, across the whole song. More negative steadies the voicing.",
+           "id": "weight:movement_penalty",
+           "kind": "float",
+           "label": "Voice movement",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "-1.5",
+           "help": "How the picker treats the bass and the top note moving the same way while keeping an octave or a fifth between them (C2-C4 to D2-D4), which sounds like a doubled bass line. More negative moves the top note against the bass instead.",
+           "id": "weight:outer_parallel_penalty",
+           "kind": "float",
+           "label": "Outer parallels",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          },
+          {
+           "default": "2.0",
+           "help": "How the picker treats the song's last chord with its top note on the chord's root, so the song ends on the root rather than its third or fifth. More positive ends on the root more often.",
+           "id": "weight:final_top_root_bonus",
+           "kind": "float",
+           "label": "Ending on the root",
+           "max": 100.0,
+           "min": -100.0,
+           "step": 0.1
+          }
+         ],
+         "groups": [
+          {
+           "fields": [
+            {
+             "default": "-4.0",
+             "help": "How much the picker loses when a plain three-note chord's right hand leaves out the root (the left hand plays it, so only two notes are left on top), or when the root is missing from both hands. More negative keeps it in the right hand; nearer zero allows the thinner voicing.",
+             "id": "nested:omit:root",
+             "kind": "float",
+             "label": "Root",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-40.0",
+             "help": "How much the picker loses when the third is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:third",
+             "kind": "float",
+             "label": "Third",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-8.0",
+             "help": "How much the picker loses when the fifth is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:fifth",
+             "kind": "float",
+             "label": "Fifth",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-40.0",
+             "help": "How much the picker loses when the seventh is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:seventh",
+             "kind": "float",
+             "label": "Seventh",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-30.0",
+             "help": "How much the picker loses when the color is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:color",
+             "kind": "float",
+             "label": "Color",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            },
+            {
+             "default": "-7.0",
+             "help": "How much the picker loses when the extension is missing from both hands; the right hand may leave out the fifth, or extensions that won't fit. More negative keeps it; nearer zero allows dropping it.",
+             "id": "nested:omit:extension",
+             "kind": "float",
+             "label": "Extension",
+             "max": 100.0,
+             "min": -100.0,
+             "step": 0.1
+            }
+           ],
+           "id": "nested:omit",
+           "kind": "grid",
+           "title": "Omission"
+          }
+         ],
+         "id": "weights",
+         "kind": "grid",
+         "title": "Weights"
+        }
+       ],
+       "title": "Piano"
+      }
+     },
+     "help": {
+      "load": "Copy the model and parameters of a built-in preset or another of your voicings into this one. The name is kept.",
+      "model": "The engine that renders this voicing: fretboard (a fretted instrument), ensemble (independent voices), or piano.",
+      "name": "The name of this voicing, shown in the player's Voicing sheet.",
+      "tree_add": "Add a new voicing.",
+      "tree_remove": "Remove the selected voicing."
+     },
+     "models": [
+      {
+       "label": "Fretboard",
+       "value": "fretboard"
+      },
+      {
+       "label": "Ensemble",
+       "value": "ensemble"
+      },
+      {
+       "label": "Piano",
+       "value": "piano"
+      }
+     ],
+     "texts": {
+      "errors_banner": "Fix these errors to apply changes",
+      "load_button": "Copy from existing",
+      "load_confirm": "Copying replaces all parameters of this voicing. Continue?",
+      "load_confirm_title": "Copy from Existing",
+      "model_confirm": "Switching model will replace the current parameters with defaults. Continue?",
+      "model_confirm_title": "Change Model",
+      "model_label": "Model:",
+      "name_label": "Name:",
+      "placeholder": "Select a voicing to edit, or add one with \"+\".",
+      "remove_confirm": "Remove voicing '{name}'?",
+      "remove_confirm_title": "Remove Voicing",
+      "rename_error_title": "Rename Voicing"
+     },
+     "tree_groups": [
+      {
+       "label": "Fretboard",
+       "model": "fretboard"
+      },
+      {
+       "label": "Piano",
+       "model": "piano"
+      },
+      {
+       "label": "Ensemble",
+       "model": "ensemble"
+      }
+     ],
+     "version": 1
+    },
+    "version": 1
+   },
+   "type": "VoicingEditorSchema"
+  }
+ ],
+ "scene": "settings_voicing_ensemble",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "tab",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 330,
+   "song_revision": 9,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 0.833,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "Amazing Grace.txt",
+   "document_id": "Amazing Grace.txt",
+   "is_modified": false,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "Amazing Grace.txt - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "american",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 68,
+     "kind": "comment",
+     "message": "",
+     "start": 32
+    },
+    {
+     "end": 601,
+     "kind": "comment",
+     "message": "",
+     "start": 592
+    },
+    {
+     "end": 85,
+     "kind": "chord",
+     "message": "",
+     "start": 84
+    },
+    {
+     "end": 98,
+     "kind": "chord",
+     "message": "",
+     "start": 96
+    },
+    {
+     "end": 107,
+     "kind": "chord",
+     "message": "",
+     "start": 106
+    },
+    {
+     "end": 114,
+     "kind": "chord",
+     "message": "",
+     "start": 113
+    },
+    {
+     "end": 151,
+     "kind": "chord",
+     "message": "",
+     "start": 150
+    },
+    {
+     "end": 168,
+     "kind": "chord",
+     "message": "",
+     "start": 166
+    },
+    {
+     "end": 175,
+     "kind": "chord",
+     "message": "",
+     "start": 174
+    },
+    {
+     "end": 205,
+     "kind": "chord",
+     "message": "",
+     "start": 204
+    },
+    {
+     "end": 219,
+     "kind": "chord",
+     "message": "",
+     "start": 217
+    },
+    {
+     "end": 227,
+     "kind": "chord",
+     "message": "",
+     "start": 226
+    },
+    {
+     "end": 234,
+     "kind": "chord",
+     "message": "",
+     "start": 233
+    },
+    {
+     "end": 270,
+     "kind": "chord",
+     "message": "",
+     "start": 269
+    },
+    {
+     "end": 278,
+     "kind": "chord",
+     "message": "",
+     "start": 276
+    },
+    {
+     "end": 286,
+     "kind": "chord",
+     "message": "",
+     "start": 285
+    },
+    {
+     "end": 294,
+     "kind": "chord",
+     "message": "",
+     "start": 293
+    },
+    {
+     "end": 322,
+     "kind": "chord",
+     "message": "",
+     "start": 321
+    },
+    {
+     "end": 337,
+     "kind": "chord",
+     "message": "",
+     "start": 335
+    },
+    {
+     "end": 348,
+     "kind": "chord",
+     "message": "",
+     "start": 347
+    },
+    {
+     "end": 357,
+     "kind": "chord",
+     "message": "",
+     "start": 356
+    },
+    {
+     "end": 400,
+     "kind": "chord",
+     "message": "",
+     "start": 399
+    },
+    {
+     "end": 413,
+     "kind": "chord",
+     "message": "",
+     "start": 411
+    },
+    {
+     "end": 422,
+     "kind": "chord",
+     "message": "",
+     "start": 421
+    },
+    {
+     "end": 452,
+     "kind": "chord",
+     "message": "",
+     "start": 451
+    },
+    {
+     "end": 467,
+     "kind": "chord",
+     "message": "",
+     "start": 465
+    },
+    {
+     "end": 477,
+     "kind": "chord",
+     "message": "",
+     "start": 476
+    },
+    {
+     "end": 485,
+     "kind": "chord",
+     "message": "",
+     "start": 484
+    },
+    {
+     "end": 522,
+     "kind": "chord",
+     "message": "",
+     "start": 521
+    },
+    {
+     "end": 531,
+     "kind": "chord",
+     "message": "",
+     "start": 529
+    },
+    {
+     "end": 538,
+     "kind": "chord",
+     "message": "",
+     "start": 537
+    },
+    {
+     "end": 547,
+     "kind": "chord",
+     "message": "",
+     "start": 546
+    },
+    {
+     "end": 603,
+     "kind": "chord",
+     "message": "",
+     "start": 602
+    },
+    {
+     "end": 612,
+     "kind": "chord",
+     "message": "",
+     "start": 609
+    },
+    {
+     "end": 619,
+     "kind": "chord",
+     "message": "",
+     "start": 616
+    },
+    {
+     "end": 629,
+     "kind": "chord",
+     "message": "",
+     "start": 623
+    },
+    {
+     "end": 634,
+     "kind": "chord",
+     "message": "",
+     "start": 631
+    },
+    {
+     "end": 9,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 21,
+     "kind": "directive",
+     "message": "",
+     "start": 10
+    },
+    {
+     "end": 30,
+     "kind": "directive",
+     "message": "",
+     "start": 22
+    },
+    {
+     "end": 83,
+     "kind": "directive",
+     "message": "",
+     "start": 69
+    },
+    {
+     "end": 590,
+     "kind": "directive",
+     "message": "",
+     "start": 575
+    }
+   ],
+   "text_revision": 28
+  },
+  "IdentifierState": {
+   "candidates": [
+    "Cmaj7",
+    "Em/C"
+   ],
+   "message": null,
+   "notation": "american",
+   "notes": [
+    {
+     "midi": 60,
+     "name": "C",
+     "octave": 4
+    },
+    {
+     "midi": 64,
+     "name": "E",
+     "octave": 4
+    },
+    {
+     "midi": 67,
+     "name": "G",
+     "octave": 4
+    },
+    {
+     "midi": 71,
+     "name": "B",
+     "octave": 4
+    }
+   ],
+   "notes_text": "C E G B",
+   "sounding": [
+    60,
+    64,
+    67,
+    71
+   ],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 1,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 25,
+   "families": [
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "G",
+   "playhead_offset": 84,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "verse",
+     "last_bar": 14,
+     "repeat": false
+    },
+    {
+     "first_bar": 15,
+     "label": "verse 2",
+     "last_bar": 28,
+     "repeat": false
+    },
+    {
+     "first_bar": 29,
+     "label": "verse",
+     "last_bar": 42,
+     "repeat": true
+    },
+    {
+     "first_bar": 43,
+     "label": "verse 2",
+     "last_bar": 56,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    3,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "Lullaby (2).txt",
+     "id": "songs/Lullaby (2).txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Lullaby.txt",
+     "id": "songs/Lullaby.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Evening.txt",
+     "id": "songs/Evening.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "Morning.txt",
+     "id": "songs/Morning.txt",
+     "location": "On My iPhone"
+    },
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 22,
+    "from_directive": true,
+    "value": "G"
+   },
+   "locked_reason": null,
+   "summary": "90 · 3/4 · G",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "90"
+   },
+   "time": {
+    "directive_offset": 10,
+    "from_directive": true,
+    "value": "3/4"
+   }
+  },
+  "StatusState": {
+   "text": "Inserted: {capo: 2}"
+  },
+  "ToolbarState": {
+   "beats": 3,
+   "bpm": 90,
+   "bpm_display": 90,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 90}",
+   "key": "G",
+   "key_options": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "key_set_by": "{key: G}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "american",
+   "play_action": "play",
+   "time_set_by": "{time: 3/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": true,
+   "dirty": true,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [
+    {
+     "builtins": [
+      "Guitar (Standard - EADGBE)",
+      "Guitar (Drop D)",
+      "Guitar (DADGAD)",
+      "Guitar (Open G)",
+      "Ukulele"
+     ],
+     "label": "Fretboard",
+     "model": "fretboard",
+     "names": [
+      "My 7-String"
+     ]
+    },
+    {
+     "builtins": [
+      "Piano (default)"
+     ],
+     "label": "Piano",
+     "model": "piano",
+     "names": []
+    },
+    {
+     "builtins": [
+      "Choir (SATB)",
+      "Male Choir (TTBB)",
+      "Treble Choir (SSA)",
+      "String Quartet"
+     ],
+     "label": "Ensemble",
+     "model": "ensemble",
+     "names": [
+      "Jazz Vocal Trio"
+     ]
+    }
+   ],
+   "hints": {},
+   "invalid": [],
+   "model": "ensemble",
+   "presets": [
+    {
+     "group": "blank",
+     "label": "Blank fretboard"
+    },
+    {
+     "group": "blank",
+     "label": "Blank piano"
+    },
+    {
+     "group": "blank",
+     "label": "Blank ensemble"
+    },
+    {
+     "group": "fretboard",
+     "label": "Guitar (Standard - EADGBE)"
+    },
+    {
+     "group": "fretboard",
+     "label": "Guitar (Drop D)"
+    },
+    {
+     "group": "fretboard",
+     "label": "Guitar (DADGAD)"
+    },
+    {
+     "group": "fretboard",
+     "label": "Guitar (Open G)"
+    },
+    {
+     "group": "fretboard",
+     "label": "Ukulele"
+    },
+    {
+     "group": "ensemble",
+     "label": "Choir (SATB)"
+    },
+    {
+     "group": "ensemble",
+     "label": "Male Choir (TTBB)"
+    },
+    {
+     "group": "ensemble",
+     "label": "Treble Choir (SSA)"
+    },
+    {
+     "group": "ensemble",
+     "label": "String Quartet"
+    },
+    {
+     "group": "piano",
+     "label": "Piano (default)"
+    },
+    {
+     "group": "custom",
+     "label": "My 7-String"
+    }
+   ],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 10,
+   "selected": "Jazz Vocal Trio",
+   "staged_numbers": {},
+   "values": {
+    "allow_unisons": false,
+    "nested:doubling:color": "-6.0",
+    "nested:doubling:extension": "-6.0",
+    "nested:doubling:fifth": "0.5",
+    "nested:doubling:root": "2.0",
+    "nested:doubling:seventh": "-6.0",
+    "nested:doubling:third": "-2.0",
+    "nested:inversion:first": "-1.5",
+    "nested:inversion:root": "0.0",
+    "nested:inversion:second": "-5.0",
+    "nested:inversion:third": "-3.0",
+    "nested:omit:color": "-30.0",
+    "nested:omit:extension": "-6.0",
+    "nested:omit:fifth": "-3.0",
+    "nested:omit:root": "-20.0",
+    "nested:omit:seventh": "-40.0",
+    "nested:omit:third": "-40.0",
+    "upper_clef": "treble",
+    "voices": [
+     {
+      "gap": "12",
+      "high": "F5",
+      "low": "A3",
+      "movement": "-0.4",
+      "name": "Lead",
+      "staff": null
+     },
+     {
+      "gap": "19",
+      "high": "D5",
+      "low": "F3",
+      "movement": "-0.4",
+      "name": "Harmony",
+      "staff": null
+     },
+     {
+      "gap": "12",
+      "high": "C4",
+      "low": "E2",
+      "movement": "-0.4",
+      "name": "Bass",
+      "staff": null
+     }
+    ],
+    "weight:augmented_second_penalty": "-4.0",
+    "weight:chromatic_tendency_bonus": "2.0",
+    "weight:common_tone_bonus": "1.5",
+    "weight:contrary_motion_bonus": "0.8",
+    "weight:double_leading_tone_penalty": "-8.0",
+    "weight:final_root_step_bonus": "0.75",
+    "weight:hidden_perfect_penalty": "-2.0",
+    "weight:leading_tone_resolution_bonus": "1.5",
+    "weight:leap_penalty": "-2.0",
+    "weight:low_interval_limit_penalty": "-2.0",
+    "weight:middle_range_penalty": "0.0",
+    "weight:octave_leap_penalty": "-6.0",
+    "weight:outer_leap_penalty": "0.0",
+    "weight:parallel_perfect_penalty": "-25.0",
+    "weight:range_comfort_penalty": "-0.5",
+    "weight:same_bass_penalty": "-8.0",
+    "weight:seventh_resolution_bonus": "1.5",
+    "weight:tritone_leap_penalty": "-4.5",
+    "weight:unison_penalty": "-0.5",
+    "weight:upper_spacing_penalty": "-0.15",
+    "weight:upper_spacing_threshold": "7.0",
+    "weight:voice_overlap_penalty": "-1.0"
+   }
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ],
+    [
+     {
+      "label": "Jazz Vocal Trio",
+      "value": "voicing:Jazz Vocal Trio"
+     },
+     {
+      "label": "My 7-String",
+      "value": "voicing:My 7-String"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "guitar:standard"
+  }
+ }
+}

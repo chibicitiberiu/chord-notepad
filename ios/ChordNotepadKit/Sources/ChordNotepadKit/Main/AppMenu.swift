@@ -3,9 +3,10 @@ import Foundation
 // The ☰ menu (Android's ui/main/AppDrawer.kt): Documents (New song, Open…,
 // the recent songs, Save as…, the exports) and App (Settings, Examples, User
 // guide, Quick start, About), plus Diagnostics on iOS. Entries whose screens
-// the iOS app doesn't have yet are listed, greyed, with "Coming soon". Export
-// PDF is one of them: the session sends the pages' layout
-// (`PaintPdfRequest`) and Android paints it itself; iOS has no painter yet.
+// the iOS app doesn't have yet are listed, greyed, with "Coming soon": the
+// user guide, the Quick Start tour and Export PDF (the session sends the
+// pages' layout, `PaintPdfRequest`, and Android paints it itself; iOS has no
+// painter yet).
 
 /// What a menu entry does.
 public enum MenuAction: Sendable, Hashable {
@@ -139,6 +140,53 @@ public enum MainRoute: Sendable, Hashable {
     case transpose(selection: Bool)
     /// The chord identifier.
     case identify
+    /// ☰ › Settings, full screen (its pages are the settings controller's;
+    /// ``AppModel`` keeps one while this is open).
+    case settings
+    /// ☰ › About, full screen.
+    case about
+    /// About › Open source licences.
+    case licences
+    /// One licence's text: from the licences list, or from About itself (the
+    /// app's own licence), so ← goes back where it came from (Android's P7).
+    case licence(id: String, fromAbout: Bool)
+
+    /// Where a full-screen page's ← goes (Android's `Pages.parent`): a
+    /// licence to its list (or to About), the list to About, the rest to the
+    /// main screen.
+    public var parent: MainRoute {
+        switch self {
+        case .licence(_, let fromAbout): return fromAbout ? .about : .licences
+        case .licences: return .about
+        default: return .none
+        }
+    }
+
+    /// The licence entry id of a licence's page, else nil.
+    public var licenceId: String? {
+        if case .licence(let id, _) = self { return id }
+        return nil
+    }
+
+    /// What a song that was asked to open (from Files or another app) does
+    /// to what is open: it lands on the main screen (Android's P1).
+    public var onSongOpened: SongOpened {
+        switch self {
+        case .none: return .stay
+        case .settings: return .leaveSettings
+        default: return .close
+        }
+    }
+}
+
+/// See ``MainRoute/onSongOpened``.
+public enum SongOpened: Sendable, Equatable {
+    /// Already on the main screen.
+    case stay
+    /// Close what is open.
+    case close
+    /// Leave Settings as ← does: it asks first while a value is wrong.
+    case leaveSettings
 }
 
 /// The main screen's own state, which the session doesn't keep: the tab, what

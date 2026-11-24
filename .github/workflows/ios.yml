@@ -19,6 +19,14 @@ on:
       - 'android/tools/build_wheelhouse.py'
       - 'android/tools/export_clef_glyphs.py'
       - 'android/app/src/test/resources/chord_sheet/**'
+      # The voicing form's fixtures (the kit's Settings tests), the licence
+      # texts the app copies, the Settings icons' source (ios/tools/mdi_assets.py),
+      # Android's FOSS support link the kit checks About against, the version.
+      - 'android/app/src/test/resources/voicing_form/**'
+      - 'resources/licenses/texts/**'
+      - 'android/app/src/main/kotlin/com/tibich/chordnotepad/ui/settings/SettingsIcons.kt'
+      - 'android/app/src/foss/kotlin/com/tibich/chordnotepad/support/SupportBillingFactory.kt'
+      - 'VERSION'
       - 'resources/soundfont/**'
       # The quick-start song, the kit's scenes and the menu's Examples.
       - 'examples/*.txt'

@@ -48,7 +48,9 @@ final class SnapshotTests: XCTestCase {
                                           "insert_bpm", "insert_capo", "insert_key", "insert_label",
                                           "insert_loop", "insert_time", "play_with_chord_sheet", "player_sheets",
                                           "quick_start_edit", "scarborough_edit", "scarborough_fret",
-                                          "scarborough_piano_roll", "scarborough_tab"])
+                                          "scarborough_piano_roll", "scarborough_tab", "settings_builtin",
+                                          "settings_open", "settings_voicing_ensemble", "settings_voicing_form",
+                                          "settings_voicing_refused"])
         for fixture in all {
             let snapshot = try fixture.snapshot()
             XCTAssertNotNil(snapshot.editor, fixture.scene)

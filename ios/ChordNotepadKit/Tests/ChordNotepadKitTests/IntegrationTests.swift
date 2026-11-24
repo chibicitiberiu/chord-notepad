@@ -440,6 +440,7 @@ final class IntegrationTests: XCTestCase {
         XCTAssertNil(try log.decodeLatest(DocumentState.self, "DocumentState").documentId, "nothing opened")
 
         try await checkSheetsAndTools(session, log, scenes)
+        try await checkSettings(session, log, scenes, filesDir: filesDir)
 
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {

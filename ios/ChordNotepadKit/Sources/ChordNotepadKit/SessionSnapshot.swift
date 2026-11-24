@@ -27,6 +27,10 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var instrumentMenu: InstrumentMenuState?
     public private(set) var recentDocuments: RecentDocumentsState?
     public private(set) var settings: SettingsState?
+    /// The voicings editor of the settings edit (inactive while none is open).
+    public private(set) var voicingEditor: VoicingEditorState?
+    /// The voicings editor's form schemas, once asked for (`request_voicing_editor_schema`).
+    public private(set) var voicingEditorSchema: VoicingEditorSchema?
     /// Suggest Capo's dialog, while `active` (the session holds it, not a request).
     public private(set) var capoAdvice: CapoAdviceState?
     /// The chord identifier's notes and candidates.
@@ -84,6 +88,10 @@ public struct SessionSnapshot: Sendable, Equatable {
             recentDocuments = state
         case .settingsState(let state):
             settings = state
+        case .voicingEditorState(let state):
+            voicingEditor = state
+        case .voicingEditorSchema(let schema):
+            voicingEditorSchema = schema
         case .capoAdviceState(let state):
             capoAdvice = state
         case .identifierState(let state):

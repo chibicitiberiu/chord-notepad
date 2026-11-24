@@ -1,0 +1,331 @@
+{
+  "components": [
+    {
+      "id": "chord-notepad",
+      "name": "Chord Notepad",
+      "group": "app",
+      "license": "AGPL-3.0-only WITH AdditionRef-ChordNotepad-Section7",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "url": "https://github.com/chibicitiberiu/chord-notepad",
+      "sourceUrl": "https://github.com/chibicitiberiu/chord-notepad",
+      "texts": [
+        "AGPL-3.0",
+        "ADDITIONAL-TERMS"
+      ],
+      "note": "Free software: you may use, study, share and change it under the GNU Affero General Public License, version 3, with the additional permissions and terms under its section 7 that follow the licence text (ADDITIONAL-TERMS.txt). The complete source code of this version is in the repository above."
+    },
+    {
+      "id": "chord-notepad-logo",
+      "name": "Chord Notepad logo",
+      "group": "app",
+      "license": "LicenseRef-ChordNotepad-Artwork",
+      "copyright": "2025-2026 Tiberiu Chibici",
+      "texts": [
+        "ARTWORK-TERMS"
+      ],
+      "note": "The logo (the launcher icon) is not under the AGPL: the terms below say what you may do with it."
+    },
+    {
+      "id": "cpython",
+      "name": "CPython",
+      "group": "runtime",
+      "version": "3.14.10",
+      "license": "Python-2.0.1",
+      "copyright": "2001 Python Software Foundation",
+      "url": "https://www.python.org/",
+      "texts": [
+        "PSF-Python"
+      ],
+      "note": "The Python interpreter and standard library: CPython's own iOS framework build, from BeeWare's Python-Apple-support package (3.14-b14), embedded in the app as Python.framework."
+    },
+    {
+      "id": "openssl",
+      "name": "OpenSSL",
+      "group": "runtime",
+      "version": "3.5.9",
+      "license": "Apache-2.0",
+      "copyright": "The OpenSSL Project Authors",
+      "url": "https://www.openssl.org/",
+      "texts": [
+        "openssl-Apache-2.0"
+      ],
+      "note": "Built into the Python framework for Python's ssl and hashlib modules."
+    },
+    {
+      "id": "libffi",
+      "name": "libffi",
+      "group": "runtime",
+      "license": "MIT",
+      "url": "https://sourceware.org/libffi/",
+      "texts": [
+        "libffi-MIT"
+      ],
+      "note": "Used by Python's ctypes module, through which the app drives FluidSynth.",
+      "version": "3.4.7"
+    },
+    {
+      "id": "bzip2",
+      "name": "bzip2",
+      "group": "runtime",
+      "license": "bzip2-1.0.6",
+      "url": "https://sourceware.org/bzip2/",
+      "texts": [
+        "bzip2-BSD"
+      ],
+      "note": "Used by Python's bz2 module.",
+      "version": "1.0.8"
+    },
+    {
+      "id": "xz",
+      "name": "XZ Utils (liblzma)",
+      "group": "runtime",
+      "license": "0BSD",
+      "url": "https://tukaani.org/xz/",
+      "texts": [
+        "xz-0BSD"
+      ],
+      "note": "Used by Python's lzma module.",
+      "version": "5.6.4"
+    },
+    {
+      "id": "libmpdec",
+      "name": "mpdecimal (libmpdec)",
+      "group": "runtime",
+      "version": "4.0.0",
+      "license": "BSD-2-Clause",
+      "url": "https://www.bytereef.org/mpdecimal/",
+      "texts": [
+        "mpdecimal-BSD"
+      ],
+      "note": "Decimal arithmetic in Python's decimal module."
+    },
+    {
+      "id": "zstd",
+      "name": "Zstandard",
+      "group": "runtime",
+      "version": "1.5.7",
+      "license": "BSD-3-Clause",
+      "url": "https://facebook.github.io/zstd/",
+      "texts": [
+        "zstd-BSD"
+      ],
+      "note": "Used by Python's compression.zstd module. Zstandard is dual-licensed (BSD or GPL-2.0); the BSD licence applies here."
+    },
+    {
+      "id": "expat",
+      "name": "Expat",
+      "group": "runtime",
+      "license": "MIT",
+      "url": "https://libexpat.github.io/",
+      "texts": [
+        "expat-MIT"
+      ],
+      "note": "XML parser in Python's pyexpat module."
+    },
+    {
+      "id": "fluidsynth",
+      "name": "FluidSynth",
+      "group": "native",
+      "version": "2.6.1",
+      "license": "LGPL-2.1-or-later",
+      "copyright": "FluidSynth contributors",
+      "url": "https://www.fluidsynth.org/",
+      "sourceUrl": "https://github.com/FluidSynth/fluidsynth/tree/v2.6.1",
+      "texts": [
+        "LGPL-2.1"
+      ],
+      "note": "The synthesizer that plays the chords: FluidSynth 2.6.1, unmodified, built by packaging/ios/build_fluidsynth.sh in this app's source (CoreAudio on; libsndfile, GLib and the network code off) and shipped as a separate dynamic framework (Frameworks/FluidSynth.framework) that the app loads by path, so a rebuilt FluidSynth can replace it in a build of this app."
+    },
+    {
+      "id": "gcem",
+      "name": "GCE-Math",
+      "group": "native",
+      "license": "Apache-2.0",
+      "copyright": "Keith O'Hara",
+      "url": "https://github.com/kthohr/gcem",
+      "texts": [
+        "gcem-Apache-2.0"
+      ],
+      "note": "Compile-time maths headers FluidSynth's build uses; compiled into FluidSynth."
+    },
+    {
+      "id": "pychord",
+      "name": "pychord",
+      "group": "python",
+      "version": "1.4.0",
+      "license": "MIT",
+      "url": "https://github.com/yuma-m/pychord",
+      "texts": [
+        "pychord-MIT"
+      ]
+    },
+    {
+      "id": "mido",
+      "name": "Mido",
+      "group": "python",
+      "version": "1.3.3",
+      "license": "MIT",
+      "url": "https://github.com/mido/mido",
+      "texts": [
+        "mido-MIT"
+      ]
+    },
+    {
+      "id": "packaging",
+      "name": "packaging",
+      "group": "python",
+      "version": "26.3",
+      "license": "Apache-2.0 OR BSD-2-Clause",
+      "url": "https://github.com/pypa/packaging",
+      "texts": [
+        "packaging-Apache-2.0",
+        "packaging-BSD"
+      ]
+    },
+    {
+      "id": "music21",
+      "name": "music21",
+      "group": "python",
+      "version": "10.3.0",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/cuthbertlab/music21",
+      "texts": [
+        "music21-BSD"
+      ],
+      "note": "Without its corpus and scale data files, which this app doesn't use."
+    },
+    {
+      "id": "webcolors",
+      "name": "webcolors",
+      "group": "python",
+      "version": "25.10.0",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/ubernostrum/webcolors",
+      "texts": [
+        "webcolors-BSD"
+      ]
+    },
+    {
+      "id": "more-itertools",
+      "name": "more-itertools",
+      "group": "python",
+      "version": "11.2.1",
+      "license": "MIT",
+      "url": "https://github.com/more-itertools/more-itertools",
+      "texts": [
+        "more-itertools-MIT"
+      ]
+    },
+    {
+      "id": "requests",
+      "name": "Requests",
+      "group": "python",
+      "version": "2.34.2",
+      "license": "Apache-2.0",
+      "url": "https://github.com/psf/requests",
+      "texts": [
+        "requests-Apache-2.0",
+        "requests-NOTICE"
+      ],
+      "note": "A dependency of music21."
+    },
+    {
+      "id": "urllib3",
+      "name": "urllib3",
+      "group": "python",
+      "version": "2.8.0",
+      "license": "MIT",
+      "url": "https://github.com/urllib3/urllib3",
+      "texts": [
+        "urllib3-MIT"
+      ]
+    },
+    {
+      "id": "idna",
+      "name": "idna",
+      "group": "python",
+      "version": "3.20",
+      "license": "BSD-3-Clause",
+      "url": "https://github.com/kjd/idna",
+      "texts": [
+        "idna-BSD"
+      ]
+    },
+    {
+      "id": "certifi",
+      "name": "certifi",
+      "group": "python",
+      "version": "2026.10.23",
+      "license": "MPL-2.0",
+      "url": "https://github.com/certifi/python-certifi",
+      "sourceUrl": "https://github.com/certifi/python-certifi",
+      "texts": [
+        "certifi-MPL-2.0"
+      ]
+    },
+    {
+      "id": "charset-normalizer",
+      "name": "charset-normalizer",
+      "group": "python",
+      "version": "3.5.2",
+      "license": "MIT",
+      "url": "https://github.com/jawah/charset_normalizer",
+      "texts": [
+        "charset-normalizer-MIT"
+      ]
+    },
+    {
+      "id": "generaluser-gs",
+      "name": "GeneralUser GS",
+      "group": "data",
+      "version": "2.0.1",
+      "license": "GeneralUser GS License v2.0",
+      "copyright": "S. Christian Collins",
+      "url": "https://www.schristiancollins.com/generaluser.php",
+      "texts": [
+        "GeneralUser-GS"
+      ],
+      "note": "The SoundFont (instrument sounds) the app plays with."
+    },
+    {
+      "id": "bravura",
+      "name": "Bravura",
+      "group": "data",
+      "license": "OFL-1.1",
+      "copyright": "Steinberg Media Technologies GmbH",
+      "url": "https://github.com/steinbergmedia/bravura",
+      "texts": [
+        "Bravura-OFL"
+      ],
+      "note": "The clef, note head and accidental images in the chord sheet's staff view are rendered from the Bravura music font (SMuFL)."
+    },
+    {
+      "id": "material-design-icons-mdi",
+      "name": "Material Design Icons",
+      "group": "data",
+      "version": "7.4.47",
+      "license": "Apache-2.0",
+      "copyright": "Pictogrammers and contributors",
+      "url": "https://pictogrammers.com/library/mdi/",
+      "sourceUrl": "https://github.com/Templarian/MaterialDesign-SVG",
+      "texts": [
+        "mdi-Pictogrammers-Free-License",
+        "Apache-2.0"
+      ],
+      "note": "The app bar, player, menu and sheet icons (Android's, from the @mdi/svg package; the icons are Apache-2.0)."
+    },
+    {
+      "id": "material-icons-google",
+      "name": "Material Icons",
+      "group": "data",
+      "license": "Apache-2.0",
+      "copyright": "Google LLC",
+      "url": "https://fonts.google.com/icons",
+      "sourceUrl": "https://github.com/google/material-design-icons",
+      "texts": [
+        "Apache-2.0"
+      ],
+      "note": "The Settings screen's icons: add, remove, delete, rename, error, the row arrows, copy and close."
+    }
+  ]
+}
