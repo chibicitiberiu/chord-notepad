@@ -62,14 +62,14 @@ struct AppBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            BarIconButton(icon: "mdi_menu", label: "Open the menu", tint: colors.muted.swiftUI) { actions?.menu() }
+            BarIconButton(icon: "mdi_menu", label: AccessibilityLabels.menu, tint: colors.muted.swiftUI) { actions?.menu() }
                 .accessibilityIdentifier("menu")
             titleButton
                 .frame(maxWidth: titleMaxWidth ?? .infinity, alignment: .leading)
                 .layoutPriority(1)
             ModeTabs(mode: mode, colors: colors, labels: tabLabels) { actions?.mode($0) }
                 .layoutPriority(2)
-            BarIconButton(icon: "mdi_content_save", label: "Save",
+            BarIconButton(icon: "mdi_content_save", label: AccessibilityLabels.save,
                           tint: AppColors.saveTint.withAlpha(modified ? 1 : AppColors.disabledAlpha).swiftUI,
                           enabled: modified) { actions?.save() }
                 .layoutPriority(2)
@@ -99,7 +99,7 @@ struct AppBar<Trailing: View>: View {
         .buttonStyle(.plain)
         .padding(.trailing, 4)
         .accessibilityLabel(modified ? "\(title), not saved" : title)
-        .accessibilityHint("Rename")
+        .accessibilityHint(AccessibilityLabels.rename)
         .accessibilityIdentifier("title")
     }
 }
@@ -121,8 +121,8 @@ struct ModeTabs: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            tab(.edit, icon: "mdi_pencil", label: "Edit")
-            tab(.play, icon: "mdi_play_circle", label: "Play")
+            tab(.edit, icon: "mdi_pencil", label: AccessibilityLabels.edit)
+            tab(.play, icon: "mdi_play_circle", label: AccessibilityLabels.play)
         }
         .frame(maxHeight: .infinity)
     }

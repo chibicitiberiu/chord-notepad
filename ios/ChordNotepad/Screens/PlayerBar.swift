@@ -72,25 +72,25 @@ struct PlayerBar: View {
             .contentShape(Capsule())
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Playback settings: \(state.pill)")
+        .accessibilityLabel(AccessibilityLabels.songDefaults(state.pill))
         .accessibilityIdentifier("player-pill")
     }
 
     private var buttons: some View {
         let side: CGFloat = compact ? 38 : 42
         return HStack(spacing: compact ? 0 : 6) {
-            sideButton("mdi_music", "Voicing: \(state.voicingLabel)", on: false, size: side,
+            sideButton("mdi_music", AccessibilityLabels.voicing(state.voicingLabel), on: false, size: side,
                        locked: state.voicingLockedReason, id: "player-voicing") { actions?.voicing() }
-            sideButton("mdi_guitar_acoustic", "Instrument: \(state.instrumentLabel)", on: false, size: side,
+            sideButton("mdi_guitar_acoustic", AccessibilityLabels.instrument(state.instrumentLabel), on: false, size: side,
                        id: "player-instrument") { actions?.instrument() }
-            sideButton("mdi_skip_previous", "Back to the start (stops playback)", on: false, size: side,
+            sideButton("mdi_skip_previous", AccessibilityLabels.rewind, on: false, size: side,
                        id: "player-rewind") { actions?.rewind() }
             playButton(size: compact ? 48 : 54)
-            sideButton("mdi_metronome", "Metronome", on: state.metronome, size: side,
+            sideButton("mdi_metronome", AccessibilityLabels.metronome, on: state.metronome, size: side,
                        id: "player-metronome") { actions?.toggleMetronome() }
-            sideButton("mdi_speedometer", "Speed", on: state.speedBadge != nil, size: side, badge: state.speedBadge,
+            sideButton("mdi_speedometer", AccessibilityLabels.speed, on: state.speedBadge != nil, size: side, badge: state.speedBadge,
                        id: "player-speed") { actions?.speed() }
-            sideButton("mdi_dock_bottom", state.sheetVisible ? "Hide the chord sheet" : "Show the chord sheet",
+            sideButton("mdi_dock_bottom", state.sheetVisible ? AccessibilityLabels.hideSheet : AccessibilityLabels.showSheet,
                        on: state.sheetVisible, size: side, id: "player-sheet") { actions?.toggleSheet() }
         }
         .frame(maxWidth: .infinity)
@@ -151,7 +151,7 @@ struct PlayerBar: View {
         }
         .buttonStyle(.plain)
         .disabled(state.starting)
-        .accessibilityLabel(state.playing ? "Pause" : "Play")
+        .accessibilityLabel(state.playing ? AccessibilityLabels.pause : AccessibilityLabels.playSong)
         .accessibilityIdentifier("player-play")
     }
 }

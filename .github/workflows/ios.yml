@@ -42,6 +42,9 @@ on:
       - 'android/docs-requirements.txt'
       - 'android/tools/help_shot_songs/colours.txt'
       - 'android/app/src/main/assets/licenses/components.json'
+      # The buttons' VoiceOver labels are Android's strings and the Qt find bar's tooltips.
+      - 'android/app/src/main/res/values/strings*.xml'
+      - 'desktop/chordnotepad_desktop/qml/app/FindBar.qml'
       - '.github/workflows/ios.yml'
       - '.github/actions/ios-app-setup/**'
   workflow_dispatch:

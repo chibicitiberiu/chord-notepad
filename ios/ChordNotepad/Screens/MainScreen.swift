@@ -241,7 +241,7 @@ struct MainScreen: View {
                 sideDragStart = nil
                 dragFraction = nil
             })
-        .accessibilityLabel("Resize the chord sheet")
+        .accessibilityLabel(AccessibilityLabels.resizeSheet)
     }
 
     @ViewBuilder
@@ -283,9 +283,9 @@ struct MainScreen: View {
     /// float by the keyboard, as on Android.
     private var undoChip: some View {
         HStack(spacing: 0) {
-            chipButton("arrow.uturn.backward", "Undo", enabled: editorModel.canUndo) { actions?.ribbon(.undo) }
+            chipButton("arrow.uturn.backward", AccessibilityLabels.undo, enabled: editorModel.canUndo) { actions?.ribbon(.undo) }
             colors.line.swiftUI.frame(width: 1, height: 22)
-            chipButton("arrow.uturn.forward", "Redo", enabled: editorModel.canRedo) { actions?.ribbon(.redo) }
+            chipButton("arrow.uturn.forward", AccessibilityLabels.redo, enabled: editorModel.canRedo) { actions?.ribbon(.redo) }
         }
         .background(colors.surfaceHigh.swiftUI, in: Capsule())
         .shadow(color: .black.opacity(0.2), radius: 3, y: 1)

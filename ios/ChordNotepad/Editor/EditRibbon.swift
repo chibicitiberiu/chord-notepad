@@ -49,21 +49,21 @@ struct EditRibbon: View {
 
     private func row(_ palette: EditorPalette) -> some View {
         HStack(spacing: 1) {
-            button("Undo", enabled: canUndo, action: .undo) {
+            button(AccessibilityLabels.undo, enabled: canUndo, action: .undo) {
                 Image(systemName: "arrow.uturn.backward").foregroundStyle(RibbonTints.undo)
             }
-            button("Redo", enabled: canRedo, action: .redo) {
+            button(AccessibilityLabels.redo, enabled: canRedo, action: .redo) {
                 Image(systemName: "arrow.uturn.forward").foregroundStyle(RibbonTints.undo)
             }
             findButton(palette)
             separator(palette)
-            toolButton("Insert", .insert, "mdi_plus", IconTints.insert)
-            toolButton("Transpose", .transpose, "ic_transpose", IconTints.transpose, width: 32)
-            toolButton("Capo", .capo, "ic_capo", IconTints.capo)
-            toolButton("Identify", .identify, "mdi_piano", IconTints.identify)
+            toolButton(AccessibilityLabels.insert, .insert, "mdi_plus", IconTints.insert)
+            toolButton(AccessibilityLabels.transpose, .transpose, "ic_transpose", IconTints.transpose, width: 32)
+            toolButton(AccessibilityLabels.capo, .capo, "ic_capo", IconTints.capo)
+            toolButton(AccessibilityLabels.identify, .identify, "mdi_piano", IconTints.identify)
             separator(palette)
             notationSegments(palette)
-            button("Convert", enabled: !readOnly, action: .convertNotation) {
+            button(AccessibilityLabels.convert, enabled: !readOnly, action: .convertNotation) {
                 ConvertIcon()
             }
             .id("ribbon-end")
@@ -129,7 +129,7 @@ struct EditRibbon: View {
                                 .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
-                        .accessibilityLabel("Show more tools")
+                        .accessibilityLabel(AccessibilityLabels.moreTools)
                         .accessibilityIdentifier("ribbon-more")
                     }
                 }
@@ -158,7 +158,7 @@ struct EditRibbon: View {
             .contentShape(RoundedRectangle(cornerRadius: 10))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Find and Replace")
+        .accessibilityLabel(AccessibilityLabels.find)
         .accessibilityIdentifier("ribbon-find")
     }
 
@@ -233,7 +233,7 @@ struct EditRibbon: View {
                         .background((on ? palette.primarySoft : palette.surfaceLow).swiftUI)
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel(value == "american" ? "American notation" : "European notation")
+                .accessibilityLabel(value == "american" ? AccessibilityLabels.americanNotation : AccessibilityLabels.europeanNotation)
                 .accessibilityAddTraits(on ? .isSelected : [])
             }
         }

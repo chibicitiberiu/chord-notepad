@@ -71,7 +71,7 @@ struct ChordSheetSplitView: View {
                 dragStart = nil
                 if let dragged { actions?.setHeight(Int(dragged.rounded())) }
             })
-        .accessibilityLabel("Resize the chord sheet")
+        .accessibilityLabel(AccessibilityLabels.resizeSheet)
     }
 
     @Environment(\.colorScheme) private var scheme
@@ -159,8 +159,8 @@ struct ChordSheetPane: View {
             }
             // Views the core says don't zoom show no zoom buttons; pinch follows the same flag.
             if state.zoomSupported {
-                zoomButton("minus.magnifyingglass", "Zoom out") { actions?.zoom(-1) }
-                zoomButton("plus.magnifyingglass", "Zoom in") { actions?.zoom(1) }
+                zoomButton("minus.magnifyingglass", AccessibilityLabels.zoomOut) { actions?.zoom(-1) }
+                zoomButton("plus.magnifyingglass", AccessibilityLabels.zoomIn) { actions?.zoom(1) }
             }
         }
         .padding(.horizontal, 6)

@@ -38,7 +38,7 @@ struct BottomSheet<Content: View, Actions: View>: View {
                 Color.black.opacity(0.32)
                     .ignoresSafeArea()
                     .onTapGesture { dismiss() }
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel(AccessibilityLabels.close)
                     .accessibilityAddTraits(.isButton)
                 panel(room: room)
                     .offset(y: max(drag, 0))

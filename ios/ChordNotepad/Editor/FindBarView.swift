@@ -54,7 +54,7 @@ struct FindBarView: View {
     private var findRow: some View {
         HStack(spacing: 2) {
             iconButton(bar.replacing ? "chevron.down" : "chevron.right",
-                       bar.replacing ? "Hide Replace" : "Replace", enabled: bar.canReplace, id: "find-replace-toggle") {
+                       bar.replacing ? AccessibilityLabels.hideReplace : AccessibilityLabels.showReplace, enabled: bar.canReplace, id: "find-replace-toggle") {
                 act(.showReplace(!bar.replacing))
             }
             field(.find, text: bar.query, placeholder: "Find", identifier: "find-field") { act(.query($0)) }
@@ -65,13 +65,13 @@ struct FindBarView: View {
                 .fixedSize()
                 .padding(.horizontal, 4)
                 .accessibilityIdentifier("find-count")
-            iconButton("chevron.up", "Previous match", enabled: bar.hasMatches, id: "find-previous") {
+            iconButton("chevron.up", AccessibilityLabels.previousMatch, enabled: bar.hasMatches, id: "find-previous") {
                 act(.previous)
             }
-            iconButton("chevron.down", "Next match", enabled: bar.hasMatches, id: "find-next") { act(.next) }
-            toggle("Aa", "Match case", on: bar.matchCase, id: "find-match-case") { act(.matchCase($0)) }
-            toggle("W", "Whole words only", on: bar.wholeWord, id: "find-whole-word") { act(.wholeWord($0)) }
-            iconButton("xmark", "Close", enabled: true, id: "find-close") { act(.close) }
+            iconButton("chevron.down", AccessibilityLabels.nextMatch, enabled: bar.hasMatches, id: "find-next") { act(.next) }
+            toggle("Aa", AccessibilityLabels.matchCase, on: bar.matchCase, id: "find-match-case") { act(.matchCase($0)) }
+            toggle("W", AccessibilityLabels.wholeWords, on: bar.wholeWord, id: "find-whole-word") { act(.wholeWord($0)) }
+            iconButton("xmark", AccessibilityLabels.close, enabled: true, id: "find-close") { act(.close) }
         }
         .frame(height: Self.rowHeight)
     }

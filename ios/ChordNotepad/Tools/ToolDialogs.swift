@@ -157,6 +157,8 @@ struct DialogPicker: View {
                         Button(option) { pick(option) }
                     }
                 } label: { capsule }
+                .accessibilityLabel(label)
+                .accessibilityValue(value)
                 .accessibilityIdentifier(identifier ?? "picker-\(label)")
             } else {
                 capsule
@@ -173,6 +175,7 @@ struct DialogPicker: View {
             Image(systemName: "arrowtriangle.down.fill")
                 .font(.system(size: 8))
                 .foregroundColor(colors.text.swiftUI)
+                .accessibilityHidden(true)
         }
         .padding(.horizontal, 24)
         .frame(minHeight: 40)

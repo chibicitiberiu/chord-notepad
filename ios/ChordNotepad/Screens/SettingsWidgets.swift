@@ -353,6 +353,7 @@ struct SegmentedRow<Value: Hashable>: View {
                         if on {
                             Image(systemName: "checkmark")
                                 .font(.footnote.weight(.semibold))
+                                .accessibilityHidden(true)
                         }
                         Text(option.label)
                             .font(.subheadline.weight(.medium))

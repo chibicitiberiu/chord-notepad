@@ -346,7 +346,7 @@ struct SnackbarView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .accessibilityLabel("Close")
+                .accessibilityLabel(AccessibilityLabels.close)
             }
         }
         .padding(.leading, 16)
