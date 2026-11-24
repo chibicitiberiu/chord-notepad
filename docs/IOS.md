@@ -639,7 +639,13 @@ expires, her tester status and the issue list. By hand:
 - [ ] her iPhone's iOS version against the pinned Xcode
 - [ ] Developer Mode on (S2 only)
 - [ ] the downloads already on the SSD
-- [ ] a numbered issue list, each issue with its expected result
+- [ ] a numbered issue list, each issue with its expected result. Standing
+  item until a device run clears it: cold-launch the app five times and
+  watch for an abort while FluidSynth starts CoreAudio. CI's iPad simulator
+  aborted once with "CoreAudio Initialize: RPC timeout. Apparently
+  deadlocked." (run 45341096346). The session starts off the main thread,
+  so it's most likely the runner's audio server, but only a device can
+  show that.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
