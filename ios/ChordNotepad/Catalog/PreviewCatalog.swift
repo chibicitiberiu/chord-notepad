@@ -2,10 +2,11 @@ import ChordNotepadKit
 import SwiftUI
 import UIKit
 
-/// One recorded scene as a screen gets it: the folded snapshot and the
-/// chord sheet's recorded buffers.
+/// One recorded scene as a screen gets it: the folded snapshot, the editor's
+/// model folded from the same outputs, and the chord sheet's recorded buffers.
 struct CatalogScene {
     let snapshot: SessionSnapshot
+    let editor: EditorModel
     let chordSheet: ChordSheetSource
 }
 
@@ -34,8 +35,10 @@ struct CatalogScreen {
 enum PreviewCatalog {
     static let screens: [CatalogScreen] = [
         CatalogScreen("shell", fixtures: ["quick_start_edit", "empty_song", "play_with_chord_sheet", "errors",
-                                          "chord_sheet_staff", "chord_sheet_fret"]) {
-            ShellScreen(snapshot: $0.snapshot, build: "catalog", scrolls: false, chordSheet: $0.chordSheet)
+                                          "chord_sheet_staff", "chord_sheet_fret", "editor_mid_edit",
+                                          "editor_european"]) {
+            ShellScreen(snapshot: $0.snapshot, editorModel: $0.editor, build: "catalog", scrolls: false,
+                        chordSheet: $0.chordSheet)
         },
         CatalogScreen("selftest", fixtures: ["empty_song"]) { _ in
             SelfTestContent(report: .sample, timings: SelfTestReport.sample.timings, running: false, scrolls: false)
@@ -68,9 +71,20 @@ enum PreviewCatalog {
         ChordSheetSource(recorded: self.fixture(fixture))
     }
 
-    /// The snapshot and the chord sheet of a scene.
+    /// A recorded scene folded into the editor's model (its text, highlight
+    /// and the selection a session edit made).
+    static func editor(_ fixture: String) -> EditorModel {
+        do {
+            return try self.fixture(fixture)?.editorModel() ?? EditorModel()
+        } catch {
+            Log.ui.error("Fixture \(fixture, privacy: .public): \(String(describing: error), privacy: .public)")
+            return EditorModel()
+        }
+    }
+
+    /// The snapshot, the editor and the chord sheet of a scene.
     static func scene(_ fixture: String) -> CatalogScene {
-        CatalogScene(snapshot: snapshot(fixture), chordSheet: chordSheet(fixture))
+        CatalogScene(snapshot: snapshot(fixture), editor: editor(fixture), chordSheet: chordSheet(fixture))
     }
 }
 

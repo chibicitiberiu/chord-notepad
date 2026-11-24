@@ -5,11 +5,13 @@ import UIKit
 /// self-test sheet and the diagnostics export.
 struct ShellView: View {
     @ObservedObject var model: AppModel
+    /// The model's editor, observed for the ribbon (undo, redo, notation).
+    @ObservedObject var editor: EditorController
     @State private var shareItem: ShareItem?
     @State private var exportError: String?
 
     var body: some View {
-        ShellScreen(snapshot: model.snapshot, phaseText: model.phaseText,
+        ShellScreen(snapshot: model.snapshot, editorModel: editor.model, editor: editor, phaseText: model.phaseText,
                     actions: ShellActions(playChord: { model.audition(index: 0) },
                                           selfTest: { model.showSelfTest = true },
                                           exportDiagnostics: export,

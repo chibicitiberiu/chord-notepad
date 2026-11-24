@@ -34,6 +34,9 @@ final class AppModel: ObservableObject {
     @Published var showSelfTest = false
     /// The chord sheet's buffers, once the session runs.
     @Published private(set) var chordSheet: ChordSheetSource?
+    /// The song editor: the text the user sees and edits (``snapshot``'s
+    /// `text` has the session's edits only; the user's typing isn't echoed).
+    let editor = EditorController()
 
     private(set) var runtime: PythonRuntime?
     private(set) var session: Session?
@@ -82,6 +85,7 @@ final class AppModel: ObservableObject {
             self.store = store
             let session = try await Session.start(runtime: runtime, store: store, options: Self.launchOptions())
             self.session = session
+            editor.submit = { session.submit($0) }
             timings.sessionStart = elapsed()
             Log.bridge.info("Session started in \(self.timings.sessionStart ?? 0, format: .fixed(precision: 3)) s")
             reader = Task { [weak self] in
@@ -95,6 +99,10 @@ final class AppModel: ObservableObject {
             if AppEnvironment.startScreen == "chordsheet" {
                 // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh).
                 session.submit(.setChordSheetVisible(visible: true))
+            }
+            if AppEnvironment.startScreen == "editor" {
+                // CI's live editor check and screenshot: type into the text view.
+                Task { await self.runEditorCheck() }
             }
         } catch {
             Log.python.error("Start failed: \(String(describing: error), privacy: .public)")
@@ -139,6 +147,7 @@ final class AppModel: ObservableObject {
     /// Play chord `index` of the song, as a tap on it does.
     func audition(index: Int = 0) {
         guard let session else { return }
+        editor.sync()
         if let auditionState {
             Signposts.audio.endInterval("audition", auditionState)
         }
@@ -150,7 +159,9 @@ final class AppModel: ObservableObject {
 
     private func receive(_ event: Session.Event) {
         do {
-            try snapshot.apply(typeName: event.typeName, json: event.json)
+            let output = try SessionOutput.decode(typeName: event.typeName, json: event.json)
+            snapshot.apply(output)
+            editor.receive(output)
         } catch {
             Log.bridge.error("Undecodable \(event.typeName, privacy: .public): \(String(describing: error), privacy: .public)")
         }
@@ -167,6 +178,26 @@ final class AppModel: ObservableObject {
             Log.ui.info("First text after \(self.timings.firstText ?? 0, format: .fixed(precision: 3)) s")
             Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot), name: "launch.json")
         }
+    }
+
+    /// `-CNScreen editor` (CI): once the song is on screen, type a long chord
+    /// line into the real text view, wait for the session's highlight of it,
+    /// and write `Diagnostics/editor.json`, which the screenshot waits for.
+    func runEditorCheck() async {
+        _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
+        let deadline = ContinuousClock.now + .seconds(30)
+        while ContinuousClock.now < deadline,
+              editor.textView == nil || !editor.model.text.contains(EditorScript.line) {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        let typed = EditorScript.type(into: editor)
+        var highlighted = false
+        if typed {
+            highlighted = await EditorScript.waitForHighlight(editor, timeout: .seconds(30))
+        }
+        let report = EditorScript.report(editor, typed: typed, highlighted: highlighted)
+        Log.ui.info("Editor check: \(report.ok ? "passed" : "failed", privacy: .public) \(report.problems.joined(separator: "; "), privacy: .public)")
+        Diagnostics.shared.writeJSON(report, name: "editor.json")
     }
 
     /// Wait until `condition` holds for the snapshot (polled), or `timeout` passes.
