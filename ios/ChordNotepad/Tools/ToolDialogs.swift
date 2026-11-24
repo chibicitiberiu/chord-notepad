@@ -67,7 +67,8 @@ struct ToolDialog<Content: View, Buttons: View>: View {
             // The content whole when it fits, else cut at the room left.
             ViewThatFits(in: .vertical) {
                 column.fixedSize(horizontal: false, vertical: true)
-                column.frame(maxHeight: max(room - 150, 60), alignment: .top).clipped()
+                column.fixedSize(horizontal: false, vertical: true)
+                    .frame(maxHeight: max(room - 150, 60), alignment: .top).clipped()
             }
         }
     }

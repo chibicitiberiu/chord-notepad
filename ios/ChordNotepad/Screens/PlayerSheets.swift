@@ -111,7 +111,8 @@ struct BottomSheet<Content: View, Actions: View>: View {
             // The rows whole when they fit, else cut at the room left.
             ViewThatFits(in: .vertical) {
                 rows.fixedSize(horizontal: false, vertical: true)
-                rows.frame(maxHeight: max(room - chrome, 60), alignment: .top).clipped()
+                rows.fixedSize(horizontal: false, vertical: true)
+                    .frame(maxHeight: max(room - chrome, 60), alignment: .top).clipped()
             }
         }
     }
