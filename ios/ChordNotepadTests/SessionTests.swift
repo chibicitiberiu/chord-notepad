@@ -1,5 +1,6 @@
 import ChordNotepadKit
 import UIKit
+import UniformTypeIdentifiers
 import XCTest
 
 @testable import ChordNotepad
@@ -108,8 +109,159 @@ final class SessionTests: XCTestCase {
         add(png)
         session.submit(.setChordSheetVisible(visible: false))
 
+        try await checkFiles(model)
+
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
+    }
+
+    /// Files, live: the app's real store (bookmarks, the security scope,
+    /// NSFileCoordinator) on files in the app's Documents, with a stand-in
+    /// for the system's pickers, which CI can't drive: Open (after the
+    /// unsaved-changes question), a change saved in place, Save As (the
+    /// empty file moved), Export MIDI (the store's file offered, then
+    /// deleted), a second store reading the same lists (a relaunch), a song
+    /// opened from Files and renamed, an example, a recent song that has gone,
+    /// and New with its question answered Cancel, then Don't save.
+    private func checkFiles(_ model: AppModel) async throws {
+        let session = try XCTUnwrap(model.session)
+        let store = try XCTUnwrap(model.store)
+        let folder = AppPaths.documents.appendingPathComponent("session-test", isDirectory: true)
+        try? FileManager.default.removeItem(at: folder)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let morningText = "{bpm: 90}\nC        G        Am       F\nMorning has broken\n"
+        let morning = folder.appendingPathComponent("Morning.txt")
+        try Data(morningText.utf8).write(to: morning)
+        let picker = StandInPicker()
+        model.picker = picker
+
+        // Open…: the quick-start song has the editor check's changes, so the
+        // session asks about them first.
+        picker.openAnswer = morning
+        model.choose(.open)
+        _ = await model.waitFor(timeout: .seconds(30)) { snapshot in
+            if case .confirmDiscard? = snapshot.request { return true }
+            return snapshot.document?.displayName == "Morning.txt"
+        }
+        if case .confirmDiscard? = model.snapshot.request {
+            model.answerDiscard(.discard)
+        }
+        let opened = await model.waitFor(timeout: .seconds(30)) {
+            $0.document?.displayName == "Morning.txt" && $0.text.contains("Morning has broken")
+        }
+        XCTAssertTrue(opened, "document \(String(describing: model.snapshot.document)); messages \(model.snapshot.messages)")
+        XCTAssertEqual(picker.calls.first, "open public.plain-text,public.text,public.data")
+        let morningId = try XCTUnwrap(model.snapshot.document?.documentId)
+        XCTAssertTrue(morningId.hasPrefix("bookmark:"), morningId)
+        XCTAssertEqual(model.snapshot.document?.location, "Morning.txt (session-test)")
+        XCTAssertEqual(model.ui.mode, .play, "an opened song is in Play")
+        XCTAssertNil(model.snapshot.request)
+
+        // A change, saved in place through the bookmark.
+        session.submit(.insertText(at: 0, text: "{key: C}\n"))
+        _ = await model.waitFor(timeout: .seconds(30)) { $0.document?.isModified == true }
+        model.save()
+        let saved = await model.waitFor(timeout: .seconds(30)) { $0.document?.isModified == false }
+        XCTAssertTrue(saved, "\(model.snapshot.messages)")
+        XCTAssertEqual(try String(contentsOf: morning, encoding: .utf8), "{key: C}\n" + morningText)
+
+        // Save As: the picker moves an empty file with the suggested name; the song is written there.
+        let copy = folder.appendingPathComponent("Morning copy.txt")
+        picker.moveTarget = copy
+        model.choose(.saveAs)
+        let savedAs = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == "Morning copy.txt" }
+        XCTAssertTrue(savedAs, "\(String(describing: model.snapshot.document)); \(model.snapshot.messages)")
+        XCTAssertEqual(picker.calls.last, "move Morning.txt")
+        XCTAssertEqual(try String(contentsOf: copy, encoding: .utf8), "{key: C}\n" + morningText)
+        let copyId = try XCTUnwrap(model.snapshot.document?.documentId)
+        XCTAssertNotEqual(copyId, morningId)
+        XCTAssertEqual(model.snapshot.recentDocuments?.items.prefix(2).map(\.id), [copyId, morningId])
+
+        // Export MIDI: the store's file, offered with the export picker once written, then deleted.
+        let exports = folder.appendingPathComponent("exports", isDirectory: true)
+        try FileManager.default.createDirectory(at: exports, withIntermediateDirectories: true)
+        picker.exportFolder = exports
+        model.choose(.exportMidi)
+        let exported = await model.waitFor(timeout: .seconds(60)) { _ in picker.exported != nil }
+        XCTAssertTrue(exported, "\(picker.calls); \(model.snapshot.messages)")
+        if let file = picker.exported {
+            XCTAssertEqual(file.lastPathComponent, "Morning copy.mid")
+            XCTAssertEqual(try Data(contentsOf: file).prefix(4), Data("MThd".utf8))
+        }
+        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text == "Exported MIDI: Morning copy.mid" }
+        XCTAssertTrue(status, "\(String(describing: model.snapshot.status))")
+        let leftover = (try? FileManager.default.contentsOfDirectory(
+            atPath: AppPaths.filesDir.appendingPathComponent("exports").path)) ?? []
+        XCTAssertEqual(leftover, [], "the store's export file goes once the picker is done")
+        XCTAssertEqual(model.snapshot.document?.documentId, copyId, "an export doesn't change the open document")
+
+        // A relaunch: another store over the same lists resolves the bookmarks.
+        let relaunched = AppDocumentStore.make()
+        XCTAssertEqual(relaunched.recentDocuments().prefix(2).map(\.id), [copyId, morningId])
+        XCTAssertEqual(try relaunched.readBytes(id: copyId), Data(("{key: C}\n" + morningText).utf8))
+        XCTAssertEqual(try relaunched.describe(id: morningId)?.displayName, "Morning.txt")
+        _ = store
+
+        // A song opened from Files (onOpenURL), then renamed in place (the id stays).
+        let evening = folder.appendingPathComponent("Evening.txt")
+        try Data("{key: Am}\nAm       Dm       E7\nEvening falls\n".utf8).write(to: evening)
+        model.openURL(evening)
+        let fromFiles = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == "Evening.txt" }
+        XCTAssertTrue(fromFiles, "\(String(describing: model.snapshot.document)); \(model.snapshot.messages)")
+        let eveningId = model.snapshot.document?.documentId
+        model.rename("Evening song")
+        let renamed = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == "Evening song.txt" }
+        XCTAssertTrue(renamed, "\(String(describing: model.snapshot.renameFailure)); \(model.snapshot.messages)")
+        XCTAssertEqual(model.snapshot.document?.documentId, eveningId)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: folder.appendingPathComponent("Evening song.txt").path))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: evening.path))
+
+        // An example: a copy in Application Support, opened.
+        let example = try XCTUnwrap(AppDocumentStore.exampleNames.first { $0.hasPrefix("02_") })
+        model.openExample(example)
+        let exampleOpened = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == example }
+        XCTAssertTrue(exampleOpened, "\(AppDocumentStore.exampleNames); \(model.snapshot.messages)")
+        XCTAssertEqual(model.snapshot.document?.documentId, "app:examples/\(example)")
+
+        // A recent song whose file has gone: the store's message, and it leaves Recent.
+        try FileManager.default.removeItem(at: morning)
+        let morningRef = try XCTUnwrap(model.snapshot.recentDocuments?.items.first { $0.id == morningId })
+        let messagesBefore = model.snapshot.messageCount
+        model.choose(.openRecent(morningRef))
+        let failed = await model.waitFor(timeout: .seconds(30)) { $0.messageCount > messagesBefore }
+        XCTAssertTrue(failed)
+        XCTAssertTrue(model.snapshot.messages.last?.contains("Failed to open file:\nMorning.txt (session-test)") == true,
+                      "\(model.snapshot.messages)")
+        XCTAssertTrue(model.snapshot.messages.last?.contains("File not found") == true, "\(model.snapshot.messages)")
+        XCTAssertFalse(model.snapshot.recentDocuments?.items.contains { $0.id == morningId } ?? true)
+
+        // New with changes: Cancel keeps the song, Don't save gives an empty one in Edit.
+        session.submit(.insertText(at: 0, text: "{capo: 1}\n"))
+        _ = await model.waitFor(timeout: .seconds(30)) { $0.document?.isModified == true }
+        model.choose(.newSong)
+        var asked = await model.waitFor(timeout: .seconds(30)) {
+            if case .confirmDiscard? = $0.request { return true }
+            return false
+        }
+        XCTAssertTrue(asked)
+        model.answerDiscard(.cancel)
+        XCTAssertNil(model.snapshot.request)
+        try await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual(model.snapshot.document?.displayName, example, "Cancel keeps the song")
+        model.choose(.newSong)
+        asked = await model.waitFor(timeout: .seconds(30)) {
+            if case .confirmDiscard? = $0.request { return true }
+            return false
+        }
+        XCTAssertTrue(asked)
+        model.answerDiscard(.discard)
+        let fresh = await model.waitFor(timeout: .seconds(30)) {
+            $0.document?.documentId == nil && $0.document?.isModified == false
+        }
+        XCTAssertTrue(fresh, "\(String(describing: model.snapshot.document))")
+        XCTAssertEqual(model.ui.mode, .edit, "a new song is in Edit")
+        model.picker = SystemDocumentPicker()
+        try? FileManager.default.removeItem(at: folder)
     }
 
     /// Play mode, live: the same text view, frozen, with the playhead marker.
@@ -254,5 +406,52 @@ final class SessionTests: XCTestCase {
         png.lifetime = .keepAlways
         add(png)
         window.isHidden = true
+    }
+}
+
+/// Stands in for the system's document pickers: answers as a user would,
+/// one main-actor turn later.
+@MainActor
+final class StandInPicker: DocumentPicking {
+    private(set) var calls: [String] = []
+    /// What Open picks.
+    var openAnswer: URL?
+    /// Where Save As moves the file.
+    var moveTarget: URL?
+    /// The folder an export is copied into.
+    var exportFolder: URL?
+    /// Where the last export went.
+    private(set) var exported: URL?
+
+    func pickToOpen(contentTypes: [UTType], done: @escaping (URL?) -> Void) {
+        calls.append("open " + contentTypes.map(\.identifier).joined(separator: ","))
+        let answer = openAnswer
+        DispatchQueue.main.async { done(answer) }
+    }
+
+    func pickToMove(_ file: URL, done: @escaping (URL?) -> Void) {
+        calls.append("move " + file.lastPathComponent)
+        guard let target = moveTarget else { return done(nil) }
+        do {
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.moveItem(at: file, to: target)
+            DispatchQueue.main.async { done(target) }
+        } catch {
+            done(nil)
+        }
+    }
+
+    func pickToExport(_ file: URL, done: @escaping (URL?) -> Void) {
+        calls.append("export " + file.lastPathComponent)
+        guard let folder = exportFolder else { return done(nil) }
+        let target = folder.appendingPathComponent(file.lastPathComponent)
+        do {
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.copyItem(at: file, to: target)
+            exported = target
+            DispatchQueue.main.async { done(target) }
+        } catch {
+            done(nil)
+        }
     }
 }
