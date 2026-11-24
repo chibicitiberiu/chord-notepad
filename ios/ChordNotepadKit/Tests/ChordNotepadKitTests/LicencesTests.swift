@@ -210,10 +210,8 @@ final class LicencesTests: XCTestCase {
             .range(of: #"^\d+\.\d+(\.\d+)?$"#, options: .regularExpression))
     }
 
-    func testAboutLinksAreTheFossFlavours() {
+    func testAboutLinksAreTheSourceWithoutSupport() {
         XCTAssertEqual(AboutLinks.source, "https://github.com/chibicitiberiu/chord-notepad")
-        let foss = try! String(contentsOf: TestPython.repo.appendingPathComponent(
-            "android/app/src/foss/kotlin/com/tibich/chordnotepad/support/SupportBillingFactory.kt"), encoding: .utf8)
-        XCTAssertTrue(foss.contains("\"\(AboutLinks.support!)\""))
+        XCTAssertNil(AboutLinks.support, "the iOS app links no outside payment page")
     }
 }

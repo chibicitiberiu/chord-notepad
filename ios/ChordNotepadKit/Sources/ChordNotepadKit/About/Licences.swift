@@ -171,9 +171,10 @@ public enum AboutLinks {
     /// The project's home.
     public static let source = "https://github.com/chibicitiberiu/chord-notepad"
     /// The donation page Android's FOSS flavour links after the source. The
-    /// iOS app's monetization isn't decided (BACKLOG.md); until it is, About
-    /// shows what the FOSS flavour shows.
-    public static let support: String? = "https://ko-fi.com/tiberiualexandruchibici"
+    /// iOS app shows none: an App Store app may not link to an outside
+    /// payment page, and the iOS app's monetization isn't decided
+    /// (BACKLOG.md).
+    public static let support: String? = nil
 }
 
 /// About's and the licences' texts (Android's strings.xml).

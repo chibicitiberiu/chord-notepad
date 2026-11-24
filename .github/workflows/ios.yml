@@ -25,7 +25,6 @@ on:
       - 'android/app/src/test/resources/voicing_form/**'
       - 'resources/licenses/texts/**'
       - 'android/app/src/main/kotlin/com/tibich/chordnotepad/ui/settings/SettingsIcons.kt'
-      - 'android/app/src/foss/kotlin/com/tibich/chordnotepad/support/SupportBillingFactory.kt'
       - 'VERSION'
       - 'resources/soundfont/**'
       # The quick-start song, the kit's scenes and the menu's Examples.

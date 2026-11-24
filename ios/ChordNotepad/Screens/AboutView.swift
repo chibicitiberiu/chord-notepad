@@ -34,8 +34,8 @@ enum AppLicences {
 }
 
 /// ☰ › About (Android's `AboutScreen`): name, version and build, what the app
-/// is, who wrote it, its licence and source, the support link the FOSS
-/// flavour shows, and the way to the open source licences.
+/// is, who wrote it, its licence and source (no support link: see
+/// `AboutLinks.support`), and the way to the open source licences.
 struct AboutScreen: View {
     let info: AboutBuildInfo
     var live = true

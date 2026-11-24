@@ -217,7 +217,7 @@ What the tests cover:
 | `SheetControllerTests` | every tap in the sheets and the tools through the reducer: the route, the dialogs' fields, the commands (speed, Playback settings and its locked reason, voicing, instrument, Insert, Transpose with and without a selection, an Insert dialog checked as it changes, Suggest from Insert Capo, Suggest Capo's pick and Apply, the identifier), Edit voicings… opening Settings |
 | `SettingsControllerTests` | Android's `SettingsControllerTest`, case for case but its three `snapshot()`/`restore()` cases (no state restoration on iOS): the edit's life, autosave and the 400 ms rest, a number only saved when valid, the voicing commands each followed by a save, leaving and the problems question, values kept from last time, the navigation on a phone and with two panes, the split, the dialogs, Add voicing's presets and sections, a built-in and a newer release's voicing read-only, pending edits, the key's spelling; the problems' lines, the steppers; `SettingsScenesTests`: every Settings scene folds into an editing screen with its schema |
 | `VoicingFormTests` | Android's `VoicingFormTest`, case for case: the schema, every field and section kind, the three models' forms with their errors and hints, records and the bottom voice's gap, a read-only form, the payloads, pending edits, steppers; the field's echo and the errors banner's timing |
-| `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the guide's entries Android's word for word with the Sphinx stack's pins, the order, bad data, the pages' ← and an opened song, the build info, the FOSS support link |
+| `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the guide's entries Android's word for word with the Sphinx stack's pins, the order, bad data, the pages' ← and an opened song, the build info, no support link |
 | `PdfExportTests` | Android's `PdfExporterTest`, case for case: every page at its size with the layout's positions and colours, Letter pages, the file written and "" answered, a failed write's reason, the paper by country; the letter countries are the core's |
 | `HelpTests` | Android's `QuickStartModelTest`, case for case (the guide's links on iOS's `cnhelp://guide/`), plus the guide's files (nothing outside its folder, percent-decoding, a folder's index) and types, a snippet styled as the editor's text, the tour's checkbox, the launch kind, local ISO days, the startup screen forgotten once dismissed |
 | `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the Quick Start tour; the forty scenes (five of them frozen while a chord sounds) |
@@ -1162,9 +1162,10 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   back with the restored banner. A built-in is read-only (`select_builtin`)
   with Copy to a new voicing. Edit voicings… in the Voicing sheet opens
   Settings › Voicings. About shows the version, build type, build number
-  and commit (Info.plist), the licence (the app's own text), the source and
-  the FOSS flavour's Ko-fi link, then Open source licences; each opens in
-  the browser only when tapped.
+  and commit (Info.plist), the licence (the app's own text) and the source,
+  then Open source licences; each opens in the browser only when tapped.
+  There is no Ko-fi link, unlike Android's FOSS flavour: an App Store app
+  may not link to an outside payment page.
 - **Live check:** `SessionTests` toggles word wrap (saved and applied to the
   editor), types a tempo (nothing until the typing rests, then saved), one
   out of range (staged, not saved), makes a voicing from a blank fretboard,
@@ -1382,7 +1383,7 @@ Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
 glyph export script, Android's chord sheet and voicing form fixtures, the
 help screenshots' songs the scenes use (the kit's tests read them), the
 examples, Android's icons the asset catalog copies (the drawables and
-`SettingsIcons.kt`), the licence texts, Android's FOSS support link and
+`SettingsIcons.kt`), the licence texts and
 `VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
 newer one doesn't cancel an older one.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
