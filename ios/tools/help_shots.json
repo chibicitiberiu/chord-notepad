@@ -51,7 +51,7 @@
     {"name": "voicing-sheet", "catalog": "voicing-player_sheets-iphone", "panel": [4, 870], "full_width": true, "to_bottom": true, "pad": 0,
      "what": "The Voicing sheet on Piano."},
     {"name": "instrument-families", "shot": "iphone-families",
-     "what": "The Instrument sheet's families, Steel Guitar the current instrument."},
+     "what": "The Instrument sheet's families, Grand Piano the current instrument."},
     {"name": "instrument-programs", "shot": "iphone-instrument",
      "what": "The Guitar family's programs, Steel Guitar chosen."},
     {"name": "speed-sheet", "catalog": "speed-player_sheets-iphone", "panel": [4, 870], "full_width": true, "to_bottom": true, "pad": 0,

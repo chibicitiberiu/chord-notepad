@@ -1605,7 +1605,7 @@ Artifacts of each run:
   picker after a PDF export; `pdf.json` has its pages, a line of the song
   found in its text and the font's advance, and `export.pdf` is the file),
   `-guide.png` (☰ › User guide's first page), `-families.png` (the
-  Instrument sheet's families, Steel Guitar the current one), `-hint.png` (a
+  Instrument sheet's families, Grand Piano the current one), `-hint.png` (a
   red `{bpm: 500}` explained in Play), `-keyboard.png` (a new song with
   "C  Am  F  G" typed and the keyboard up), `-landscape.png` (the phone on its
   side typing: the header gives way to the floating undo chip), the guide's

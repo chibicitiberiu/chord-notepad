@@ -883,11 +883,11 @@ final class AppModel: ObservableObject {
             ui.route = .about
             ok = true
         case "families":
-            // The Instrument sheet's families, Steel Guitar the current one (Android's instrument-families).
+            // The Instrument sheet's families, Grand Piano the current one (Android's instrument-families).
             selectMode(.play)
             sheet(.open(.instrument(family: nil)))
-            sheet(.chooseInstrument(25))
-            ok = await waitFor(timeout: .seconds(30)) { $0.instrumentMenu?.current == 25 }
+            sheet(.chooseInstrument(0))
+            ok = await waitFor(timeout: .seconds(30)) { $0.instrumentMenu?.current == 0 }
         case "guide":
             choose(.userGuide)
             ok = await waitForModel(timeout: .seconds(60)) { $0.guidePage != nil }
