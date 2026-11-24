@@ -1,4 +1,4 @@
-.PHONY: run test tests fuzz build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check flatpak-qt-check snap snap-check snap-qt-check
+.PHONY: run test tests fuzz build clean setup-dev icons docs docs-html docs-html-android docs-pdf docs-check flatpak flatpak-check flatpak-qt-check snap snap-check snap-qt-check ios-kit-test ios-fixtures ios-bridge-gen
 
 # Tools directory for local dependencies
 TOOLS_DIR := .tools
@@ -198,6 +198,29 @@ snap-check:
 # display (CI: xvfb-run). Uses the snap's own data folder (~/snap/chord-notepad).
 snap-qt-check:
 	snap run chord-notepad --smoke
+
+# The iOS kit (ios/ChordNotepadKit; docs/IOS.md): swift test on Linux against
+# the real core, with the swiftly toolchain named in ios/ChordNotepadKit/.swift-version
+# and the core's packages from the pipenv venv. Override SWIFT_TOOLCHAIN_BIN
+# when swift is installed elsewhere (or is on PATH: SWIFT_TOOLCHAIN_BIN=).
+IOS_KIT := ios/ChordNotepadKit
+SWIFTLY_TOOLCHAINS ?= /mnt/data_linux/Bin/swiftly/toolchains
+SWIFT_TOOLCHAIN_BIN ?= $(SWIFTLY_TOOLCHAINS)/$(shell cat $(IOS_KIT)/.swift-version)/usr/bin
+IOS_SITE_PACKAGES = $(shell $(PYTHON) -c 'import sysconfig; print(sysconfig.get_path("purelib"))')
+IOS_ENV = PATH="$(SWIFT_TOOLCHAIN_BIN)$(if $(SWIFT_TOOLCHAIN_BIN),:)$$PATH" \
+	CN_SITE_PACKAGES="$(IOS_SITE_PACKAGES)"
+
+ios-kit-test:
+	cd $(IOS_KIT) && $(IOS_ENV) nice swift test
+
+# Rewrite ios/Fixtures (the scenes the SwiftUI preview catalog shows) after an
+# intended change to the session's output.
+ios-fixtures:
+	cd $(IOS_KIT) && $(IOS_ENV) CN_RECORD_FIXTURES=1 nice swift test --filter IntegrationTests
+
+# Regenerate the kit's Swift bridge types from android/bridge_schema.json.
+ios-bridge-gen:
+	python3 -I ios/tools/gen_swift_bridge.py
 
 # Clean build artifacts
 clean:
