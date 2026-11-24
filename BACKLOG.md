@@ -35,6 +35,15 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Kotlin comments: the stale `TODO(step 14)` in `bridge/SessionOutput.kt:11`, the misplaced KDoc in `SessionRepository.kt` (~`:136`).
 - `{}` (empty braces) should be marked invalid, not ignored.
 - Android: the capo icon needs a better drawing.
+- Android lacks these desktop features (audit 2026-11-24; the session commands exist, Kotlin never sends them; none is documented as a deliberate difference):
+  - Find and replace, find next/previous, go to line, and the same-word tint on a selected word: the desktop's `find_bar.py` / `FindBar.qml` with `replace_match` and `replace_all` (`core/chordnotepad/session/text_ops.py`); the iOS slice ports the same find bar.
+  - Line editing: select, duplicate, delete and move lines, toggle comment, indent/unindent (`duplicate_lines`, `delete_lines`, `move_lines`, `toggle_comment`, `indent_lines`; desktop `qml/app/EditorPane.qml:227-267`). iOS gets some as keyboard shortcuts.
+  - The ▾ value picker on a directive value and tap tempo (`replace_directive_value`, `tap_tempo`; desktop `value_picker.py`). Android edits values only through ＋ Insert and the Song defaults sheet.
+  - A rolled (strummed) chord on a tap: the desktop's Shift+click. `tap_chord_at` and `audition` take `rolled`, Android never sends it (only the identifier rolls).
+  - Music volume, mute and metronome volume (`set_volume`, `set_muted`, `step_volume`, `set_metronome_volume`; desktop `player_bar.py:506-531`).
+  - A Light / Dark / System theme setting (`set_ui_theme`); Android always follows the system (`ui/theme/AppTheme.kt:170`).
+  - Hardware-keyboard shortcuts beyond files, zoom, help and undo (`ui/Shortcuts.kt`): play/pause and stop, metronome, speed, transpose, Edit/Play, the chord sheet and its views, Settings, find.
+  - To check: whether Edit mode shows a directive's hint as the cursor enters it, as the desktop's status bar does (Android explains a red or faded directive on a long press in Play).
 - CONTRIBUTING.md: a Development section (setup, `make help`, `make check`, the core/desktop rule, `docs/ANDROID.md`).
 - `.gitignore` backstop for `*.p12`, `*.jks`, `*.keystore`, `*.pem`, `*.env`.
 
