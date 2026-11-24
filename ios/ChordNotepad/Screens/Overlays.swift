@@ -332,7 +332,10 @@ struct SnackbarView: View {
             Text(snackbar.text)
                 .font(.subheadline)
                 .foregroundColor(colors.snackText.swiftUI)
-                .lineLimit(3)
+                // An error's reason comes after its action and the document
+                // ("Failed to open file:", the location, then why): keep it.
+                .lineLimit(snackbar.error ? 12 : 3)
+                .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
             if snackbar.error {
                 Button(action: dismiss) {

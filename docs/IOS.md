@@ -882,7 +882,10 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
   location: "File not found: song.txt (Downloads)", "Permission denied: …",
   "File too large to open (over 5 MB): …", "Failed to write file: …". An
   error of the app's own (an example it couldn't copy, a file from Files it
-  can't bookmark) is a snackbar like the session's.
+  can't bookmark) is a snackbar like the session's. An error snackbar takes
+  up to 12 lines (a status, 3), since the reason comes after the action and
+  the document ("Failed to open file:", the location, then "File not
+  found"); CI run 45396385003's catalog cut it off at 3.
 
 Deliberate differences from Android:
 
