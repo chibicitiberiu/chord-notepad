@@ -20,8 +20,10 @@ Files ("Files"), and the player's sheets with the ribbon's tools: Voicing,
 Instrument, Playback speed, Playback settings, Insert, Transpose, Suggest
 Capo and the chord identifier ("The player's sheets and the ribbon's
 tools"), Settings, About and the licences ("Settings, About and
-Licences"), and the user guide, the Quick Start tour and Export PDF ("The
-user guide, Quick Start and Export PDF"). Still to come: enrollment, signing
+Licences"), the user guide, the Quick Start tour and Export PDF ("The user guide,
+Quick Start and Export PDF"), and the editor's remaining features: Find and
+Replace, the font settings, a pinch on the text, the keyboard shortcuts and
+the side column's width kept ("Find, the font, the pinch and the keys"). Still to come: enrollment, signing
 and TestFlight (A, E), then what `BACKLOG.md` lists.
 
 ## Decisions and constraints
@@ -62,7 +64,8 @@ ios/
   ChordNotepad/                 the app target (SwiftUI, Swift 5 mode)
     App/                        AppModel (the session), paths, the document store (AppDocumentStore,
                                 ScopedFileAccess, DocumentPicking), diagnostics, self-test, PdfPainter
-                                (UIGraphicsPDFRenderer, PdfReport), HelpShotSongs (CI's help screenshots)
+                                (UIGraphicsPDFRenderer, PdfReport), HelpShotSongs (CI's help screenshots),
+                                AppShortcuts (the menu commands, UserDefaults preferences)
     Screens/                    MainScreen (pure), MainView (live), AppBar, PlayerBar, PlayerSheets (the
                                 player's and Insert's sheets), Overlays (menu, dialogs, snackbar),
                                 DiagnosticsView (self-test, export), SettingsView, VoicingsView,
@@ -71,7 +74,8 @@ ios/
     Tools/                      ToolDialogs (Transpose, Suggest Capo, the Insert dialogs, Manual… speed,
                                 the tempo), ChordIdentifierView (the identifier and its piano)
     Editor/                     the song editor: EditorTextView and EditorHost, EditorController, SongEditor,
-                                PlayText (Play mode), EditRibbon, EditorAppearance, EditorPreview, EditorScript (CI)
+                                PlayText (Play mode), EditRibbon, FindBarView, EditorAppearance, EditorPreview,
+                                EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
     Assets.xcassets             the app icon (ios/tools/make_app_icon.py), Icons/ (ios/tools/mdi_assets.py)
@@ -90,13 +94,16 @@ ios/
       DocumentStore.swift       the store protocol and its C callbacks
       BridgeValues.swift        JSONValue, Selection, BridgeCommand
       Generated/Bridge.swift    DTOs, enums, SessionOutput, command builders (generated)
+      Generated/PythonText.swift  what Python's re folds and calls a word character (the find bar)
       OffsetMapper.swift        code points <-> UTF-16
       SheetBuffer.swift         op-buffer v2 decoder (values, no drawing)
       ChordSheet/               the chord sheet's logic: geometry, theme, split, loader, painter
       Editor/                   the song editor's logic: EditorModel, EditHistory, text arithmetic,
-                                styles, paste and wrap, scrolling, shortcuts, directive hints
+                                styles, paste and wrap, scrolling, shortcuts, directive hints, find and
+                                replace, the pinch
       Main/                     the main screen's logic: modes, layout, playback, rename, menus,
-                                playhead gestures, snackbars, the screen's own state, AppColors
+                                playhead gestures, snackbars, the screen's own state, AppColors, the app's
+                                shortcuts, UiPreferences
       Sheets/                   the player's sheets: routes, speed, Playback settings' rows, Insert's
                                 entries, SheetController (every tap in a sheet or a tool, as commands)
       Tools/                    the ribbon's tools: forms, the session's check, Suggest Capo's pick,
@@ -114,6 +121,7 @@ ios/
   Licenses/components.json      the licences of what the iOS app ships (About › Open source licences)
   tools/
     gen_swift_bridge.py         writes Generated/Bridge.swift from the schema
+    gen_find_tables.py          writes Generated/PythonText.swift from Python's re
     install_python.sh           the app's "Install Python" build phase
     export_glyphs.sh            the "Chord sheet glyphs" build phase
     make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
@@ -181,7 +189,9 @@ Never run bare `make`: its default target starts the desktop app.
   and the runtime, decoder and offset tests still run.
 - `CN_CORE_DIR` points the tests at another `core/` (default: the checkout's).
 - `tests/test_ios_swift_bridge.py` (pytest, no Swift needed) fails while the
-  generated Swift is stale.
+  generated Swift is stale; `tests/test_ios_find_tables.py` while
+  `Generated/PythonText.swift` is (`python3 -I ios/tools/gen_find_tables.py`
+  with a 3.14 Python rewrites it).
 - On a Mac host (CI), the manifest links Python only when
   `CN_PYTHON_PKGCONFIG` names a pkg-config package (Homebrew's
   `python3-embed`). A manifest is evaluated for the host, so an unconditional
@@ -199,6 +209,8 @@ What the tests cover:
 | `EditorTextTests` | Android's `SpanShiftTest` and `TextEditsTest`, case for case: the one changed range, surrogate pairs, spans moving like Tk tags, a session edit's cursor before, inside and after its replacement against a code-point reference (500 random edits), the anchor's selection |
 | `EditorModelTests` | Android's `EditorControllerTest` and `EditorWiringTest` as behaviour (tokens, stale highlights, spans moving with typing, no echo, `group`/`plain`/`reset`, a highlight that arrives before its edit, code-point taps and cursor, the playing chord), plus the undo history (typing runs, a new line or a caret move ends one, redo, undone text highlighted under its token, read-only), composition, paste, Convert and the line commands, every fixture folding into the editor |
 | `EditorLookTests` | Android's `EditorLookTest` (font kinds, points × 4/3, the pinch, the redundant directive's alpha, tag priority) and `ShortcutsTest` with Command; the style runs (no overlaps, priority, the playing chord on top, clamping, merging) |
+| `FindReplaceTests` | the core's `test_text_ops.py` find cases (case, whole words, literal queries, no overlaps, code points, `next_match`), Python's own folds (`ſ`, `ς`, the Kelvin sign, `ß`), the count's texts; the matching against the core's `text_ops.find_all` on 2400 random cases and a song, and the tables against the running interpreter's `re` (every BMP code point, each table boundary, a stride over the rest); the desktop's `test_qt_find_bar.py` as the model's behaviour: find as you type from the caret, next and previous with the notices, match case and whole word, no matches, close and Command-G, a one-line selection as the query, tints that follow the text, Replace then the next match (after the session's edit, or its refusal), Replace when the selection isn't a match, Replace all's arguments, Play without Replace, undo, the catalog's bar; the tints under the playing chord |
+| `AppShortcutsTests` | Android's `ShortcutsTest` for New, Open, Save, Save As and the text size with Command, the find keys (Option-Command-F, Command-G; no Command-H), no key both the app's and the text view's, the menus' titles, shortcuts only on the bare main screen; Android's pinch as steps (clamped, adding up to `pinchSize`); the side column's width kept clamped under Android's key |
 | `TextInputTests` | Android's `PasteNormalizationTest`, `ChordWrapTest`, `TextScrollTest` and `DirectiveHintControllerTest`, case for case |
 | `ChordSheetGeometryTests` | Android's `ChordSheetGeometryTest`, case for case: anchors, hit-testing, gutter variants, culling, lane clips, auto-scroll, zoom steps, Tk colours, requests; the scroll after a new buffer |
 | `ChordSheetThemeTests` | Android's `ChordSheetThemeTest` and `ChordSheetPaperTest` as behaviour: the light theme keeps the buffer's colours, the dark one maps them; the palette |
@@ -220,7 +232,7 @@ What the tests cover:
 | `LicencesTests` | Android's `LicencesTest` on the iOS list, case for case but its Maven cases: every entry's fields and text, the texts the build phase copies, the components the app ships (and none it doesn't), the versions the build pins, the AGPL and the SoundFont's licence, the LGPL source, the Python pins without chardet, the guide's entries Android's word for word with the Sphinx stack's pins, the order, bad data, the pages' ← and an opened song, the build info, no support link |
 | `PdfExportTests` | Android's `PdfExporterTest`, case for case: every page at its size with the layout's positions and colours, Letter pages, the file written and "" answered, a failed write's reason, the paper by country; the letter countries are the core's |
 | `HelpTests` | Android's `QuickStartModelTest`, case for case (the guide's links on iOS's `cnhelp://guide/`), plus the guide's files (nothing outside its folder, percent-decoding, a folder's index) and types, a snippet styled as the editor's text, the tour's checkbox, the launch kind, local ISO days, the startup screen forgotten once dismissed |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the Quick Start tour; the forty scenes (five of them frozen while a chord sounds) |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer; open songs from the store, save a typed change, Save As to a new id, Export MIDI through the store, the unsaved-changes question on Open and New (Don't save, Cancel), a recent song that has gone; the speed and its Reset, Write into song, every Insert request with the session's check, an answered Insert, Suggest Capo scored and applied, the identifier naming Cmaj7 and its Insert, Transpose of the song and of a selection; Settings through the controller (a General value, a staged number, My 7-String, an unbuildable value refused and fixed with the config unchanged, Jazz Vocal Trio, a built-in, a refused rename, leaving); the Quick Start tour; the find bar on Scarborough Fair (Replace on the span the kit found, then the next match; Replace all as one edit and its status; no matches), the pinch's steps, the serif font at 16 from Settings in the editor's model; the forty scenes (five of them frozen while a chord sounds) |
 
 ## The Swift kit
 
@@ -374,7 +386,10 @@ each view at its default zoom, the standard guitar for the last two),
 `grace_playing` (frozen as chord 5, Em in bar 6, sounds),
 `grace_playing_metronome` (the same with the metronome on at 125 %),
 `grace_playhead` (the playhead on Em, nothing playing) and `colours_edit`
-(`android/tools/help_shot_songs/colours.txt` in Edit, every span kind). A fixture has no answers, so a request in it
+(`android/tools/help_shot_songs/colours.txt` in Edit, every span kind), and after them
+`find_replaced` (Scarborough Fair after the find bar's Replace on the first
+Am chord, match case and whole words, then Replace all with Em: "Replaced
+12 matches"). A fixture has no answers, so a request in it
 stays pending; only the question draws, and the scenes after the Insert
 requests start from a fresh restore. Each scene comes after
 the ones whose states it would change, so theirs stay as they were; the
@@ -699,7 +714,9 @@ Android's `ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
 Deliberate differences from Android:
 
 - Hardware keys use Command, not Ctrl; redo is Shift-Command-Z (no
-  Command-Y). The Qt desktop's line commands come along: Command-/ (toggle
+  Command-Y). The text size keys are the app's (they work in Play too; "Find,
+  the font, the pinch and the keys"); the text view adds Command-+ beside
+  the app's Command-=. The Qt desktop's line commands come along: Command-/ (toggle
   comment), Command-D (duplicate), Shift-Command-K (delete lines) and
   Option-Command-Up/Down (move lines; the desktop's Shift-Ctrl-arrows would
   take over "select to the start/end" on Apple platforms).
@@ -810,7 +827,8 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   it); `-CNScreen guide`, `quickstart` and `pdf` open the guide, the tour and
   an export of the song as a PDF, and `families`, `hint`, `keyboard` and
   `landscape` set up the guide's live screenshots ("The user guide, Quick
-  Start and Export PDF").
+  Start and Export PDF"). `-CNScreen find` opens the find bar ("Find, the font,
+  the pinch and the keys").
 
 Deliberate differences from Android:
 
@@ -824,8 +842,9 @@ Deliberate differences from Android:
 - Snackbars are drawn by the screen (no Material snackbar host); a greyed
   button's reason is a short snackbar (Android: a Toast).
 - The screen stays awake while a song plays through the idle timer.
-- The side column's width isn't kept across launches (Android keeps it in
-  its preferences; on iOS that needs UserDefaults and its privacy reason).
+- The side column's width is kept across launches in UserDefaults, as
+  Android keeps it in its preferences ("Find, the font, the pinch and the
+  keys").
 - The tabs drop their captions on a phone at the accessibility text sizes.
 
 What CI doesn't test: a finger on the marker (the scrub's recognizer and
@@ -883,7 +902,7 @@ and, read from Recent, drops out of the list with its bookmark, for good
 (Android does the same with a revoked grant). An entry that falls off the
 recent list loses its bookmark, except the newest, which is the open
 document (Android's grants). The table and the recent list are JSON files in
-Application Support (no UserDefaults, which would need a privacy reason).
+Application Support (UserDefaults holds only the side column's width).
 Bookmarks are made with no options: `.withSecurityScope` is macOS only, and
 on iOS the bookmark of a security-scoped URL carries the scope.
 
@@ -1309,6 +1328,141 @@ tour, the tour's checkbox tapped, a PDF printed or opened in another app,
 the export picker driven by a person, A4 against Letter on a device set to
 another region.
 
+### Find, the font, the pinch and the keys
+
+The eighth slice: the editor's remaining features. The pinch, the keys and
+the column's width are Android's (`ui/editor/ChordEditor.kt`'s
+`pinchToZoomFont`, `ui/Shortcuts.kt`, `ui/main/UiPreferences.kt`); Find and
+Replace is the Qt desktop's (`desktop/chordnotepad_desktop/find_bar.py`,
+`qml/app/FindBar.qml`), because **Android has no find and replace**: nothing
+in its Kotlin, the help's Find and Replace section is desktop-only, and
+`text_ops.py` says Android could use the commands later. Nothing in the core
+or the schema changed: the session already had `replace_match`,
+`replace_all`, `step_font_size`, `reset_font_size` and the settings.
+
+- **Own bar, not `UIFindInteraction`.** iOS 16's find bar has a field, ▲ ▼,
+  match case, whole words and a replace row, but it replaces through the
+  text view, so a Replace all would be the view's edits sent as `set_text`:
+  not the session's one undo step, not refused while a song plays, no
+  "Replaced 3 matches", and its whole-word and case rules are UIKit's, not
+  `text_ops`'. The catalog couldn't draw it either. The bar is a SwiftUI
+  row under the text, where the desktop has it, drawn in the app's colours
+  like the sheets and dialogs.
+- **Matching in Swift, exactly as the core.** The bar finds as you type, on
+  the main actor, so it can't ask Python; and the session's `replace_match`
+  checks the span again with `text_ops.find_all` and leaves one it doesn't
+  call a match. `TextFind` (`Editor/FindReplace.swift`) is `find_all` and
+  `next_match` over code points, with Python's `re` rules for a literal
+  pattern: a cased character matches one whose simple lowercase is its own
+  or in `re._casefix`'s extra cases (`s` and `ſ`, `σ` and `ς`, the Kelvin
+  sign), an uncased one only itself, and whole words mean no `\w`
+  (`str.isalnum()` or `_`) on either side. The tables come from Python
+  itself (`ios/tools/gen_find_tables.py` into `Generated/PythonText.swift`),
+  not Swift's Unicode properties, whose case mappings are the full ones
+  (`İ` becomes two characters) and whose Unicode version on iOS is the
+  device's. `FindReplaceTests` checks the Swift matching against the core's
+  `find_all` on 2400 random cases and the tables against the running `re`;
+  `tests/test_ios_find_tables.py` fails while the file is stale.
+- **In the kit**: `FindBar` (the desktop's `FindModel`) lives in
+  `EditorModel` as `find`, so its matches are searched again on every text
+  change and painted with the text: `FindAction` (open with or without the
+  Replace row, close, the query and the replacement, next and previous,
+  Command-G's `again`, match case, whole words, Replace, Replace all, the
+  notice's end) through `EditorModel.find(_:canReplace:)`, which returns
+  the usual `EditorEffects` (the selection, `findMoved`, `findNotice`, the
+  commands). `styleRuns` takes a `FindPaint`: every match in the desktop's
+  `findMatch` tint, the current one in `findCurrent`, both under the playing
+  chord. `AppShortcut` is the app's key table, `FontPinch` Android's pinch
+  as steps, `UiPreferences` the column's width over a `PreferenceStore`.
+- **In the app**: `Editor/FindBarView.swift` (▸ for the Replace row, the
+  field, "3 of 7", ▲ ▼, Aa, W, ✕; the Replace row's field, Replace and
+  Replace all; the wrap notice under the first row for 2 s);
+  `EditorController.find(_:)`, which brings the match into view on both axes
+  and gives the text the keys back when the bar closes in Edit;
+  `App/AppShortcuts.swift` (the menu commands, `AppModel.shortcut(_:)`,
+  `UserDefaultsPreferences`, `-CNScreen find`); the ribbon's Find; the pinch
+  recognizer on the text view.
+- **The flows**, as the desktop's: Command-F (or the ribbon's Find, which
+  opens the Replace row) opens the bar, a one-line selection becomes the
+  query, and the search starts from the selection or the caret; typing
+  selects the first match from there (none: the caret goes back); Return and
+  ▼ go to the next match, Shift-Return and ▲ to the previous one, wrapping
+  with "Continued from the top" or "…from the bottom"; Aa and W search again
+  from the selection's start; the count says "3 of 7", "7 matches" or "No
+  matches" (red). Replace replaces the selected match (`replace_match`, the
+  text sent first) and selects the next one once the session's edit is in,
+  or its refusal while a song plays (`EditRefused`); a selection that isn't
+  a match goes to the next match first. Replace all is `replace_all` with
+  the caret: one undo step, the status (a snackbar in Edit). ✕ and Escape
+  close the bar and drop the tints; the query stays, and Command-G or
+  Shift-Command-G finds it again with the bar closed. Play mode opens the bar
+  without its Replace row, as the desktop's Play workspace does, and the
+  current match shows in its tint, since the frozen text has no selection.
+- **The font settings** were already in Settings › General (the previous
+  slice): the family as Monospace, Sans or Serif (Android's three kinds; the
+  configured family is kept when it is already of that kind, else
+  `TkFixedFont`, `Sans` or `Serif`) and the size, 6–72. The editor draws
+  `EditorState`'s family and size as before: the system's monospaced design,
+  the system font or New York, at the size × 4/3, scaled by Dynamic Type.
+  The integration test and the session test change both from Settings and
+  check what the editor draws.
+- **The pinch** (both tabs): from the size when two fingers come down, each
+  new whole size of `size × scale` (6–72) goes to the session as
+  `step_font_size`, as Android's does, so the session keeps and saves it
+  like Command-= and Settings; the model's size isn't read again until the
+  pinch ends, since the `EditorState` comes back behind the fingers.
+- **The keys** are SwiftUI menu commands from `AppShortcut`, so they act
+  wherever the keys are (Play mode included, as Android's root key handler),
+  the iPad lists them while Command is held, and iPadOS's menu bar shows
+  them: File: New Song ⌘N, Open… ⌘O, Save ⌘S, Save As… ⇧⌘S; Edit: Find… ⌘F,
+  Find and Replace… ⌥⌘F, Find Next ⌘G, Find Previous ⇧⌘G; View: Larger
+  Text ⌘=, Smaller Text ⌘-, Reset Text Size ⌘0. They act only on the bare
+  main screen (Android's are the song screen's: a sheet, a dialog or
+  Settings has the keys then). The text view keeps its own: undo, redo, the
+  line commands, and a hidden Command-+ beside the app's Command-=.
+- **The column's width** (Play on its side with the chord sheet): kept in
+  UserDefaults under Android's `side_fraction` when the handle is let go,
+  clamped to 30–70 % on the way in and out; the privacy manifest lists
+  `CA92.1`.
+- **Live check:** `SessionTests` (`ChordNotepadTests/EditorFeaturesTests.swift`)
+  restores a song in a real text view, opens Find and Replace through
+  `AppModel.shortcut`, checks the selection and the two tints on the text
+  storage, goes next and back, replaces all (the text, "Replaced 3
+  matches", one undo), pinches (the session's size, the settings' value,
+  the view's font), runs Command-0 and the text view's own Command-+ through
+  the responder chain, checks the shortcuts wait under the menu, sets the
+  serif font at 16 in Settings (the view's font and the text's attribute)
+  and keeps the column's width in UserDefaults. `-CNScreen find` opens the
+  bar live on the quick-start song for CI's `<device>-find.png`.
+
+Deliberate differences:
+
+- Find and Replace exists at all (Android has none); it follows the Qt
+  desktop.
+- Find and Replace is Option-Command-F (Apple's key), not the desktop's
+  Ctrl+H: Command-H is the iPad's Home Screen key. Find Next and Previous are
+  Command-G and Shift-Command-G (Apple's), not F3, which an iPad's keyboard
+  doesn't have; the desktop's Ctrl+G (Go to line) has no counterpart, and
+  there is no Go to line.
+- The ribbon has Find (after Redo), which Android's ribbon hasn't; it opens
+  the bar with the Replace row. Play mode has no Find button: Command-F only.
+- The field isn't selected when the bar opens again (SwiftUI's text field
+  can't select its text); a one-line selection still replaces the query.
+- The current match is a stronger tint over the selection rather than the
+  desktop's swapped selection colour (the text view's selection is the
+  system's, and Play mode has none).
+- F1 for the user guide isn't mapped yet (the guide comes with its own
+  slice).
+- Command-+ is listed once, as Larger Text ⌘=; Android lists both keys.
+
+What CI doesn't test: a hardware keyboard's real key presses (the menu
+commands' bindings, the HUD, Return, Shift-Return and Escape in the field;
+the session test calls the commands' handler and sends the text view's key
+command through the responder chain, and there is no XCUITest target), the
+iPadOS menu bar, a finger pinch (the session test calls the recognizer's
+handler), the software keyboard over the bar on a phone, typing into the
+find field, the column's handle dragged by a finger, VoiceOver.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -1317,7 +1471,7 @@ with and the windows it is drawn in; adding a screen is one line there.
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 432 PNGs.
+`accessibility2` text: 460 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1346,6 +1500,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `about`, `licences`, `licence` | About (a sample build), the licences from the bundle's list, FluidSynth's page with its text | iPhone, iPad; iPhone, iPad; iPhone |
 | `quick_start` | `quick_start_tour`: the tour's first page | iPhone, iPad |
 | `help_play`, `help_play_phone`, `help_edit` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit | all four; iPhone; iPhone, iPad, iPhone on its side |
+| `find`, `find_play`, `find_replaced` | `scarborough_edit` with the find bar and its Replace row (Am, match case and whole words, the second of the matches selected, Em to replace with); `scarborough_piano_roll` in Play finding "parsley" (no Replace row; beside the chord sheet on the phone on its side); `find_replaced` after Replace all, its status as a snackbar | iPhone, iPad; iPhone, iPad, iPhone on its side; iPhone, iPad |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
 its scroll view (live only) is UIKit. ImageRenderer can't draw a
@@ -1370,8 +1525,8 @@ data, and the required-reason APIs the embedded CPython links: file
 timestamps (`C617.1`, files in the container), system boot time (`35F9.1`,
 `time.monotonic` and Swift's clocks) and disk space (`E174.1`, `statvfs` is
 in the binary), plus `3B52.1` for the size of a song the user picked or
-opened from Files; add the user defaults category if the app ever uses
-them. `_ssl` and `_hashlib` (which
+opened from Files, and user defaults (`CA92.1`: the side column's width,
+read and written by the app only). `_ssl` and `_hashlib` (which
 link OpenSSL, on Apple's list of SDKs that need a manifest) get one each
 from `packaging/ios/privacy/`. The icon is one 1024 px PNG, flattened on the
 Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
@@ -1430,9 +1585,10 @@ Artifacts of each run:
   painted, the keyboard up), `<iphone|ipad>-speed.png`, `-instrument.png`
   (the Guitar family's programs, Steel Guitar chosen, from the real
   SoundFont), `-insert.png`,
-  `-capo.png` and `-identify.png` (the speed sheet at 125 %, Insert › Tempo
-  with the keyboard up, Suggest Capo scored, the identifier with Cmaj7
-  picked; `tool-<name>.json` says each got there), `<iphone|ipad>-settings.png`,
+  `-capo.png`, `-identify.png` and `-find.png` (the speed sheet at 125 %,
+  Insert › Tempo with the keyboard up, Suggest Capo scored, the identifier
+  with Cmaj7 picked, Find and Replace with "the" typed; `tool-<name>.json`
+  says each got there), `<iphone|ipad>-settings.png`,
   `-voicings.png` and `-about.png` (Settings › General, Settings › Voicings
   with the standard guitar's form, About),
   `<iphone|ipad>-export.png` (the export picker
@@ -1627,6 +1783,21 @@ expires, her tester status and the issue list. By hand:
      candidate (rolled), double-tap a candidate (inserted), on the phone
      upright and on its side and on an iPad; the notes sound.
   6. The ribbon on the smallest phone: drag it sideways, tap ›.
+
+  Standing items for Find, the font, the pinch and the keys:
+  1. The ribbon's Find on a phone: type a query with the software keyboard
+     up (the bar stays above it, the match scrolls into view), ▲ ▼ past the
+     ends (the notice), Aa, W, Replace, Replace all, then undo once; ✕.
+  2. With a song playing: Replace is refused, the next match still selected.
+  3. An iPad with a keyboard: hold Command (the shortcut list shows File,
+     Edit and View with the app's keys), then ⌘N, ⌘O, ⌘S, ⇧⌘S, ⌘F, ⌥⌘F,
+     ⌘G, ⇧⌘G, ⌘=, ⌘-, ⌘0 and ⌘+ in Edit and in Play; Return, Shift-Return
+     and Escape in the find field; the menu bar (iPadOS 26) lists them.
+  4. Pinch the text in Edit and in Play: the size follows the fingers, stays
+     after a relaunch, and Settings › General shows it.
+  5. Settings › General: each font family and a typed size, in the editor.
+  6. Play on a phone on its side with the chord sheet: drag the handle,
+     relaunch, the column keeps its width.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
