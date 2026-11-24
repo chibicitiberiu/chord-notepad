@@ -148,6 +148,10 @@ public struct EditorModel: Sendable {
     public var fontKind: EditorFontKind { EditorFont.kind(forFamily: editorState?.fontFamily ?? "") }
     /// `american` or `european`; nil before the session says.
     public var notation: String? { editorState?.notation }
+    /// The identity of the text the painted highlight was computed for (nil:
+    /// none yet). Equal to ``identity`` when the spans are the session's for
+    /// exactly this text, rather than old ones moved along with edits.
+    public var highlightedIdentity: TextIdentity? { appliedIdentity }
     public var canUndo: Bool { !composing && !readOnly && history.canUndo }
     public var canRedo: Bool { !composing && !readOnly && history.canRedo }
 

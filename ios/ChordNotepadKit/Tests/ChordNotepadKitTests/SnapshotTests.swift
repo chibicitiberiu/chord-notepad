@@ -41,8 +41,9 @@ final class SnapshotTests: XCTestCase {
 
     func testEveryFixtureFolds() throws {
         let all = try Fixture.all(in: fixtures)
-        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "empty_song", "errors",
-                                          "play_with_chord_sheet", "quick_start_edit"])
+        XCTAssertEqual(all.map(\.scene), ["chord_sheet_fret", "chord_sheet_staff", "editor_european",
+                                          "editor_mid_edit", "empty_song", "errors", "play_with_chord_sheet",
+                                          "quick_start_edit"])
         for fixture in all {
             let snapshot = try fixture.snapshot()
             XCTAssertNotNil(snapshot.editor, fixture.scene)
@@ -100,5 +101,26 @@ final class SnapshotTests: XCTestCase {
         XCTAssertTrue(quickStart.chordSheetBuffers.isEmpty)
         XCTAssertNil(quickStart.chordSheetBuffer(forHeight: 102))
         XCTAssertEqual(try quickStart.snapshot().chordSheet?.visible, false)
+        // The editor's scenes come after the sheet was hidden again.
+        for scene in ["editor_mid_edit", "editor_european"] {
+            let fixture = try Fixture(contentsOf: fixtures.appendingPathComponent("\(scene).json"))
+            XCTAssertEqual(try fixture.snapshot().chordSheet?.visible, false, scene)
+            XCTAssertTrue(fixture.chordSheetBuffers.isEmpty, scene)
+        }
+    }
+
+    func testTheEditorScenesFoldIntoTheEditorAsTheCatalogShowsThem() throws {
+        let midEdit = try Fixture(contentsOf: fixtures.appendingPathComponent("editor_mid_edit.json")).editorModel()
+        // The commented lines are selected, as the session's anchor says.
+        let selected = UTF16Text.substring(midEdit.text, midEdit.selection)
+        XCTAssertEqual(selected, "// C/E Dm       Am       G\n// Up above the world so high,")
+        XCTAssertEqual(Set(midEdit.spans.map(\.kind)), Set(SpanKind.allCases))
+        XCTAssertEqual(midEdit.highlightedIdentity, midEdit.identity, "the spans are the session's for this text")
+        XCTAssertTrue(midEdit.canUndo, "the insert and the comment are undo steps")
+        XCTAssertEqual(midEdit.notation, "american")
+        let european = try Fixture(contentsOf: fixtures.appendingPathComponent("editor_european.json")).editorModel()
+        XCTAssertEqual(european.notation, "european")
+        XCTAssertTrue(european.text.hasPrefix("{bpm: 190} {time: 4/4} {key: Do}\n"), european.text)
+        XCTAssertTrue(european.spans.contains { $0.kind == .chord })
     }
 }

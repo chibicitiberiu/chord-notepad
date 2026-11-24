@@ -1,0 +1,688 @@
+{
+ "chord_sheet_buffers": [],
+ "description": "The quick-start song converted to European notation.",
+ "events": [
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 761,
+    "end": 823,
+    "replacement": "{bpm: 190} {time: 4/4} {key: C}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nC        C/E      F      C\nTwinkle, twinkle, little star,\nDm    Am     G        C\nHow I wonder what you are!\n\nC/E Dm       Am       G\nUp above the world so high,\nC/E    F       Am     G\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nC*2   C/B*2 Am*2 Em/G*2 F*2 Fdim*2 C/E \nWhen  the   blazing     sun is     gone,\nDm*2 Dm/F*2 C/E*2 C/G*2 F/A*2  G/B*2 C\nWhen he     nothing     shines upon.\n\n// That's it! Open the other examples to learn more features.\n",
+    "start": 0,
+    "text_revision": 9,
+    "undo": "reset"
+   },
+   "type": "TextEdited"
+  },
+  {
+   "json": {
+    "anchor": null,
+    "cursor": 0,
+    "end": 761,
+    "replacement": "{bpm: 190} {time: 4/4} {key: Do}\n\n// Quick Start Example - Your first chord chart!\n// Chords go on one line, lyrics on the next.\n// Click any chord to hear it, or press Play to hear them all.\n\n{label: verse}\nDo       Do/Mi    Fa     Do\nTwinkle, twinkle, little star,\nRem   Lam    Sol      Do\nHow I wonder what you are!\n\nDo/Mi Rem      Lam      Sol\nUp   above the world so high,\nDo/Mi  Fa      Lam    Sol\nLike a diamond in the sky.\n\n// Use {loop: label count} to repeat a section\n{loop: verse 2}\n\n// Duration: Add *beats after a chord to hold it longer\nDo*2  Do/Si*2 Lam*2 Mim/Sol*2 Fa*2 Fadim*2 Do/Mi \nWhen  the     blazi·ng        sun  is      gone,\nRem*2 Rem/Fa*2 Do/Mi*2 Do/Sol*2 Fa/La*2 Sol/Si*2 Do\nWhen  he       nothin· g        shines  upon.\n\n// That's it! Open the other examples to learn more features.\n",
+    "start": 0,
+    "text_revision": 10,
+    "undo": "plain"
+   },
+   "type": "TextEdited"
+  }
+ ],
+ "scene": "editor_european",
+ "states": {
+  "CapoAdviceState": {
+   "active": false,
+   "message": "",
+   "playing": false,
+   "rows": [],
+   "scope": "",
+   "status": "ready",
+   "voicing": "",
+   "voicings": []
+  },
+  "ChordSheetState": {
+   "active_view": "fret",
+   "current_index": null,
+   "cursor_index": null,
+   "disabled_reason": null,
+   "height": 160,
+   "song_revision": 5,
+   "views": [
+    {
+     "available": true,
+     "label": "Piano roll",
+     "view_id": "keyboard"
+    },
+    {
+     "available": true,
+     "label": "Staff",
+     "view_id": "staff"
+    },
+    {
+     "available": true,
+     "label": "Fret cards",
+     "view_id": "fret"
+    },
+    {
+     "available": true,
+     "label": "Tab",
+     "view_id": "tab"
+    }
+   ],
+   "visible": false,
+   "zoom": 1.0,
+   "zoom_supported": true
+  },
+  "DocumentState": {
+   "display_name": "01_quick_start.txt",
+   "document_id": "examples/01_quick_start.txt",
+   "is_modified": true,
+   "location": "On My iPhone",
+   "read_only": false,
+   "title": "01_quick_start.txt* - Chord Notepad"
+  },
+  "EditorState": {
+   "font_family": "TkFixedFont",
+   "font_size": 11,
+   "notation": "european",
+   "read_only": false,
+   "word_wrap": false
+  },
+  "HighlightState": {
+   "client_token": 0,
+   "spans": [
+    {
+     "end": 82,
+     "kind": "comment",
+     "message": "",
+     "start": 34
+    },
+    {
+     "end": 128,
+     "kind": "comment",
+     "message": "",
+     "start": 83
+    },
+    {
+     "end": 191,
+     "kind": "comment",
+     "message": "",
+     "start": 129
+    },
+    {
+     "end": 478,
+     "kind": "comment",
+     "message": "",
+     "start": 432
+    },
+    {
+     "end": 551,
+     "kind": "comment",
+     "message": "",
+     "start": 496
+    },
+    {
+     "end": 811,
+     "kind": "comment",
+     "message": "",
+     "start": 750
+    },
+    {
+     "end": 210,
+     "kind": "chord",
+     "message": "",
+     "start": 208
+    },
+    {
+     "end": 222,
+     "kind": "chord",
+     "message": "",
+     "start": 217
+    },
+    {
+     "end": 228,
+     "kind": "chord",
+     "message": "",
+     "start": 226
+    },
+    {
+     "end": 235,
+     "kind": "chord",
+     "message": "",
+     "start": 233
+    },
+    {
+     "end": 270,
+     "kind": "chord",
+     "message": "",
+     "start": 267
+    },
+    {
+     "end": 276,
+     "kind": "chord",
+     "message": "",
+     "start": 273
+    },
+    {
+     "end": 283,
+     "kind": "chord",
+     "message": "",
+     "start": 280
+    },
+    {
+     "end": 291,
+     "kind": "chord",
+     "message": "",
+     "start": 289
+    },
+    {
+     "end": 325,
+     "kind": "chord",
+     "message": "",
+     "start": 320
+    },
+    {
+     "end": 329,
+     "kind": "chord",
+     "message": "",
+     "start": 326
+    },
+    {
+     "end": 338,
+     "kind": "chord",
+     "message": "",
+     "start": 335
+    },
+    {
+     "end": 347,
+     "kind": "chord",
+     "message": "",
+     "start": 344
+    },
+    {
+     "end": 383,
+     "kind": "chord",
+     "message": "",
+     "start": 378
+    },
+    {
+     "end": 387,
+     "kind": "chord",
+     "message": "",
+     "start": 385
+    },
+    {
+     "end": 396,
+     "kind": "chord",
+     "message": "",
+     "start": 393
+    },
+    {
+     "end": 403,
+     "kind": "chord",
+     "message": "",
+     "start": 400
+    },
+    {
+     "end": 556,
+     "kind": "chord",
+     "message": "",
+     "start": 552
+    },
+    {
+     "end": 565,
+     "kind": "chord",
+     "message": "",
+     "start": 558
+    },
+    {
+     "end": 571,
+     "kind": "chord",
+     "message": "",
+     "start": 566
+    },
+    {
+     "end": 581,
+     "kind": "chord",
+     "message": "",
+     "start": 572
+    },
+    {
+     "end": 586,
+     "kind": "chord",
+     "message": "",
+     "start": 582
+    },
+    {
+     "end": 594,
+     "kind": "chord",
+     "message": "",
+     "start": 587
+    },
+    {
+     "end": 600,
+     "kind": "chord",
+     "message": "",
+     "start": 595
+    },
+    {
+     "end": 656,
+     "kind": "chord",
+     "message": "",
+     "start": 651
+    },
+    {
+     "end": 665,
+     "kind": "chord",
+     "message": "",
+     "start": 657
+    },
+    {
+     "end": 673,
+     "kind": "chord",
+     "message": "",
+     "start": 666
+    },
+    {
+     "end": 682,
+     "kind": "chord",
+     "message": "",
+     "start": 674
+    },
+    {
+     "end": 690,
+     "kind": "chord",
+     "message": "",
+     "start": 683
+    },
+    {
+     "end": 699,
+     "kind": "chord",
+     "message": "",
+     "start": 691
+    },
+    {
+     "end": 702,
+     "kind": "chord",
+     "message": "",
+     "start": 700
+    },
+    {
+     "end": 10,
+     "kind": "directive",
+     "message": "",
+     "start": 0
+    },
+    {
+     "end": 22,
+     "kind": "directive",
+     "message": "",
+     "start": 11
+    },
+    {
+     "end": 32,
+     "kind": "directive",
+     "message": "",
+     "start": 23
+    },
+    {
+     "end": 207,
+     "kind": "directive",
+     "message": "",
+     "start": 193
+    },
+    {
+     "end": 494,
+     "kind": "directive",
+     "message": "",
+     "start": 479
+    }
+   ],
+   "text_revision": 10
+  },
+  "IdentifierState": {
+   "candidates": [],
+   "message": "Select notes to identify chords...",
+   "notation": "european",
+   "notes": [],
+   "notes_text": "",
+   "sounding": [],
+   "sounding_above": null,
+   "sounding_below": null,
+   "sounding_seconds": 3.0,
+   "sounding_token": 0,
+   "typed_text_error": null
+  },
+  "InstrumentMenuState": {
+   "current": 0,
+   "families": [
+    {
+     "is_current": true,
+     "items": [],
+     "name": "Piano"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Chromatic Percussion"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Organ"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Guitar"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Bass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Strings"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ensemble"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Brass"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Reed"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Pipe"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Lead"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Pad"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Synth Effects"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Ethnic"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Percussive"
+    },
+    {
+     "is_current": false,
+     "items": [],
+     "name": "Sound Effects"
+    }
+   ]
+  },
+  "PlaybackState": {
+   "bar": 0,
+   "beat": 0,
+   "chord_index": null,
+   "key": "Do",
+   "playhead_offset": 208,
+   "playing_span": null,
+   "sections": [
+    {
+     "first_bar": 1,
+     "label": "intro",
+     "last_bar": 24,
+     "repeat": false
+    },
+    {
+     "first_bar": 25,
+     "label": "verse1",
+     "last_bar": 44,
+     "repeat": false
+    },
+    {
+     "first_bar": 45,
+     "label": "bridge",
+     "last_bar": 80,
+     "repeat": false
+    },
+    {
+     "first_bar": 81,
+     "label": "enharmonic",
+     "last_bar": 108,
+     "repeat": false
+    },
+    {
+     "first_bar": 109,
+     "label": "outro",
+     "last_bar": 125,
+     "repeat": false
+    }
+   ],
+   "status": "idle",
+   "tempo_clamped": null,
+   "time_signature": [
+    4,
+    4
+   ],
+   "total_bars": 0
+  },
+  "RecentDocumentsState": {
+   "items": [
+    {
+     "display_name": "song.txt",
+     "id": "song.txt",
+     "location": "On My iPhone"
+    }
+   ]
+  },
+  "SettingsState": {
+   "american_keys": [
+    "C",
+    "C#",
+    "Db",
+    "D",
+    "D#",
+    "Eb",
+    "E",
+    "F",
+    "F#",
+    "Gb",
+    "G",
+    "G#",
+    "Ab",
+    "A",
+    "A#",
+    "Bb",
+    "B"
+   ],
+   "bpm_max": 400,
+   "bpm_min": 20,
+   "european_keys": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "font_size_max": 72,
+   "font_size_min": 6,
+   "max_recent_files_max": 50,
+   "time_signature_units": [
+    1,
+    2,
+    4,
+    8,
+    16
+   ],
+   "values": {
+    "bpm": 120,
+    "click_plays_chart_voicing": true,
+    "font_family": "TkFixedFont",
+    "font_size": 11,
+    "key": "C",
+    "max_recent_files": 10,
+    "notation": "american",
+    "show_quick_start_on_startup": true,
+    "time_signature_beats": 4,
+    "time_signature_unit": 4,
+    "word_wrap": false
+   }
+  },
+  "SongDefaultsState": {
+   "key": {
+    "directive_offset": 23,
+    "from_directive": true,
+    "value": "Do"
+   },
+   "locked_reason": null,
+   "summary": "190 · 4/4 · Do",
+   "tempo": {
+    "directive_offset": 0,
+    "from_directive": true,
+    "value": "190"
+   },
+   "time": {
+    "directive_offset": 11,
+    "from_directive": true,
+    "value": "4/4"
+   }
+  },
+  "StatusState": {
+   "text": "Converted to European notation"
+  },
+  "ToolbarState": {
+   "beats": 4,
+   "bpm": 190,
+   "bpm_display": 190,
+   "bpm_editable": false,
+   "bpm_set_by": "{bpm: 190}",
+   "key": "Do",
+   "key_options": [
+    "Do",
+    "Do#",
+    "Reb",
+    "Re",
+    "Re#",
+    "Mib",
+    "Mi",
+    "Fa",
+    "Fa#",
+    "Solb",
+    "Sol",
+    "Sol#",
+    "Lab",
+    "La",
+    "La#",
+    "Sib",
+    "Si"
+   ],
+   "key_set_by": "{key: Do}",
+   "metronome": false,
+   "multiplier_pct": 100.0,
+   "notation": "european",
+   "play_action": "play",
+   "time_set_by": "{time: 4/4}",
+   "unit": 4
+  },
+  "VoicingEditorState": {
+   "active": false,
+   "dirty": false,
+   "field_errors": {},
+   "form_errors": [],
+   "groups": [],
+   "hints": {},
+   "invalid": [],
+   "model": null,
+   "presets": [],
+   "problems": [],
+   "read_only": false,
+   "restored": false,
+   "revision": 0,
+   "selected": null,
+   "staged_numbers": {},
+   "values": {}
+  },
+  "VoicingMenuState": {
+   "groups": [
+    [
+     {
+      "label": "Piano",
+      "value": "piano"
+     }
+    ],
+    [
+     {
+      "label": "Guitar (Standard - EADGBE)",
+      "value": "guitar:standard"
+     },
+     {
+      "label": "Guitar (Drop D)",
+      "value": "guitar:drop_d"
+     },
+     {
+      "label": "Guitar (DADGAD)",
+      "value": "guitar:dadgad"
+     },
+     {
+      "label": "Guitar (Open G)",
+      "value": "guitar:open_g"
+     },
+     {
+      "label": "Ukulele",
+      "value": "guitar:ukulele"
+     }
+    ],
+    [
+     {
+      "label": "Choir (SATB)",
+      "value": "ensemble:satb"
+     },
+     {
+      "label": "Male Choir (TTBB)",
+      "value": "ensemble:ttbb"
+     },
+     {
+      "label": "Treble Choir (SSA)",
+      "value": "ensemble:ssa"
+     },
+     {
+      "label": "String Quartet",
+      "value": "ensemble:quartet"
+     }
+    ]
+   ],
+   "locked_reason": null,
+   "selected": "guitar:standard"
+  }
+ }
+}

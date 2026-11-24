@@ -174,6 +174,63 @@ final class IntegrationTests: XCTestCase {
                                 "The complete example as guitar fret cards (standard tuning), playhead on the first chord.",
                                 from: songMark, buffers: try await scenes.buffers(session, for: fret))
 
+        // -- the editor (last: a notation change stays in every later scene's states) ------
+        session.submit(.setChordSheetVisible(visible: false))
+        _ = try await waitForSheet(log, "the chord sheet to hide") { !$0.visible }
+        await log.waitQuiet()
+
+        // Mid-edit: the session's own edits (the fixture can't carry the user's
+        // typing, which the session doesn't echo): a line with an invalid
+        // directive, a redundant one and a chord the core doesn't know, then two
+        // lines commented out with the selection the command leaves.
+        mark = log.count
+        session.submit(.restoreDraft(document: memoryRef("examples/01_quick_start.txt"), modified: false,
+                                     readOnly: false, text: quickStart))
+        _ = try await waitForHighlight(log, since: mark, "the quick-start song for the editor")
+        // {key: G} is replaced by {key: C} before any chord plays: redundant.
+        let inserted = "{bpm: 1000} {key: G} {key: C}\nC      Gsus9    F/A    G7\n"
+        let verse = (quickStart as NSString).range(of: "{label: verse}\n")
+        let at = OffsetMapper(quickStart).toCodePoint(NSMaxRange(verse))
+        session.submit(.insertText(at: at, text: inserted))
+        let afterInsert = try await waitForEdit(log, since: mark) { $0.undo == .plain }
+        let editedText = String(quickStart.unicodeScalars.prefix(at)) + inserted
+            + String(quickStart.unicodeScalars.dropFirst(at))
+        let lines = (editedText as NSString).range(of: "C/E Dm       Am       G\nUp above the world so high,")
+        let mapper = OffsetMapper(editedText)
+        session.submit(.toggleComment(anchor: mapper.toCodePoint(lines.location),
+                                      cursor: mapper.toCodePoint(NSMaxRange(lines))))
+        let commented = try await waitForEdit(log, since: mark) {
+            $0.anchor != nil && $0.textRevision > afterInsert.textRevision
+        }
+        let midEdit = try await waitForHighlight(log, since: mark, "the edited song's highlight") {
+            $0.textRevision == commented.textRevision
+        }
+        let kinds = Set(midEdit.spans.map(\.kind))
+        XCTAssertEqual(kinds, Set(SpanKind.allCases), "the scene shows every span kind: \(kinds)")
+        await log.waitQuiet()
+        try await scenes.record("editor_mid_edit",
+                                "The quick-start song mid-edit: an invalid and a redundant directive, an unknown "
+                                + "chord, two lines commented out and selected.", from: mark)
+
+        // European: the quick-start song converted (Convert on the ribbon).
+        mark = log.count
+        session.submit(.restoreDraft(document: memoryRef("examples/01_quick_start.txt"), modified: false,
+                                     readOnly: false, text: quickStart))
+        _ = try await waitForHighlight(log, since: mark, "the quick-start song again")
+        let restored = try await waitForEdit(log, since: mark) { $0.undo == .reset }
+        session.submit(.convertNotation(cursor: 0, target: "european"))
+        let converted = try await waitForEdit(log, since: mark) { $0.textRevision > restored.textRevision }
+        XCTAssertTrue(converted.replacement.contains("Do"), converted.replacement)
+        _ = try await waitForHighlight(log, since: mark, "the converted song's highlight") {
+            $0.textRevision == converted.textRevision && $0.spans.contains { $0.kind == .chord }
+        }
+        try await log.wait("the European notation") {
+            (try? log.decodeLatest(EditorState.self, "EditorState"))?.notation == "european"
+        }
+        await log.waitQuiet()
+        try await scenes.record("editor_european", "The quick-start song converted to European notation.",
+                                from: mark)
+
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {
             XCTAssertNoThrow(try SessionOutput.decode(typeName: event.typeName, json: event.json),
@@ -254,6 +311,28 @@ private func waitForChords(_ log: EventLog, since mark: Int, count: Int) async t
             .spans.filter { $0.kind == .chord }.count == count
     }
     return try log.decodeLatest(HighlightState.self, "HighlightState").spans.filter { $0.kind == .chord }
+}
+
+/// The newest `HighlightState` since `mark` once it has spans and `condition` holds for it.
+private func waitForHighlight(_ log: EventLog, since mark: Int, _ what: String,
+                              _ condition: @escaping (HighlightState) -> Bool = { _ in true })
+    async throws -> HighlightState {
+    try await log.wait(what) {
+        guard let state = try? log.decode(HighlightState.self, log.latest("HighlightState", since: mark)) else {
+            return false
+        }
+        return !state.spans.isEmpty && condition(state)
+    }
+    return try log.decode(HighlightState.self, log.latest("HighlightState", since: mark))
+}
+
+/// The newest `TextEdited` since `mark` once `condition` holds for it.
+private func waitForEdit(_ log: EventLog, since mark: Int,
+                         _ condition: @escaping (TextEdited) -> Bool) async throws -> TextEdited {
+    try await log.wait("an edit") {
+        (try? log.decode(TextEdited.self, log.events(since: mark, type: "TextEdited").last)).map(condition) ?? false
+    }
+    return try log.decode(TextEdited.self, log.events(since: mark, type: "TextEdited").last)
 }
 
 /// The newest `ChordSheetState` once `condition` holds for it.
