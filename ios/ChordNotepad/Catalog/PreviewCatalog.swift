@@ -345,15 +345,24 @@ enum CatalogRenderer {
                 for device in screen.devices {
                     for (schemeName, scheme) in schemes {
                         for (textName, textSize) in textSizes {
-                            let view = screen.make(scene, device)
-                                .frame(width: device.size.width, height: device.size.height)
-                                .environment(\.colorScheme, scheme)
-                                .environment(\.dynamicTypeSize, textSize)
-                            let renderer = ImageRenderer(content: view)
-                            renderer.scale = device.scale
-                            renderer.proposedSize = ProposedViewSize(device.size)
-                            guard let png = renderer.uiImage?.pngData() else {
-                                throw CatalogError("\(screen.name)/\(fixture) didn't render")
+                            // Each render's images go with its pool: run 45453289126's
+                            // renderer drew only black once some 340 images were held.
+                            let png: Data? = autoreleasepool {
+                                for _ in 0..<2 {
+                                    let view = screen.make(scene, device)
+                                        .frame(width: device.size.width, height: device.size.height)
+                                        .environment(\.colorScheme, scheme)
+                                        .environment(\.dynamicTypeSize, textSize)
+                                    let renderer = ImageRenderer(content: view)
+                                    renderer.scale = device.scale
+                                    renderer.proposedSize = ProposedViewSize(device.size)
+                                    if let image = renderer.uiImage, !isBlank(image) { return image.pngData() }
+                                }
+                                return nil
+                            }
+                            guard let png else {
+                                throw CatalogError("\(screen.name)/\(fixture) on \(device.name), \(schemeName), "
+                                                   + "\(textName): no image, or one of a single colour")
                             }
                             let url = folder.appendingPathComponent(
                                 "\(screen.name)-\(fixture)-\(device.name)-\(schemeName)-\(textName).png")
@@ -366,6 +375,24 @@ enum CatalogRenderer {
         }
         return written
     }
+}
+
+/// Whether `image` is one colour all over (what a failed render draws).
+func isBlank(_ image: UIImage) -> Bool {
+    guard let cgImage = image.cgImage else { return true }
+    let side = 24
+    var pixels = [UInt8](repeating: 0, count: side * side * 4)
+    let drawn = pixels.withUnsafeMutableBytes { buffer -> Bool in
+        guard let context = CGContext(data: buffer.baseAddress, width: side, height: side, bitsPerComponent: 8,
+                                      bytesPerRow: side * 4, space: CGColorSpaceCreateDeviceRGB(),
+                                      bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue) else { return false }
+        context.interpolationQuality = .medium
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: side, height: side))
+        return true
+    }
+    guard drawn else { return true }
+    let first = Array(pixels[0..<4])
+    return stride(from: 0, to: pixels.count, by: 4).allSatisfy { Array(pixels[$0..<$0 + 4]) == first }
 }
 
 struct CatalogError: Error, CustomStringConvertible {
