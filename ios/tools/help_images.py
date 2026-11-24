@@ -156,6 +156,10 @@ def render(shot: dict, theme: str, catalog: Path, screenshots: Path) -> Image.Im
     if not path.exists():
         raise SystemExit(f"{shot['name']}: no {path}")
     img = Image.open(path).convert("RGB")
+    if "rotate" in shot:
+        # The simulator's screenshot of an app on its side is the upright
+        # screen's pixels: turned counterclockwise by this many degrees.
+        img = img.rotate(shot["rotate"], expand=True)
     crop = crop_of(shot, img, ppp)  # x, y, width, height in points
     box = tuple(round(v * ppp) for v in (crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3]))
     img = img.crop(box)

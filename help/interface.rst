@@ -1083,7 +1083,7 @@ The User Interface
 
    .. platform-figure:: drawer
       :platforms: android
-      :ios-alt: The menu: New song, Open, a Recent list with three songs, Save
+      :ios-alt: The menu: New song, Open, the recent songs, Save
                 as, Export MIDI, Export audio, Export PDF, Settings, Examples,
                 User guide, Quick start, About and Diagnostics.
       :ios-caption: The menu.

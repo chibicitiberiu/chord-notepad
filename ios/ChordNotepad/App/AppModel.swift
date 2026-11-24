@@ -820,6 +820,8 @@ final class AppModel: ObservableObject {
     func runToolScreen(_ name: String) async {
         _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
         var ok = false
+        /// What a hook saw, for the report when it isn't ready.
+        var detail: String?
         switch name {
         case "speed":
             selectMode(.play)
@@ -906,6 +908,14 @@ final class AppModel: ObservableObject {
                 // The song starts with the red {bpm: 500}.
                 playHandlers.explain(0)
                 ok = await waitFor(timeout: .seconds(15)) { $0.directiveHint != nil }
+                // The card by the directive, on screen (shown again once the text has settled).
+                try? await Task.sleep(for: .milliseconds(500))
+                showHint()
+                let card = editor.textView?.hintCard
+                ok = ok && card?.isHidden == false
+                detail = "explained \(hints.explained != nil), mode \(ui.mode), card "
+                    + (card.map { $0.isHidden ? "hidden" : "shown" } ?? "none") + ", hint "
+                    + (snapshot.directiveHint.map { "\($0.offset) \($0.start)-\($0.end) \($0.message)" } ?? "none")
             }
         case "keyboard":
             // A new song typed in Edit with the keyboard up (Android's edit-keyboard).
@@ -926,28 +936,33 @@ final class AppModel: ObservableObject {
                     Log.ui.error("Rotation: \(error.localizedDescription, privacy: .public)")
                 }
             }
+            // Amazing Grace as a song of the user's (the bundled one is read only: no keyboard).
+            restoreSong(HelpShotSongs.grace, name: "Amazing Grace.txt", readOnly: false)
+            ok = await waitFor(timeout: .seconds(30)) { $0.text == HelpShotSongs.grace && $0.editor?.readOnly == false }
             selectMode(.edit)
             try? await Task.sleep(for: .seconds(2))
-            let line = (editor.model.text as NSString).range(of: EditorScript.line)
-            ok = line.location != NSNotFound && EditorScript.type(" x", at: NSMaxRange(line), into: editor)
+            let line = (editor.model.text as NSString).range(of: "That saved a wretch like me")
+            ok = ok && line.location != NSNotFound && EditorScript.type(" x", at: NSMaxRange(line), into: editor)
             try? await Task.sleep(for: .seconds(2))
             ok = ok && ui.keyboardHeight > 0
+            detail = "mode \(ui.mode), keyboard \(ui.keyboardHeight), editable \(editor.textView?.isEditable == true)"
         default:
             break
         }
         Log.ui.info("Tool screen \(name, privacy: .public): \(ok ? "ready" : "failed", privacy: .public)")
-        Diagnostics.shared.writeJSON(ToolScreenReport(name: name, ok: ok, route: String(describing: ui.route)),
+        Diagnostics.shared.writeJSON(ToolScreenReport(name: name, ok: ok, route: String(describing: ui.route),
+                                                      detail: detail),
                                      name: "tool-\(name).json")
     }
 
     /// Open `text` as the song `name`, saved (a help screenshot's song).
-    private func restoreSong(_ text: String, name: String) {
+    private func restoreSong(_ text: String, name: String, readOnly: Bool = true) {
         guard let session else { return }
         editor.sync()
         ui.modes.expectOpen()
         snapshot.requestAnswered(nil)
         session.submit(.restoreDraft(document: DocumentRef(displayName: name, id: "bundle:\(name)", location: name),
-                                     modified: false, readOnly: true, text: text))
+                                     modified: false, readOnly: readOnly, text: text))
     }
 
     /// `-CNScreen pdf` (CI): once the song is on screen, export it as a PDF:
@@ -1030,6 +1045,7 @@ struct ToolScreenReport: Codable {
     var name: String
     var ok: Bool
     var route: String
+    var detail: String?
 }
 
 /// `Diagnostics/export.json` (`-CNScreen export`): the audio export the store
