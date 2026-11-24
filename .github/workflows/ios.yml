@@ -236,7 +236,9 @@ jobs:
           fi
 
       # The real app on both simulators: the shell with the quick-start song,
-      # then the self-test screen, with live CoreAudio playback.
+      # then the self-test screen, with live CoreAudio playback, the chord
+      # sheet, and the editor after the app typed into it (editor.json must
+      # say the session highlighted the typing).
       - name: Screenshots
         run: |
           ios/tools/ci_screenshots.sh "$IPHONE_UDID" iphone "$SIM_APP" ios/build/artifacts/screenshots

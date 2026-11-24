@@ -73,6 +73,8 @@ final class SessionTests: XCTestCase {
         zipAttachment.lifetime = .keepAlways
         add(zipAttachment)
 
+        try await checkTheEditor(model)
+
         // The chord sheet, live: shown, its buffer fetched on the bridge thread
         // through the app's source, decoded, and painted with CoreGraphics.
         let session = try XCTUnwrap(model.session)
@@ -104,5 +106,76 @@ final class SessionTests: XCTestCase {
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")
+    }
+
+    /// The song editor, live: the real text view (in a window, driven by the
+    /// app's controller) gets typing through UIKit's input path; the session
+    /// highlights it under the editor's own token; a session edit lands in
+    /// the view without being sent back; undo goes back as a user edit.
+    private func checkTheEditor(_ model: AppModel) async throws {
+        let editor = model.editor
+        let session = try XCTUnwrap(model.session)
+        XCTAssertTrue(editor.model.text.contains(EditorScript.line), "the editor has the quick-start song")
+        let window = UIWindow(frame: CGRect(x: 0, y: 0, width: 402, height: 600))
+        let view = EditorTextView()
+        let coordinator = SongEditor.Coordinator(controller: editor)
+        view.delegate = coordinator
+        view.frame = window.bounds
+        window.addSubview(view)
+        window.isHidden = false
+        editor.attach(view)
+        defer { editor.detach(view) }
+        XCTAssertEqual(view.text, editor.model.text)
+        XCTAssertFalse(editor.model.wordWrap, "word wrap is off by default")
+
+        // Typing: set_text with a new token, then the session's highlight for it.
+        let setTextsBefore = editor.sentCommands.filter { $0 == "set_text" }.count
+        XCTAssertTrue(EditorScript.type(into: editor))
+        XCTAssertEqual(view.text, editor.model.text)
+        XCTAssertTrue(editor.model.text.contains(EditorScript.line + EditorScript.typed))
+        XCTAssertGreaterThan(editor.sentCommands.filter { $0 == "set_text" }.count, setTextsBefore)
+        let highlighted = await EditorScript.waitForHighlight(editor, timeout: .seconds(30))
+        XCTAssertTrue(highlighted, "painted \(EditorScript.paintedChords(editor)), identity \(editor.model.identity), "
+                      + "highlighted \(String(describing: editor.model.highlightedIdentity))")
+        // Unwrapped, the long line makes the content wider than the view.
+        view.layoutIfNeeded()
+        XCTAssertGreaterThan(view.contentSize.width, view.bounds.width, "the unwrapped text scrolls sideways")
+        // The view's typing attributes are plain (not the chord's blue) after the chord line.
+        let typingColor = view.typingAttributes[.foregroundColor] as? UIColor
+        XCTAssertEqual(typingColor, EditorPalette.forScheme(dark: view.traitCollection.userInterfaceStyle == .dark)
+                        .text.uiColor)
+
+        // A session edit: in the view, at the session's place, not echoed.
+        let setTexts = editor.sentCommands.filter { $0 == "set_text" }.count
+        session.submit(.insertText(at: 0, text: "{capo: 2}\n"))
+        let inserted = await model.waitFor(timeout: .seconds(30)) { _ in editor.model.text.hasPrefix("{capo: 2}\n") }
+        XCTAssertTrue(inserted)
+        XCTAssertEqual(view.text, editor.model.text)
+        XCTAssertEqual(editor.sentCommands.filter { $0 == "set_text" }.count, setTexts, "the session's edit was sent back")
+        XCTAssertTrue(editor.model.canUndo)
+
+        // Undo: the insert goes, and the text goes back to the session as a user edit.
+        editor.perform(.undo)
+        XCTAssertFalse(editor.model.text.hasPrefix("{capo: 2}"))
+        XCTAssertEqual(view.text, editor.model.text)
+        XCTAssertEqual(editor.sentCommands.filter { $0 == "set_text" }.count, setTexts + 1)
+        // Through the text view's undo manager too (the Edit menu, shake): redo.
+        XCTAssertTrue(view.undoManager?.canRedo ?? false)
+        view.undoManager?.redo()
+        XCTAssertTrue(editor.model.text.hasPrefix("{capo: 2}\n"))
+        XCTAssertEqual(view.text, editor.model.text)
+
+        // A paste that needs normalising goes in normalised.
+        XCTAssertEqual(editor.willReplace(NSRange(location: 0, length: 0), with: "C\u{00A0}G\r\n"),
+                       .replace("C G\n"))
+
+        let image = UIGraphicsImageRenderer(bounds: view.bounds).image { context in
+            view.layer.render(in: context.cgContext)
+        }
+        let png = XCTAttachment(image: image)
+        png.name = "editor-live.png"
+        png.lifetime = .keepAlways
+        add(png)
+        window.isHidden = true
     }
 }
