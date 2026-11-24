@@ -889,8 +889,10 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
 
 Deliberate differences from Android:
 
-- Save As takes the suggested name; the export picker has no name field, so
-  a different name is a rename afterwards (tap the title).
+- Save As suggests the name as the file the picker moves. Whether the export
+  picker lets the user change the name there isn't checked yet (a device
+  item below); if it doesn't, a different name is a rename afterwards (tap
+  the title).
 - Exports go through the export picker after the file is written, so a
   failed export leaves nothing behind, and the status line names the export
   before it is saved.
@@ -1127,7 +1129,8 @@ expires, her tester status and the issue list. By hand:
   URL the export picker returns after moving the empty file stay writable
   and bookmarkable?
   1. Save As into iCloud Drive and into On My iPhone: the song is written
-     there, the title shows its name, Recent lists it.
+     there, the title shows its name, Recent lists it. Can the name be
+     changed in the picker? Into a folder that already has the name?
   2. Open… a song in iCloud Drive, one in On My iPhone and one from a
      third-party provider if she has one; change and Save each in place.
   3. Quit the app (swipe it away), reopen, reopen each from Recent; again
