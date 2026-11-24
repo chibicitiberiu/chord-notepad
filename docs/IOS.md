@@ -890,10 +890,10 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
 
 Deliberate differences from Android:
 
-- Save As suggests the name as the file the picker moves. Whether the export
-  picker lets the user change the name there isn't checked yet (a device
-  item below); if it doesn't, a different name is a rename afterwards (tap
-  the title).
+- Save As suggests the name as the file the picker moves. The iOS 26 export
+  picker shows it in a "Save as" field (CI's `<device>-export.png`, run
+  45411606228); that typing a new name there keeps the extension is a device
+  item below. A rename afterwards (tap the title) works either way.
 - Exports go through the export picker after the file is written, so a
   failed export leaves nothing behind, and the status line names the export
   before it is saved.

@@ -20,8 +20,8 @@ on:
       - 'android/tools/export_clef_glyphs.py'
       - 'android/app/src/test/resources/chord_sheet/**'
       - 'resources/soundfont/**'
-      - 'examples/01_quick_start.txt'
-      - 'examples/02_american_complete.txt'
+      # The quick-start song, the kit's scenes and the menu's Examples.
+      - 'examples/*.txt'
       - 'android/tools/help_shot_songs/scarborough_fair.txt'
       - 'android/app/src/main/res/drawable/mdi_*.xml'
       - '.github/workflows/ios.yml'
