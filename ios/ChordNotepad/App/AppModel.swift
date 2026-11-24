@@ -912,6 +912,8 @@ final class AppModel: ObservableObject {
                 // The card by the directive, on screen (shown again once the text has settled).
                 try? await Task.sleep(for: .milliseconds(500))
                 showHint()
+                // Kept up for the screenshot (a person's card goes after 6 s; run 45498088227's did first).
+                hintTask?.cancel()
                 let card = editor.textView?.hintCard
                 ok = ok && card?.isHidden == false
                 detail = "explained \(hints.explained != nil), mode \(ui.mode), card "
@@ -939,7 +941,14 @@ final class AppModel: ObservableObject {
             }
             // Amazing Grace as a song of the user's (the bundled one is read only: no keyboard).
             restoreSong(HelpShotSongs.grace, name: "Amazing Grace.txt", readOnly: false)
-            ok = await waitFor(timeout: .seconds(30)) { $0.text == HelpShotSongs.grace && $0.editor?.readOnly == false }
+            ok = await waitFor(timeout: .seconds(30)) { snapshot in
+                snapshot.text == HelpShotSongs.grace && snapshot.editor?.readOnly == false
+                    && snapshot.document?.displayName == "Amazing Grace.txt"
+            }
+            // The open puts the song in Play once its document arrives (run 45498088227's iPad
+            // switched to Edit before that); Edit after it.
+            ok = await waitForModel(timeout: .seconds(10)) { $0.ui.mode == .play } && ok
+            try? await Task.sleep(for: .milliseconds(500))
             selectMode(.edit)
             try? await Task.sleep(for: .seconds(2))
             let line = (editor.model.text as NSString).range(of: "That saved a wretch like me")

@@ -925,16 +925,30 @@ The User Interface
    select some text to see it. Messages from the app, such as the one that
    confirms a save, appear briefly at the bottom of the screen.
 
-   When the soft keyboard leaves little room for the text, as on a phone held
-   sideways, the app bar and the ribbon hide so the text gets the space. A
-   small floating **Undo / Redo** chip sits above the keyboard until it closes,
-   and the bars come back.
+   .. only:: not ios
+
+      When the soft keyboard leaves little room for the text, as on a phone held
+      sideways, the app bar and the ribbon hide so the text gets the space. A
+      small floating **Undo / Redo** chip sits above the keyboard until it closes,
+      and the bars come back.
+
+   .. only:: ios
+
+      Held sideways, the app bar and the ribbon share one line above the
+      keyboard. When the keyboard would leave the text less than about 170
+      points (a smaller iPhone, or the keyboard's suggestions bar), they hide
+      so the text gets the space, and a small floating **Undo / Redo** chip sits
+      above the keyboard until it closes.
 
    .. platform-figure:: edit-keyboard-collapsed
       :platforms: android
       :alt: A phone held sideways with the keyboard open. Only a few lines of
             the song show above the keyboard, the bars are hidden, and a small
             Undo and Redo chip floats at the right.
+      :ios-alt: An iPhone held sideways with the keyboard open: the app bar and
+                the ribbon on one line, a few lines of the song, the keyboard.
+      :ios-caption: Typing on an iPhone held sideways: on this one the text
+         still has room, so the bars stay.
 
       Typing on a phone held sideways: only the text and the Undo / Redo chip
       are left.
