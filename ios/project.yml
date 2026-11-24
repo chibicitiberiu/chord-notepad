@@ -59,6 +59,11 @@ targets:
       - framework: build/Frameworks/FluidSynth.xcframework
         embed: true
     postBuildScripts:
+      - name: Chord sheet glyphs
+        script: |
+          "$PROJECT_DIR/tools/export_glyphs.sh"
+        basedOnDependencyAnalysis: false
+        showEnvVars: false
       - name: Install Python
         script: |
           "$PROJECT_DIR/tools/install_python.sh"

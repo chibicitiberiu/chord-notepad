@@ -12,7 +12,10 @@ struct ShellView: View {
         ShellScreen(snapshot: model.snapshot, phaseText: model.phaseText,
                     actions: ShellActions(playChord: { model.audition(index: 0) },
                                           selfTest: { model.showSelfTest = true },
-                                          exportDiagnostics: export))
+                                          exportDiagnostics: export,
+                                          audition: { model.audition(index: $0) },
+                                          submit: { model.session?.submit($0) }),
+                    chordSheet: model.chordSheet)
             .sheet(isPresented: $model.showSelfTest) {
                 SelfTestView(model: model)
             }

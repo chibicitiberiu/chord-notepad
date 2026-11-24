@@ -2,15 +2,22 @@ import ChordNotepadKit
 import SwiftUI
 import UIKit
 
+/// One recorded scene as a screen gets it: the folded snapshot and the
+/// chord sheet's recorded buffers.
+struct CatalogScene {
+    let snapshot: SessionSnapshot
+    let chordSheet: ChordSheetSource
+}
+
 /// One screen in the catalog: its name, the recorded scenes it is shown with
-/// (ios/Fixtures) and how to draw it from a snapshot.
+/// (ios/Fixtures) and how to draw it from a scene.
 struct CatalogScreen {
     let name: String
     let fixtures: [String]
-    let make: @MainActor (SessionSnapshot) -> AnyView
+    let make: @MainActor (CatalogScene) -> AnyView
 
     init<Screen: View>(_ name: String, fixtures: [String],
-                       make: @escaping @MainActor (SessionSnapshot) -> Screen) {
+                       make: @escaping @MainActor (CatalogScene) -> Screen) {
         self.name = name
         self.fixtures = fixtures
         self.make = { AnyView(make($0)) }
@@ -26,23 +33,44 @@ struct CatalogScreen {
 @MainActor
 enum PreviewCatalog {
     static let screens: [CatalogScreen] = [
-        CatalogScreen("shell", fixtures: ["quick_start_edit", "empty_song", "play_with_chord_sheet", "errors"]) {
-            ShellScreen(snapshot: $0, build: "catalog", scrolls: false)
+        CatalogScreen("shell", fixtures: ["quick_start_edit", "empty_song", "play_with_chord_sheet", "errors",
+                                          "chord_sheet_staff", "chord_sheet_fret"]) {
+            ShellScreen(snapshot: $0.snapshot, build: "catalog", scrolls: false, chordSheet: $0.chordSheet)
         },
         CatalogScreen("selftest", fixtures: ["empty_song"]) { _ in
             SelfTestContent(report: .sample, timings: SelfTestReport.sample.timings, running: false, scrolls: false)
         },
     ]
 
+    /// A recorded scene, or nil (logged) when it's missing.
+    static func fixture(_ name: String) -> Fixture? {
+        do {
+            return try Fixture(contentsOf: AppPaths.fixtures.appendingPathComponent("\(name).json"))
+        } catch {
+            Log.ui.error("Fixture \(name, privacy: .public): \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// A recorded scene folded into a snapshot (an empty one if it's missing,
     /// so a preview still draws).
     static func snapshot(_ fixture: String) -> SessionSnapshot {
         do {
-            return try Fixture(contentsOf: AppPaths.fixtures.appendingPathComponent("\(fixture).json")).snapshot()
+            return try self.fixture(fixture)?.snapshot() ?? SessionSnapshot()
         } catch {
             Log.ui.error("Fixture \(fixture, privacy: .public): \(String(describing: error), privacy: .public)")
             return SessionSnapshot()
         }
+    }
+
+    /// The chord sheet buffers a scene recorded.
+    static func chordSheet(_ fixture: String) -> ChordSheetSource {
+        ChordSheetSource(recorded: self.fixture(fixture))
+    }
+
+    /// The snapshot and the chord sheet of a scene.
+    static func scene(_ fixture: String) -> CatalogScene {
+        CatalogScene(snapshot: snapshot(fixture), chordSheet: chordSheet(fixture))
     }
 }
 
@@ -73,11 +101,11 @@ enum CatalogRenderer {
         var written: [URL] = []
         for screen in PreviewCatalog.screens {
             for fixture in screen.fixtures {
-                let snapshot = PreviewCatalog.snapshot(fixture)
+                let scene = PreviewCatalog.scene(fixture)
                 for device in devices {
                     for (schemeName, scheme) in schemes {
                         for (textName, textSize) in textSizes {
-                            let view = screen.make(snapshot)
+                            let view = screen.make(scene)
                                 .frame(width: device.size.width, height: device.size.height)
                                 .environment(\.colorScheme, scheme)
                                 .environment(\.dynamicTypeSize, textSize)
@@ -134,7 +162,7 @@ struct CatalogView: View {
                     Section(screen.name) {
                         ForEach(screen.fixtures, id: \.self) { fixture in
                             NavigationLink(fixture) {
-                                screen.make(PreviewCatalog.snapshot(fixture))
+                                screen.make(PreviewCatalog.scene(fixture))
                             }
                         }
                     }

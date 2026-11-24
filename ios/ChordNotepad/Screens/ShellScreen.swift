@@ -6,28 +6,55 @@ struct ShellActions {
     var playChord: () -> Void
     var selfTest: () -> Void
     var exportDiagnostics: () -> Void
+    /// Play chord `index`, as a tap on it does.
+    var audition: (Int) -> Void
+    var submit: (BridgeCommand) -> Void
 }
 
 /// The phase 1 shell (docs/IOS.md): the song's title, its text with the
-/// chords highlighted, and the status line, all from a ``SessionSnapshot``.
-/// The live app and the preview catalog draw the same view; the catalog
-/// passes `scrolls: false`, since ImageRenderer can't draw a ScrollView.
+/// chords highlighted, the chord sheet under it while it is shown, and the
+/// status line, all from a ``SessionSnapshot``. The live app and the preview
+/// catalog draw the same view; the catalog passes `scrolls: false`, since
+/// ImageRenderer can't draw a ScrollView (or the strip's UIScrollView).
 struct ShellScreen: View {
     let snapshot: SessionSnapshot
     var phaseText: String? = nil
     var build: String = BuildInfo.current.line
     var scrolls = true
     var actions: ShellActions? = nil
+    /// The chord sheet's buffers (the session's, or a fixture's); nil: no sheet.
+    var chordSheet: ChordSheetSource? = nil
 
     var body: some View {
-        VStack(spacing: 0) {
-            header
-            Divider()
-            editor
-            Divider()
-            statusLine
+        GeometryReader { window in
+            VStack(spacing: 0) {
+                header
+                Divider()
+                // The text, the chord sheet and the status line share what's left.
+                GeometryReader { area in
+                    VStack(spacing: 0) {
+                        editor
+                        if let state = snapshot.chordSheet, state.visible, let chordSheet {
+                            ChordSheetSplitView(state: state, source: chordSheet, available: area.size.height,
+                                                window: window.size, interactive: scrolls,
+                                                actions: chordSheetActions)
+                        }
+                        Divider()
+                        statusLine
+                    }
+                }
+            }
         }
         .background(Color(uiColor: .systemBackground))
+    }
+
+    private var chordSheetActions: ChordSheetActions? {
+        guard let actions else { return nil }
+        return ChordSheetActions(
+            selectView: { actions.submit(.setChordSheetView(viewId: $0)) },
+            zoom: { actions.submit(.chordSheetZoom(step: $0)) },
+            audition: actions.audition,
+            setHeight: { actions.submit(.setChordSheetHeight(px: $0)) })
     }
 
     private var title: String {
@@ -46,6 +73,10 @@ struct ShellScreen: View {
             }
             Spacer(minLength: 8)
             button("Play chord", systemImage: "speaker.wave.2") { actions?.playChord() }
+            button(snapshot.chordSheet?.visible == true ? "Hide the chord sheet" : "Show the chord sheet",
+                   systemImage: "rectangle.bottomhalf.inset.filled") {
+                if let sheet = snapshot.chordSheet { actions?.submit(.setChordSheetVisible(visible: !sheet.visible)) }
+            }
             button("Self-test", systemImage: "stethoscope") { actions?.selfTest() }
             button("Export diagnostics", systemImage: "square.and.arrow.up") { actions?.exportDiagnostics() }
         }
@@ -136,6 +167,11 @@ struct ShellScreen: View {
         .padding(.vertical, 8)
         .background(Color(uiColor: .secondarySystemBackground))
     }
+}
+
+#Preview("Chord sheet") {
+    ShellScreen(snapshot: PreviewCatalog.snapshot("play_with_chord_sheet"), build: "preview",
+                chordSheet: PreviewCatalog.chordSheet("play_with_chord_sheet"))
 }
 
 #Preview("Quick start") {

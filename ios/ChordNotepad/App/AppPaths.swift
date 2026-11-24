@@ -67,7 +67,8 @@ enum AppEnvironment {
             || environment["XCTestSessionIdentifier"] != nil
     }
 
-    /// `-CNScreen selftest` opens the self-test at launch (CI's screenshots).
+    /// `-CNScreen selftest` opens the self-test at launch, `-CNScreen
+    /// chordsheet` shows the chord sheet (CI's screenshots).
     static var startScreen: String? { argument(after: "-CNScreen") }
 
     private static func argument(after flag: String) -> String? {

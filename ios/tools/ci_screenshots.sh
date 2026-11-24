@@ -1,11 +1,13 @@
 #!/bin/bash
 # Run the app in a simulator the way a person would, and keep what it shows
 # (docs/IOS.md, "CI"): a screenshot of the shell with the quick-start song,
-# then one of the self-test, which also tries live CoreAudio playback.
+# one of the self-test, which also tries live CoreAudio playback, and one of
+# the shell with the chord sheet shown (its buffer from the live session).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
-# Writes <out-dir>/<label>-shell.png, <label>-selftest.png, the app's
+# Writes <out-dir>/<label>-shell.png, <label>-selftest.png,
+# <label>-chordsheet.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -59,6 +61,17 @@ else
     status=1
 fi
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-selftest.png"
+
+# The chord sheet: the app writes chordsheet.json when its first buffer is drawn.
+rm -f "$DIAG/chordsheet.json"
+xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen chordsheet
+if wait_for "$DIAG/chordsheet.json" 240; then
+    cat "$DIAG/chordsheet.json"
+    sleep 3
+else
+    status=1
+fi
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-chordsheet.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 
 rm -rf "$OUT/$LABEL-diagnostics"

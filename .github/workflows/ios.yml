@@ -17,6 +17,8 @@ on:
       - 'android/requirements.txt'
       - 'android/tools/strip_music21.py'
       - 'android/tools/build_wheelhouse.py'
+      - 'android/tools/export_clef_glyphs.py'
+      - 'android/app/src/test/resources/chord_sheet/**'
       - 'resources/soundfont/**'
       - 'examples/01_quick_start.txt'
       - '.github/workflows/ios.yml'

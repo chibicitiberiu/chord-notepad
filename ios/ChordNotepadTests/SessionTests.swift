@@ -1,3 +1,5 @@
+import ChordNotepadKit
+import UIKit
 import XCTest
 
 @testable import ChordNotepad
@@ -70,6 +72,35 @@ final class SessionTests: XCTestCase {
         zipAttachment.name = "diagnostics.zip"
         zipAttachment.lifetime = .keepAlways
         add(zipAttachment)
+
+        // The chord sheet, live: shown, its buffer fetched on the bridge thread
+        // through the app's source, decoded, and painted with CoreGraphics.
+        let session = try XCTUnwrap(model.session)
+        let source = try XCTUnwrap(model.chordSheet)
+        session.submit(.setChordSheetVisible(visible: true))
+        let shown = await model.waitFor(timeout: .seconds(60)) {
+            $0.chordSheet?.visible == true && $0.chordSheet?.cursorIndex != nil
+        }
+        XCTAssertTrue(shown, "\(String(describing: model.snapshot.chordSheet))")
+        let state = try XCTUnwrap(model.snapshot.chordSheet)
+        source.follow(SheetRequest.of(state, height: 102))
+        let deadline = ContinuousClock.now + .seconds(60)
+        while source.load.loading, ContinuousClock.now < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        let sheet = try XCTUnwrap(source.load.sheet, source.load.failure ?? "no sheet")
+        XCTAssertEqual(sheet.buffer.viewId, state.activeView)
+        XCTAssertEqual(sheet.buffer.height, 102)
+        XCTAssertGreaterThan(sheet.buffer.slots.count, 10)
+        let image = ChordSheetSnapshot.image(sheet, palette: source.palette(for: sheet, colors: .light),
+                                             size: CGSize(width: 400, height: 122), scale: 2,
+                                             cursorIndex: state.cursorIndex)
+        XCTAssertGreaterThan(ChordSheetSnapshot.distinctColors(image), 8, "the strip painted next to nothing")
+        let png = XCTAttachment(image: image)
+        png.name = "chordsheet-live.png"
+        png.lifetime = .keepAlways
+        add(png)
+        session.submit(.setChordSheetVisible(visible: false))
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")

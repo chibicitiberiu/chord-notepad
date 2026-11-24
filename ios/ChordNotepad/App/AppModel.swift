@@ -32,6 +32,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot = SessionSnapshot()
     @Published private(set) var timings = LaunchTimings()
     @Published var showSelfTest = false
+    /// The chord sheet's buffers, once the session runs.
+    @Published private(set) var chordSheet: ChordSheetSource?
 
     private(set) var runtime: PythonRuntime?
     private(set) var session: Session?
@@ -87,8 +89,13 @@ final class AppModel: ObservableObject {
                     self?.receive(event)
                 }
             }
+            chordSheet = ChordSheetSource(session: session)
             phase = .running
             openQuickStart()
+            if AppEnvironment.startScreen == "chordsheet" {
+                // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh).
+                session.submit(.setChordSheetVisible(visible: true))
+            }
         } catch {
             Log.python.error("Start failed: \(String(describing: error), privacy: .public)")
             timings.error = String(describing: error)

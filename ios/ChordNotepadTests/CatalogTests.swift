@@ -1,3 +1,4 @@
+import ChordNotepadKit
 import XCTest
 
 @testable import ChordNotepad
@@ -26,6 +27,34 @@ final class CatalogTests: XCTestCase {
             XCTAssertGreaterThan(size, 10_000, "\(url.lastPathComponent) is nearly empty")
         }
         print("Catalog: \(written.count) images in \(folder.path)")
+    }
+
+    func testEveryChordSheetSceneHasABufferAtEachDevicesHeight() throws {
+        for screen in PreviewCatalog.screens where screen.name == "shell" {
+            for name in screen.fixtures {
+                let fixture = try XCTUnwrap(PreviewCatalog.fixture(name), name)
+                guard let state = try fixture.snapshot().chordSheet, state.visible else { continue }
+                for device in CatalogRenderer.devices {
+                    // The shell's split and pane in that window (ChordSheetSplitView, ChordSheetPane).
+                    let pane = ChordSheetSplit.wantedHeight(stored: state.height, windowWidth: device.size.width,
+                                                            windowHeight: device.size.height)
+                    let height = ChordSheetPaneMetrics.contentHeight(
+                        stripHeight: ChordSheetPaneMetrics.stripHeight(paneHeight: pane))
+                    XCTAssertNotNil(fixture.chordSheetBuffers[height],
+                                    "\(name) has no buffer for \(device.name)'s \(height) pt: make ios-fixtures")
+                }
+            }
+        }
+    }
+
+    func testTheChordSheetGlyphsAreInTheApp() throws {
+        let glyphs = SheetGlyphImages.shared
+        XCTAssertEqual(glyphs.index.baseSizes.count, 7, "chord_sheet/glyphs.json")
+        for (asset, size) in glyphs.index.baseSizes {
+            let image = try XCTUnwrap(glyphs.image(asset, pixelWidth: 20, pixelHeight: 40, tint: .black), asset)
+            XCTAssertEqual(image.width, 20)
+            XCTAssertGreaterThan(size.height, 0)
+        }
     }
 
     func testEveryFixtureTheCatalogNamesExists() {
