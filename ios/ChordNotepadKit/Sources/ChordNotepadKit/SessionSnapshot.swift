@@ -21,10 +21,25 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var playback: PlaybackState?
     public private(set) var highlight: HighlightState?
     public private(set) var chordSheet: ChordSheetState?
+    public private(set) var toolbar: ToolbarState?
+    public private(set) var songDefaults: SongDefaultsState?
+    public private(set) var voicingMenu: VoicingMenuState?
+    public private(set) var instrumentMenu: InstrumentMenuState?
+    public private(set) var recentDocuments: RecentDocumentsState?
+    public private(set) var settings: SettingsState?
+    /// The newest reply to `request_directive_hint`.
+    public private(set) var directiveHint: DirectiveHint?
+    /// The newest rename the session refused, and how many there were (the
+    /// dialog reacts to each one, the same refusal twice included).
+    public private(set) var renameFailure: RenameFailure?
+    public private(set) var renameFailures = 0
     /// The newest `AudioUnavailable` message, nil once audio played.
     public private(set) var audioProblem: String?
-    /// User-facing messages (errors, refused renames, audio problems), oldest first.
+    /// User-facing messages (errors, audio problems), oldest first. A refused
+    /// rename isn't one: the rename dialog shows it (``renameFailure``).
     public private(set) var messages: [String] = []
+    /// How many messages ever came (``messages`` keeps the newest only).
+    public private(set) var messageCount = 0
     /// How many outputs were applied.
     public private(set) var outputCount = 0
 
@@ -48,6 +63,20 @@ public struct SessionSnapshot: Sendable, Equatable {
             highlight = state
         case .chordSheetState(let state):
             chordSheet = state
+        case .toolbarState(let state):
+            toolbar = state
+        case .songDefaultsState(let state):
+            songDefaults = state
+        case .voicingMenuState(let state):
+            voicingMenu = state
+        case .instrumentMenuState(let state):
+            instrumentMenu = state
+        case .recentDocumentsState(let state):
+            recentDocuments = state
+        case .settingsState(let state):
+            settings = state
+        case .directiveHint(let hint):
+            directiveHint = hint
         case .audioUnavailable(let event):
             audioProblem = event.message
             note(event.message)
@@ -56,7 +85,8 @@ public struct SessionSnapshot: Sendable, Equatable {
         case .unexpectedError(let event):
             note("Unexpected error (\(event.context ?? "session")): \(event.message)")
         case .renameFailed(let event):
-            note(event.reason)
+            renameFailure = RenameFailure(event)
+            renameFailures += 1
         default:
             break
         }
@@ -78,6 +108,7 @@ public struct SessionSnapshot: Sendable, Equatable {
     }
 
     private mutating func note(_ message: String) {
+        messageCount += 1
         messages.append(message)
         if messages.count > Self.messageLimit {
             messages.removeFirst(messages.count - Self.messageLimit)

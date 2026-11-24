@@ -17,17 +17,17 @@ final class ChordSheetLayoutTests: XCTestCase {
     }
 
     func testTheTextKeepsItsMinimumWhenTheKeyboardTakesTheRoom() {
-        // 330 pt left (keyboard up): 330 - 96 (text) - 56 (below) = 178 for the sheet.
-        XCTAssertEqual(ChordSheetSplit.height(wanted: 300, available: 330, windowHeight: 890)!, 178, accuracy: 0.01)
+        // 330 pt left: 330 - 96 (text) - 16 (the handle) = 218 for the sheet.
+        XCTAssertEqual(ChordSheetSplit.height(wanted: 300, available: 330, windowHeight: 890)!, 218, accuracy: 0.01)
     }
 
     func testAShortSheetIsStillShownAboveTheHideLimit() {
-        // 250 pt left: 250 - 96 - 56 = 98, below the usual 120 minimum but shown.
-        XCTAssertEqual(ChordSheetSplit.height(wanted: 348, available: 250, windowHeight: 411)!, 98, accuracy: 0.01)
+        // 210 pt left: 210 - 96 - 16 = 98, below the usual 120 minimum but shown.
+        XCTAssertEqual(ChordSheetSplit.height(wanted: 348, available: 210, windowHeight: 411)!, 98, accuracy: 0.01)
     }
 
     func testNoRoomForAUsableSheetHidesIt() {
-        XCTAssertNil(ChordSheetSplit.height(wanted: 220, available: 220, windowHeight: 890))
+        XCTAssertNil(ChordSheetSplit.height(wanted: 220, available: 180, windowHeight: 890))
     }
 
     func testATabletsUntouchedSheetTakesAShareOfTheWindowAMovedOneStays() {
@@ -44,7 +44,7 @@ final class ChordSheetLayoutTests: XCTestCase {
         XCTAssertEqual(range.lowerBound, 120)
         XCTAssertEqual(range.upperBound, 534, accuracy: 0.01)
         // Little room: the cap is also the floor.
-        let tight = ChordSheetSplit.dragRange(available: 250, windowHeight: 411)
+        let tight = ChordSheetSplit.dragRange(available: 210, windowHeight: 411)
         XCTAssertEqual(tight.lowerBound, 98, accuracy: 0.01)
         XCTAssertEqual(tight.upperBound, 98, accuracy: 0.01)
     }

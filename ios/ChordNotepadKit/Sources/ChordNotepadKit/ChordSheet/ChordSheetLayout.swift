@@ -14,9 +14,9 @@ public enum ChordSheetSplit {
     public static let minimumEditorHeight = 96.0
     /// Below this height the sheet is hidden instead (a phone in landscape).
     public static let minimumShownHeight = 80.0
-    /// What sits below the text besides the sheet: the handle (16) and the
-    /// status line with its divider (40).
-    public static let reservedBelow = 16.0 + 40.0
+    /// What sits between the text and the sheet: the handle (14) and 2 pt
+    /// for rounding. The player is below the split, outside `available`.
+    public static let reservedBelow = 16.0
     /// The height the session starts with (`constants.DEFAULT_CHORD_SHEET_HEIGHT`).
     public static let defaultHeight = 160
     /// A tablet's share of the window for a sheet still at ``defaultHeight``.
