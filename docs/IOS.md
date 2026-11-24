@@ -308,7 +308,7 @@ ChordNotepad.app/
   a pure `py3-none-any` wheel. chardet stays out (as on the desktop; requests
   falls back to charset-normalizer) and music21 is the trimmed wheel from
   `android/tools/strip_music21.py`. The app reaches FluidSynth only
-  through the core's FluidSynth binding.
+  through the core's ctypes binding, `audio/fluid_ctypes.py`.
 - **FluidSynth.xcframework** (`packaging/ios/build_fluidsynth.sh`): 2.6.1
   from the macOS build's pinned tarball and gcem, `CMAKE_SYSTEM_NAME=iOS`,
   device arm64 and simulator arm64, `--target libfluidsynth`, CoreAudio on
