@@ -91,7 +91,7 @@ extension SessionTests {
         XCTAssertTrue(ok)
         let plus = try XCTUnwrap(view.keyCommands?.first { $0.input == "+" && $0.modifierFlags == .command })
         XCTAssertTrue(plus.attributes.contains(.hidden), "listed once, as the app's Larger Text")
-        XCTAssertTrue(UIApplication.shared.sendAction(plus.action, to: view, from: plus, for: nil))
+        XCTAssertTrue(UIApplication.shared.sendAction(try XCTUnwrap(plus.action), to: view, from: plus, for: nil))
         ok = await model.waitFor(timeout: .seconds(10)) { $0.editor?.fontSize == EditorFont.defaultPoints + 1 }
         XCTAssertTrue(ok, "Command-+ in the text")
         // Shortcuts wait while something is over the screen.
