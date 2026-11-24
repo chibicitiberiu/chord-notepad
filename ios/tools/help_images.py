@@ -94,14 +94,69 @@ def draw_callouts(img: Image.Image, callouts: list, crop: tuple, scale: float, t
         draw.text((cx, cy + 0.5), str(c["n"]), fill=on_primary, font=font, anchor="mm")
 
 
+def panel_box(img: Image.Image, at: list, ppp: int, tolerance: int = 6) -> tuple:
+    """The rectangle (points) of the panel (a dialog's card, a sheet) around
+    ``at``: the rows and then the columns where most pixels have the panel's
+    colour, contiguous with that point."""
+    px = img.load()
+    x0, y0 = round(at[0] * ppp), round(at[1] * ppp)
+    colour = px[x0, y0]
+
+    def same(p):
+        return all(abs(a - b) <= tolerance for a, b in zip(p, colour))
+
+    # The dimmed screen round a panel has none of its exact colour; a row or a
+    # column through the panel has some, whatever text or controls it holds.
+    xs = range(0, img.width, 2)
+
+    def row_in(y):
+        return sum(same(px[x, y]) for x in xs) > 0.05 * len(xs)
+
+    top = y0
+    while top > 0 and row_in(top - 1):
+        top -= 1
+    bottom = y0
+    while bottom < img.height - 1 and row_in(bottom + 1):
+        bottom += 1
+    ys = range(top, bottom + 1, 2)
+
+    def column_in(x):
+        return sum(same(px[x, y]) for y in ys) > 0.05 * len(ys)
+
+    left = x0
+    while left > 0 and column_in(left - 1):
+        left -= 1
+    right = x0
+    while right < img.width - 1 and column_in(right + 1):
+        right += 1
+    return (left / ppp, top / ppp, (right - left + 1) / ppp, (bottom - top + 1) / ppp)
+
+
+def crop_of(shot: dict, img: Image.Image, ppp: int) -> tuple:
+    """The part of the source to keep, in points: ``crop`` [x, y, w, h], or
+    ``panel`` (the card or sheet around a point) with ``pad``, ``full_width``
+    and ``to_bottom``; else the whole image."""
+    full = (0, 0, img.width / ppp, img.height / ppp)
+    if "panel" in shot:
+        x, y, w, h = panel_box(img, shot["panel"], ppp)
+        pad = shot.get("pad", 4)
+        x, y, w, h = x - pad, y - pad, w + 2 * pad, h + 2 * pad
+        if shot.get("full_width"):
+            x, w = 0, full[2]
+        if shot.get("to_bottom"):
+            h = full[3] - y
+        x, y = max(0, x), max(0, y)
+        return (x, y, min(w, full[2] - x), min(h, full[3] - y))
+    return tuple(shot.get("crop", full))
+
+
 def render(shot: dict, theme: str, catalog: Path, screenshots: Path) -> Image.Image:
     """The shot cut, scaled and labelled."""
     path, ppp = source(shot, theme, catalog, screenshots)
     if not path.exists():
         raise SystemExit(f"{shot['name']}: no {path}")
     img = Image.open(path).convert("RGB")
-    full = (0, 0, img.width / ppp, img.height / ppp)
-    crop = tuple(shot.get("crop", full))  # x, y, width, height in points
+    crop = crop_of(shot, img, ppp)  # x, y, width, height in points
     box = tuple(round(v * ppp) for v in (crop[0], crop[1], crop[0] + crop[2], crop[1] + crop[3]))
     img = img.crop(box)
     # Output pixels per point: Android's phone shots are 720 px for its 412 dp
@@ -109,7 +164,13 @@ def render(shot: dict, theme: str, catalog: Path, screenshots: Path) -> Image.Im
     scale = shot.get("scale", 720 / 402)
     size = (round(crop[2] * scale), round(crop[3] * scale))
     img = img.resize(size, Image.Resampling.LANCZOS)
-    draw_callouts(img, shot.get("callouts", []), crop, scale, theme)
+    pad = round(shot.get("pad_top", 0) * scale)
+    if pad:
+        # Room for callouts over the app bar (Android's sit in its status bar).
+        padded = Image.new("RGB", (img.width, img.height + pad), img.getpixel((2, 2)))
+        padded.paste(img, (0, pad))
+        img = padded
+    draw_callouts(img, shot.get("callouts", []), (crop[0], crop[1] - pad / scale), scale, theme)
     return img
 
 

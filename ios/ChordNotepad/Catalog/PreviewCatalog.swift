@@ -256,6 +256,10 @@ enum PreviewCatalog {
                       devices: CatalogRenderer.upright + [CatalogRenderer.iphoneLandscape]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
         },
+        // ... and Rename on Amazing Grace, as it opens (the name without its extension).
+        CatalogScreen("help_rename", fixtures: ["grace_edit"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play, route: .rename), renameName: "Amazing Grace")
+        },
     ]
 
     /// Settings over a scene's settings edit, at `nav`.
