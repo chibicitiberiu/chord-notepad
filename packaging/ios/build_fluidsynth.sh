@@ -7,7 +7,8 @@
 # Writes <out-dir>/FluidSynth.xcframework with two slices, device arm64 and
 # simulator arm64. Each holds a dynamic FluidSynth.framework: the library is
 # shipped under the LGPL as a framework the app loads at run time (BACKLOG.md,
-# iOS licensing), and pyFluidSynth dlopens it by path (CHORD_NOTEPAD_LIBFLUIDSYNTH).
+# iOS licensing), and the core's FluidSynth binding dlopens it by path
+# (CHORD_NOTEPAD_LIBFLUIDSYNTH).
 #
 # Audio goes through FluidSynth's iOS CoreAudio driver (RemoteIO, with its own
 # AVAudioSession setup in fluid_coreaudio_avaudiosession.m); the macOS HAL

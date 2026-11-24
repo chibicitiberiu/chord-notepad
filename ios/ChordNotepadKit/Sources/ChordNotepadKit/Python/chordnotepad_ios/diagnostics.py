@@ -10,7 +10,7 @@ crosses to Swift.
 - :func:`offline_render`: the self-test's synth check. It plays a chord on a
   FluidSynth synth with no audio driver (the core's audio export renderer,
   ``services.audio_export.FluidSynthRenderer``) and measures the samples, so
-  it proves the framework, pyFluidSynth and the SoundFont work even where no
+  it proves the framework, the core's FluidSynth binding and the SoundFont work even where no
   audio device exists (CI's simulators).
 - :func:`audio_status`: whether the running session's live player started,
   and why not.

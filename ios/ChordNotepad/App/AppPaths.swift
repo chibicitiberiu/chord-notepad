@@ -13,8 +13,8 @@ enum AppPaths {
     /// The core's packages.
     static var pythonPackages: URL { pythonHome.appendingPathComponent("app_packages", isDirectory: true) }
 
-    /// FluidSynth's binary, which pyFluidSynth loads by path
-    /// (`CHORD_NOTEPAD_LIBFLUIDSYNTH`, audio/fluidsynth_import.py).
+    /// FluidSynth's binary, which the core's FluidSynth binding loads by path
+    /// (`CHORD_NOTEPAD_LIBFLUIDSYNTH`).
     static var fluidSynth: URL {
         (Bundle.main.privateFrameworksURL ?? bundle.appendingPathComponent("Frameworks"))
             .appendingPathComponent("FluidSynth.framework/FluidSynth")

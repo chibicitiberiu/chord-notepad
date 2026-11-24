@@ -51,7 +51,7 @@ jobs:
         with:
           python-version: '3.14'
 
-      # The core imports pyFluidSynth even with the fake player, so the host
+      # The core loads FluidSynth even with the fake player, so the host
       # needs a libfluidsynth: the macOS app's own build, no Homebrew.
       - name: Cache the host FluidSynth
         id: host-fluidsynth

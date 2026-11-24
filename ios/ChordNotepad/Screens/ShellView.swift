@@ -106,7 +106,9 @@ struct SelfTestContent: View {
             if scrolls {
                 ScrollView { rows }
             } else {
-                rows.frame(maxHeight: .infinity, alignment: .top)
+                Color.clear
+                    .overlay(alignment: .top) { rows.fixedSize(horizontal: false, vertical: true) }
+                    .clipped()
             }
         }
         .background(Color(uiColor: .systemGroupedBackground))

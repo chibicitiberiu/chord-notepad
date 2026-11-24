@@ -73,9 +73,12 @@ struct ShellScreen: View {
         if scrolls {
             ScrollView { text.textSelection(.enabled) }
         } else {
-            text
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            // The space left, with the text cut at its bottom: an oversized
+            // child would otherwise push the header and status line out.
+            Color.clear
+                .overlay(alignment: .topLeading) {
+                    text.fixedSize(horizontal: false, vertical: true)
+                }
                 .clipped()
         }
     }

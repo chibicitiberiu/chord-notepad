@@ -37,7 +37,7 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(model.snapshot.messages, before, "the audition reported a problem")
 
         // The blocking audio check: FluidSynth.framework renders the chord
-        // offline (no audio driver) through pyFluidSynth and the SoundFont.
+        // offline (no audio driver) through the core's FluidSynth binding and the SoundFont.
         let render = try await SelfTest.offlineRender(model: model)
         XCTAssertTrue(render.ok, render.error ?? "")
         XCTAssertGreaterThan(render.peak, 1000)

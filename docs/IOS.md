@@ -117,8 +117,8 @@ CPython comes from the system: Fedora's `python3-devel` (3.14) provides
 `Python.h` and `libpython3.14.so`, found through `pkg-config python3-embed`.
 The core's packages come from the pipenv venv, which is made from the same
 `/usr/bin/python3.14`, so its compiled wheels load in the embedded
-interpreter. The system `libfluidsynth` is needed because the core imports
-pyFluidSynth even with the fake player.
+interpreter. The system `libfluidsynth` is needed because the core loads
+FluidSynth even with the fake player.
 
 ## Running the tests
 
@@ -177,7 +177,7 @@ runtime; another one is an error):
   the `sys.path` CPython computed.
 - `environment` is applied with `setenv` before the start:
   `CHORD_NOTEPAD_LIBFLUIDSYNTH` on iOS (the framework's binary, which
-  `audio/fluidsynth_import.py` loads at import time), `CN_TEST_FAKE_PLAYER=1`
+  the core's FluidSynth binding loads), `CN_TEST_FAKE_PLAYER=1`
   in the tests.
 - After the start the GIL is released (`PyEval_SaveThread`). A failed
   `PyStatus` comes back as a Swift error; nothing calls `exit`.
@@ -305,8 +305,8 @@ ChordNotepad.app/
   hash-checked wheelhouse (`android/tools/build_wheelhouse.py`): every one is
   a pure `py3-none-any` wheel. chardet stays out (as on the desktop; requests
   falls back to charset-normalizer) and music21 is the trimmed wheel from
-  `android/tools/strip_music21.py`. pyFluidSynth is in until section E
-  replaces it.
+  `android/tools/strip_music21.py`. The app reaches FluidSynth only
+  through the core's FluidSynth binding.
 - **FluidSynth.xcframework** (`packaging/ios/build_fluidsynth.sh`): 2.6.1
   from the macOS build's pinned tarball and gcem, `CMAKE_SYSTEM_NAME=iOS`,
   device arm64 and simulator arm64, `--target libfluidsynth`, CoreAudio on

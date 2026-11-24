@@ -154,7 +154,8 @@ final class AppModel: ObservableObject {
         if event.typeName == "UnexpectedError" || event.typeName == "UserError" || event.typeName == "AudioUnavailable" {
             Log.bridge.error("\(event.typeName, privacy: .public): \(event.json, privacy: .public)")
         }
-        if timings.firstText == nil, !snapshot.text.isEmpty, snapshot.editor != nil {
+        if timings.firstText == nil, !snapshot.text.isEmpty, snapshot.editor != nil,
+           snapshot.document?.documentId != nil {
             timings.firstText = elapsed()
             Log.ui.info("First text after \(self.timings.firstText ?? 0, format: .fixed(precision: 3)) s")
             Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot), name: "launch.json")
