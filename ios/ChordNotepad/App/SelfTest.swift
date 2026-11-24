@@ -34,6 +34,8 @@ struct SelfTestReport: Codable, Equatable {
     /// Messages the session sent after the audition (an `AudioUnavailable`, say).
     var auditionMessages: [String]
     var audioCategory: String
+    /// The category's options (FluidSynth's output sets mix with others).
+    var audioOptions: [String]?
     var audioRoute: [String]
     var sampleRate: Double
     var ioBufferDuration: Double
@@ -77,6 +79,7 @@ enum SelfTest {
             liveAudio: live,
             auditionMessages: auditionMessages,
             audioCategory: audio.category.rawValue,
+            audioOptions: audio.categoryOptions.names,
             audioRoute: route,
             sampleRate: audio.sampleRate,
             ioBufferDuration: audio.ioBufferDuration,

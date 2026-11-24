@@ -472,6 +472,7 @@ extension SelfTestReport {
         liveAudio: AudioStatus(session: true, initialized: true, error: nil, soundfont: "GeneralUser-GS.sf2"),
         auditionMessages: [],
         audioCategory: "AVAudioSessionCategoryPlayback",
+        audioOptions: ["mixWithOthers"],
         audioRoute: ["Speaker: Speaker"],
         sampleRate: 48000,
         ioBufferDuration: 0.0107,

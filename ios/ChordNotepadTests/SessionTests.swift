@@ -17,6 +17,7 @@ import XCTest
 final class SessionTests: XCTestCase {
     func testTheAppSessionOpensTheQuickStartSongAuditionsAndRendersSound() async throws {
         let model = AppModel()
+        model.audioFocus = RecordingAudioFocus()
         await model.start(fakePlayer: true)
         XCTAssertEqual(model.phase, .running, "\(model.timings)")
         guard model.phase == .running else { return }
@@ -117,6 +118,7 @@ final class SessionTests: XCTestCase {
         try await checkPdfExport(model)
         try await checkQuickStart(model)
         try await checkUserGuide()
+        try await checkAudioSession(model)
 
         XCTAssertTrue(model.snapshot.messages.allSatisfy { !$0.hasPrefix("Unexpected error") },
                       "\(model.snapshot.messages)")

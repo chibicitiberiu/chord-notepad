@@ -145,6 +145,9 @@ struct SelfTestContent: View {
                         row("Player", report.liveAudio?.initialized == true ? "Started" : (report.liveAudio?.error ?? "Unknown"),
                             ok: report.liveAudio?.initialized == true)
                         row("Category", report.audioCategory.replacingOccurrences(of: "AVAudioSessionCategory", with: ""))
+                        if let options = report.audioOptions {
+                            row("Options", options.isEmpty ? "None" : options.joined(separator: ", "))
+                        }
                         row("Route", report.audioRoute.isEmpty ? "None" : report.audioRoute.joined(separator: ", "))
                         row("Sample rate", "\(Int(report.sampleRate)) Hz, buffer \(String(format: "%.1f", report.ioBufferDuration * 1000)) ms")
                         ForEach(report.auditionMessages, id: \.self) { Text($0).font(.footnote).foregroundStyle(.orange) }

@@ -64,6 +64,10 @@ final class AppModel: ObservableObject {
     private(set) var store: FileDocumentStore?
     /// The system's document pickers (the session test puts a stand-in here).
     var picker: DocumentPicking = SystemDocumentPicker()
+    /// The audio session's category while a song plays (the session test puts a stand-in here).
+    var audioFocus: AudioFocusGateway = SystemAudioFocus()
+    /// The audio session's notifications and the scene phase, into the session's commands.
+    private(set) var audio: AudioSessionObserver?
     /// Answers the session's requests (the pickers, the unsaved-changes question).
     private var requests: RequestController?
     /// Files opened from Files or another app before the session ran.
@@ -173,6 +177,9 @@ final class AppModel: ObservableObject {
                     PdfExporter(write: { id, data in try store.writeBytes(id: id, data: data) },
                                 newCanvas: { UIKitPdfCanvas() }).export(request)
                 })
+            let audio = AudioSessionObserver(focus: audioFocus) { session.submit($0) }
+            audio.start()
+            self.audio = audio
             editor.submit = { session.submit($0) }
             editor.playHandlers = playHandlers
             editor.onAppCommand = { [weak self] in self?.shortcut($0) }
@@ -231,7 +238,8 @@ final class AppModel: ObservableObject {
     static func configuration(fakePlayer: Bool) -> PythonRuntime.Configuration {
         var environment = ["CHORD_NOTEPAD_LIBFLUIDSYNTH": AppPaths.fluidSynth.path]
         if fakePlayer {
-            environment["CN_TEST_FAKE_PLAYER"] = "1"
+            // One that keeps a started song playing, so the session test can interrupt it.
+            environment["CN_TEST_FAKE_PLAYER"] = "hold"
         }
         return PythonRuntime.Configuration(
             home: AppPaths.pythonHome.path,
@@ -351,6 +359,7 @@ final class AppModel: ObservableObject {
     /// screen stays awake while a song plays.
     private func playChanged() {
         let playback = snapshot.playback
+        audio?.policy.onStatus(playback?.status)
         editor.updatePlay(mode: ui.mode, playhead: playback?.playheadOffset, playing: playback?.status == .playing)
         let awake = keepScreenOn(playback)
         if UIApplication.shared.isIdleTimerDisabled != awake {
@@ -1024,16 +1033,19 @@ final class AppModel: ObservableObject {
         return condition(snapshot)
     }
 
-    /// The scene went to the background or came back.
+    /// The scene went to the background or came back: `app_background` and
+    /// `app_foreground` through the audio policy (Android's `AppLifecycleHooks`).
     func scenePhaseChanged(_ newPhase: ScenePhase) {
-        guard let session else { return }
+        guard let audio else { return }
         switch newPhase {
         case .background:
-            session.submit(.appBackground())
+            audio.policy.scene(.background)
             Diagnostics.shared.mirror()
+        case .inactive:
+            audio.policy.scene(.inactive)
         case .active:
-            session.submit(.appForeground())
-        default:
+            audio.policy.scene(.active)
+        @unknown default:
             break
         }
     }
