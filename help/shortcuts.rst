@@ -453,7 +453,16 @@ Help
 
    .. only:: ios
 
-      The user guide has no keyboard shortcut. Open it from **☰ → User guide**.
+      .. list-table::
+         :header-rows: 1
+         :widths: 30 70
+
+         * - Shortcut
+           - Action
+         * - Command+?
+           - Open the user guide
+
+      Without a keyboard, open it from **☰ → User guide**.
 
    .. platform-figure:: user-guide
       :platforms: android
@@ -547,6 +556,7 @@ Quick Reference Card
          Cmd++         Bigger text
          Cmd+-         Smaller text
          Cmd+0         Reset text size
+         Cmd+?         User guide
 
          TOUCH (PLAY TAB)
          Play / pause  Tap the big button

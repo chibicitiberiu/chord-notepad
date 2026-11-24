@@ -625,6 +625,8 @@ Keyboard Shortcuts Summary
            - Select all (Edit tab)
          * - Command+F, Option+Command+F
            - Find, find and replace
+         * - Command+?
+           - User guide
 
 Color Coding Summary
 ====================

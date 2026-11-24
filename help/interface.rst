@@ -1208,8 +1208,9 @@ The User Interface
          somewhere else.
 
       **User guide**
-         This guide. It works offline. Links to web sites open in Safari. Swipe from
-         the left edge to go back through the guide's pages; ← returns to your song.
+         This guide. It works offline, and Command+? on a hardware keyboard opens
+         it too. Links to web sites open in Safari. Swipe from the left edge to go
+         back through the guide's pages; ← returns to your song.
 
       **Quick start**
          The short tour that opens the first time you start the app.
