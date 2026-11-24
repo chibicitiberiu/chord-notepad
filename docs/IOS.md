@@ -11,9 +11,10 @@ repeated here.
 **Status (2026-11-24):** the core knows the `ios` platform (section B of the
 plan), `ios/ChordNotepadKit` is built and tested on Linux (section C), and
 CI builds the bare app shell and tests it on iPhone and iPad simulators
-with no Apple account (section D, `.github/workflows/ios.yml`). Still to
-come: enrollment, signing and TestFlight (A, E), then the screens (F, in
-`BACKLOG.md`).
+with no Apple account (section D, `.github/workflows/ios.yml`). The first
+screen slice is the chord sheet, under the shell's text ("The chord sheet"
+below). Still to come: enrollment, signing and TestFlight (A, E), then the
+other screens (F, in `BACKLOG.md`).
 
 ## Decisions and constraints
 
@@ -54,6 +55,7 @@ ios/
     App/                        AppModel (the session), paths, document store,
                                 diagnostics, self-test
     Screens/                    ShellScreen (pure), ShellView (live), self-test
+    ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
     Assets.xcassets             the app icon (ios/tools/make_app_icon.py)
     PrivacyInfo.xcprivacy       the app's privacy manifest
@@ -73,12 +75,14 @@ ios/
       Generated/Bridge.swift    DTOs, enums, SessionOutput, command builders (generated)
       OffsetMapper.swift        code points <-> UTF-16
       SheetBuffer.swift         op-buffer v2 decoder (values, no drawing)
+      ChordSheet/               the chord sheet's logic: geometry, theme, split, loader, painter
       Python/chordnotepad_ios/  the Python glue (host.py, diagnostics.py), shipped as a resource
     Tests/ChordNotepadKitTests/ XCTest; python/ holds a tiny test module
   Fixtures/                     recorded session output per scene, for the preview catalog
   tools/
     gen_swift_bridge.py         writes Generated/Bridge.swift from the schema
     install_python.sh           the app's "Install Python" build phase
+    export_glyphs.sh            the "Chord sheet glyphs" build phase
     make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
     ci_simulators.py, ci_screenshots.sh   CI helpers
   build/                        not committed: frameworks, the Python bundle, DerivedData
@@ -123,7 +127,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 45 tests, about 5 s after the first build
+make ios-kit-test      # swift test: 102 tests, about 10 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -153,9 +157,14 @@ What the tests cover:
 | `BridgeCodecTests` | generated facts against the schema file, every builder (null and set) accepted by the core's own `decode_args` and answer decoders, required nullable keys written as null, decoding by type name |
 | `OffsetMapperTests` | Android's `OffsetMapperTest`, case for case (lone surrogates through UTF-16 code units) |
 | `SheetBufferTests` | Android's `ChordSheetBufferTest` on the same fixtures, plus every truncation throwing, huge counts, `Data` slices |
-| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap) and every fixture folding into a screen's snapshot |
+| `SnapshotTests` | `SessionSnapshot` (code-point edits, the message cap), every fixture folding into a screen's snapshot, the chord sheet scenes' buffers (view, zoom, playhead, heights) |
+| `ChordSheetGeometryTests` | Android's `ChordSheetGeometryTest`, case for case: anchors, hit-testing, gutter variants, culling, lane clips, auto-scroll, zoom steps, Tk colours, requests; the scroll after a new buffer |
+| `ChordSheetThemeTests` | Android's `ChordSheetThemeTest` and `ChordSheetPaperTest` as behaviour: the light theme keeps the buffer's colours, the dark one maps them; the palette |
+| `ChordSheetLayoutTests` | Android's `ChordSheetSplitTest`, the pane's content height, when the strip follows the playhead |
+| `ChordSheetLoaderTests` | Android's `ChordSheetControllerTest`: one fetch per distinct request after the settle time, no song, a newer version, the loading flag, stale replies dropped |
+| `SheetPainterTests` | the painter on the Android fixtures with a recording canvas: paint order, clips and translations, glyph rectangles and tints (widths against `clef_assets.scaled_width`), text anchoring and pixel snapping, lane clips, the playhead marks, the key bed, culling |
 | `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
-| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the four scenes |
+| `IntegrationTests` | one real session: restore a draft, code-point highlights, save through the store, a refused rename, a decoded chord sheet buffer, the six scenes |
 
 ## The Swift kit
 
@@ -256,14 +265,26 @@ Regenerate after changing a DTO or a command: first the schema
 
 ### Fixtures for the preview catalog
 
-`IntegrationTests` records four scenes into `ios/Fixtures/`: `empty_song`,
+`IntegrationTests` records six scenes into `ios/Fixtures/`: `empty_song`,
 `quick_start_edit`, `play_with_chord_sheet` (the complete example with the
-chord sheet shown and the playhead on the third chord) and `errors` (a
-document that can't be opened, a rename the storage refuses). Each file has
-the newest JSON of every state (the whole screen) and the other outputs of
-the scene in order, exactly as they crossed the bridge, sorted and indented,
-with the temporary files folder written `$FILES_DIR`. A normal run checks
-them; `make ios-fixtures` rewrites them. They are the same on every run.
+chord sheet shown as the piano roll and the playhead on the third chord),
+`errors` (a document that can't be opened, a rename the storage refuses),
+`chord_sheet_staff` (the staff, zoomed in one step, playhead on chord 24) and
+`chord_sheet_fret` (fret cards after `set_voicing guitar:standard`, which
+makes the view available). The last two come after `errors`, so its states
+stay as they were. Each file has the newest JSON of every state (the whole
+screen) and the other outputs of the scene in order, exactly as they crossed
+the bridge, sorted and indented, with the temporary files folder written
+`$FILES_DIR`. A normal run checks them; `make ios-fixtures` rewrites them.
+They are the same on every run.
+
+The catalog can't call Python, so each scene with the sheet shown also keeps
+its op buffers: `chord_sheet_buffers`, a list of `{height, base64}`, packed at
+the content heights the catalog's iPhone and iPad ask for (102 and 355 pt:
+the split's height for a 160 pt sheet in each window, less the pane's header,
+progress bar, inset and the 20 pt marker lane). `CatalogTests` checks the
+heights still match the catalog's devices. The theme is applied at paint
+time, so light and dark share the recordings.
 
 ## The app
 
@@ -278,6 +299,7 @@ ChordNotepad.app/
   python/lib/python3.14/            the standard library, .pyc next to each .py
   python/app/                       chordnotepad (the core), chordnotepad_ios (the glue)
   python/app_packages/              the core's packages
+  chord_sheet/                      the clef and glyph PNGs and glyphs.json ("Chord sheet glyphs")
   GeneralUser-GS.sf2, Fixtures/, 01_quick_start.txt, PrivacyInfo.xcprivacy
 ```
 
@@ -380,15 +402,77 @@ chord, the self-test, export diagnostics.
   a live audition and whether FluidSynth's CoreAudio player started; the
   AVAudioSession category, route, sample rate and buffer.
 
+### The chord sheet
+
+The first screen slice: the Play tab's strip, shown under the shell's text
+while `ChordSheetState.visible` (the shell's header has a toggle until the
+player exists). It is a port of Android's `ui/chordsheet/`.
+
+- **In the kit** (`Sources/ChordNotepadKit/ChordSheet/`, tested on Linux):
+  `ChordSheetGeometry` (anchors, the desktop's 25 % / 70 % auto-scroll,
+  zoom steps for a pinch, the scroll that keeps the same music in view after
+  a zoom or a view change, lane label clips), `ChordSheetTheme` (Android's
+  light and dark tokens as `SheetColor` RGBA values, the dark mapping of the
+  buffer's colours, a buffer's palette), `ChordSheetLayout` (the split's
+  heights, the pane's fixed parts, `PlayheadFollower`), `ChordSheetLoader`
+  (`SheetRequest`, the `ChordSheetLoad` state machine, and a main-actor
+  driver that settles height changes for 60 ms, fetches through a closure
+  and decodes off the main actor) and `SheetPainter`, which paints a
+  `PreparedSheet` on the small `SheetCanvas` protocol: rectangles (square or
+  rounded), ellipses, polylines, filled paths, text runs with a measure call,
+  and glyph images. No CGFloat, no Combine, no UIKit.
+- **In the app** (`ChordNotepad/ChordSheet/`): `CGSheetCanvas` implements
+  `SheetCanvas` on CoreGraphics and CoreText (system font at the op's size ×
+  4/3; glyphs pre-scaled to device pixels and tinted SrcIn, cached);
+  `ChordSheetSource` is the `ObservableObject` over the kit's loader (live,
+  `Session.chordSheetBuffer` on the bridge thread) or a fixture's recorded
+  buffers (the catalog); `ChordSheetPane` has the split, the header and the
+  strip.
+- **Why a `Canvas` and not a UIView:** ImageRenderer draws SwiftUI only, so a
+  `Canvas` (whose `withCGContext` hands the CoreGraphics canvas its context)
+  is the same view live and in the catalog. A transparent `UIScrollView`
+  sits over it in the live app only: it gives the strip iOS's scrolling
+  (momentum, bounce), and its offset is the strip's scroll; it also takes the
+  tap (`audition` for the slot under it) and the pinch.
+- **Glyphs:** the "Chord sheet glyphs" build phase (`ios/tools/export_glyphs.sh`)
+  runs `android/tools/export_clef_glyphs.py` into `<app>/chord_sheet/`, as
+  Android's Gradle task does: the seven base PNGs and `glyphs.json` (base
+  sizes; the painter sizes a key `max(1, round(base_w × h / base_h))`, with
+  Python's rounding). Standard library only, so the system `python3` on a Mac
+  is enough.
+- **Live check:** `SessionTests` shows the sheet, fetches through
+  `ChordSheetSource`, decodes and paints the buffer into an image (attached
+  as `chordsheet-live.png`); `-CNScreen chordsheet` shows the sheet at launch
+  and writes `Diagnostics/chordsheet.json` when the first buffer is drawn,
+  which CI's screenshot waits for.
+
+Deliberate differences from Android:
+
+- The piano roll's keyboard sits on a bed of its white keys' colour (the
+  desktop's `key_bed`), so the gaps beside the black keys aren't the strip's
+  paper, in the dark theme especially.
+- Scrolling is a `UIScrollView`'s (it bounces at the ends); a jump to the
+  playhead is `setContentOffset(animated:)`.
+- The first buffer opens with the playhead's chord in view; after that the
+  strip follows the playhead only when it moves, as on Android.
+- A tap on an unavailable view shows the core's reason in a capsule over the
+  strip for 2.5 s (Android: a Toast).
+- The header is a fixed 32 pt, so its labels follow Dynamic Type up to
+  `xLarge` only; the strip's own text ignores the text size (its geometry
+  comes from the renderers), as on Android.
+- While a pinch is in progress the whole strip scales, the gutter too.
+- The height the drag stores is in points (`set_chord_sheet_height`).
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
 with; adding a screen is one line there. `#Preview`s use the same
 `PreviewCatalog.snapshot("<scene>")`. `CatalogTests` renders each entry with
 `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and iPad Air 11-inch
-(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 40
-PNGs in phase 1 (the shell with four scenes, the self-test with a sample
-report). ImageRenderer can't draw a `ScrollView` (or other UIKit-backed
+(820×1180 pt, @2x), light and dark, default and `accessibility2` text: 56
+PNGs (the shell with six scenes, the self-test with a sample report). The
+chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only its
+scroll view (live only) is UIKit. ImageRenderer can't draw a `ScrollView` (or other UIKit-backed
 views), so a screen takes `scrolls: false` in the catalog and draws plain
 SwiftUI.
 
@@ -408,8 +492,9 @@ Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
 ## CI
 
 `.github/workflows/ios.yml` runs on every push to main that touches `ios/`,
-`core/`, `packaging/ios/`, the schema, the Python pins or the SoundFont,
-and by hand (workflow_dispatch). A newer push cancels a running build.
+`core/`, `packaging/ios/`, the schema, the Python pins, the SoundFont, the
+glyph export script or Android's chord sheet fixtures (the kit's tests read
+them), and by hand (workflow_dispatch). A newer push cancels a running build.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
 `ios.yml` or this file. Two jobs on `macos-26` (arm64):
 
@@ -444,7 +529,9 @@ Artifacts of each run:
 - `ios-catalog`: the catalog PNGs,
   `<screen>-<scene>-<iphone|ipad>-<light|dark>-<default|large>.png`.
 - `ios-screenshots`: `<iphone|ipad>-shell.png` (the quick-start song with
-  its status line), `<iphone|ipad>-selftest.png`, the app's Diagnostics
+  its status line), `<iphone|ipad>-selftest.png`,
+  `<iphone|ipad>-chordsheet.png` (the quick-start song with the chord sheet
+  shown, its buffer from the live session), the app's Diagnostics
   folder from each simulator (`launch.json`, `selftest.json` with the live
   audio result, the core's log) and `<device>-app.log` (the unified log of
   the app's process).
