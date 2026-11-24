@@ -175,7 +175,11 @@ final class SessionTests: XCTestCase {
         XCTAssertEqual(try String(contentsOf: copy, encoding: .utf8), "{key: C}\n" + morningText)
         let copyId = try XCTUnwrap(model.snapshot.document?.documentId)
         XCTAssertNotEqual(copyId, morningId)
-        XCTAssertEqual(model.snapshot.recentDocuments?.items.prefix(2).map(\.id), [copyId, morningId])
+        // The recent list follows the document's state.
+        let listed = await model.waitFor(timeout: .seconds(10)) {
+            $0.recentDocuments?.items.prefix(2).map(\.id) == [copyId, morningId]
+        }
+        XCTAssertTrue(listed, "\(String(describing: model.snapshot.recentDocuments))")
 
         // Export MIDI: the store's file, offered with the export picker once written, then deleted.
         let exports = folder.appendingPathComponent("exports", isDirectory: true)
