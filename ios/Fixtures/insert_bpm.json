@@ -29,6 +29,20 @@
   {
    "json": {
     "errors": {
+     "value": "Please enter a BPM value."
+    },
+    "fields": {
+     "value": ""
+    },
+    "form_error": "",
+    "kind": "bpm",
+    "request_id": 6
+   },
+   "type": "DirectiveCheck"
+  },
+  {
+   "json": {
+    "errors": {
      "value": "BPM must be between 20 and 400."
     },
     "fields": {

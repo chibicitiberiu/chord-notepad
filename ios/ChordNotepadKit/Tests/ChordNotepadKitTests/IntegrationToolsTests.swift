@@ -91,12 +91,31 @@ extension IntegrationTests {
                                          log.events(since: asked, type: "InsertDirectiveRequest").last)
             if entry.kind == .loop { XCTAssertEqual(loopChoices(request), ["@start", "verse"]) }
             if entry.kind == .key { XCTAssertFalse(request.keyOptions.isEmpty, "the keys with a signature") }
+            // The dialog's first check, of the fields it opens with (the app sends
+            // it when the dialog appears): Insert is on for 4/4, the first key and
+            // @start × 2, off for the empty fields.
+            let settings = try log.decodeLatest(SettingsState.self, "SettingsState")
+            let toolbar = try log.decodeLatest(ToolbarState.self, "ToolbarState")
+            let initial = DirectiveForm.initial(entry.kind, keys: keyChoices(
+                request, american: settings.americanKeys, european: settings.europeanKeys,
+                toolbar: toolbar.keyOptions)).answer()
+            session.submit(.checkDirective(fields: .object(initial.mapValues { .string($0) }),
+                                           kind: entry.kind.wire, requestId: request.requestId))
+            try await log.wait("the \(entry.kind) dialog's first check") {
+                (try? log.decode(DirectiveCheck.self, log.events(since: asked, type: "DirectiveCheck").last))?
+                    .requestId == request.requestId
+            }
+            let first = try log.decode(DirectiveCheck.self, log.events(since: asked, type: "DirectiveCheck").last)
+            XCTAssertEqual(DirectiveVerdict.of(kind: entry.kind.wire, requestId: request.requestId, answer: initial,
+                                               check: first, showErrors: false).canInsert,
+                           [.time, .key, .loop].contains(entry.kind), "\(entry.kind): \(first)")
             if let fields = checks[entry.kind] {
                 session.submit(.checkDirective(fields: .object(fields.mapValues { .string($0) }),
                                                kind: entry.kind.wire, requestId: request.requestId))
+                let typed = JSONValue.object(fields.mapValues { .string($0) })
                 try await log.wait("the \(entry.kind) check") {
                     (try? log.decode(DirectiveCheck.self, log.events(since: asked, type: "DirectiveCheck").last))?
-                        .requestId == request.requestId
+                        .fields == typed
                 }
                 let check = try log.decode(DirectiveCheck.self, log.events(since: asked, type: "DirectiveCheck").last)
                 let verdict = DirectiveVerdict.of(kind: entry.kind.wire, requestId: request.requestId,

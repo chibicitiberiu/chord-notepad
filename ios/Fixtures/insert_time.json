@@ -29,6 +29,20 @@
   {
    "json": {
     "errors": {
+     "value": "Please enter a BPM value."
+    },
+    "fields": {
+     "value": ""
+    },
+    "form_error": "",
+    "kind": "bpm",
+    "request_id": 6
+   },
+   "type": "DirectiveCheck"
+  },
+  {
+   "json": {
+    "errors": {
      "value": "BPM must be between 20 and 400."
     },
     "fields": {
@@ -51,6 +65,19 @@
     "request_id": 7
    },
    "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "errors": {},
+    "fields": {
+     "beats": "4",
+     "unit": "4"
+    },
+    "form_error": "",
+    "kind": "time",
+    "request_id": 7
+   },
+   "type": "DirectiveCheck"
   }
  ],
  "scene": "insert_time",

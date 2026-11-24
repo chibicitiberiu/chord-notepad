@@ -29,6 +29,20 @@
   {
    "json": {
     "errors": {
+     "value": "Please enter a BPM value."
+    },
+    "fields": {
+     "value": ""
+    },
+    "form_error": "",
+    "kind": "bpm",
+    "request_id": 6
+   },
+   "type": "DirectiveCheck"
+  },
+  {
+   "json": {
+    "errors": {
      "value": "BPM must be between 20 and 400."
     },
     "fields": {
@@ -51,6 +65,19 @@
     "request_id": 7
    },
    "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "errors": {},
+    "fields": {
+     "beats": "4",
+     "unit": "4"
+    },
+    "form_error": "",
+    "kind": "time",
+    "request_id": 7
+   },
+   "type": "DirectiveCheck"
   },
   {
    "json": {
@@ -97,6 +124,18 @@
   },
   {
    "json": {
+    "errors": {},
+    "fields": {
+     "key": "C"
+    },
+    "form_error": "",
+    "kind": "key",
+    "request_id": 8
+   },
+   "type": "DirectiveCheck"
+  },
+  {
+   "json": {
     "existing_labels": [
      "verse"
     ],
@@ -106,6 +145,20 @@
     "request_id": 9
    },
    "type": "InsertDirectiveRequest"
+  },
+  {
+   "json": {
+    "errors": {
+     "capo": "The capo must be on a fret from 0 to 12 (0 means no capo)."
+    },
+    "fields": {
+     "capo": ""
+    },
+    "form_error": "",
+    "kind": "capo",
+    "request_id": 9
+   },
+   "type": "DirectiveCheck"
   }
  ],
  "scene": "insert_capo",
