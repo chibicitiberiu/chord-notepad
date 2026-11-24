@@ -48,6 +48,9 @@ build_slice() {
     local build="$WORK/build-$sdk"
     # CMAKE_TRY_COMPILE_TARGET_TYPE: the feature checks build static
     # libraries, since an iOS executable can't be linked unsigned here.
+    # CMAKE_MACOSX_BUNDLE: CMake makes every iOS executable an app bundle,
+    # and FluidSynth's install rule for its command-line program has no
+    # bundle destination (only the library is built anyway).
     cmake -S "$WORK/src" -B "$build" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_SYSTEM_NAME=iOS \
@@ -55,6 +58,7 @@ build_slice() {
         -DCMAKE_OSX_ARCHITECTURES=arm64 \
         -DCMAKE_OSX_DEPLOYMENT_TARGET="$MIN_IOS" \
         -DCMAKE_TRY_COMPILE_TARGET_TYPE=STATIC_LIBRARY \
+        -DCMAKE_MACOSX_BUNDLE=OFF \
         -DCMAKE_SHARED_LINKER_FLAGS="-Wl,-headerpad_max_install_names" \
         -DCMAKE_FIND_FRAMEWORK=LAST \
         -DBUILD_SHARED_LIBS=ON \
