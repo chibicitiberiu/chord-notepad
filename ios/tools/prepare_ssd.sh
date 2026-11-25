@@ -90,15 +90,19 @@ chmod +x "$SSD/mac_bootstrap.sh"
 (cd "$SSD" && sha256sum chord-notepad.bundle chord-notepad.ref ios-build-inputs.tar.gz xcodegen.zip \
     xcode-version mac_bootstrap.sh > SHA256SUMS)
 
-for wanted in "Xcode_$XCODE_VERSION.xip" "*Simulator_Runtime*.dmg"; do
+# The names mac_bootstrap.sh looks for (xip_file, runtime_file).
+for wanted in "Xcode_$XCODE_VERSION.xip Xcode_${XCODE_VERSION}_*.xip" \
+        "*[Ss]imulator*[Rr]untime*.dmg iphonesimulator*.dmg"; do
     found=""
-    for match in "$SSD"/$wanted; do
-        if [ -e "$match" ]; then found=$match; fi
+    for pattern in $wanted; do
+        for match in "$SSD"/$pattern; do
+            if [ -e "$match" ]; then found=$match; fi
+        done
     done
     if [ -n "$found" ]; then
         echo "found $(basename "$found") ($(du -h "$found" | cut -f1))"
     else
-        echo "MISSING: $wanted (developer.apple.com/download/all, signed in with a free Apple Account;" \
+        echo "MISSING: ${wanted%% *} (developer.apple.com/download/all, signed in with a free Apple Account;" \
              "the runtime must be the one for Xcode $XCODE_VERSION)"
         problems=1
     fi

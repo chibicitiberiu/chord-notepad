@@ -164,7 +164,8 @@ version_ge() {
 # checked 2026-11-25). Add a line when ios/.xcode-version moves.
 min_macos_for_xcode() {
     case "$1" in
-        26.5|26.5.*) echo 26.2 ;;
+        26.5|26.5.*|26.4.*) echo 26.2 ;;
+        26.3|26.3.*) echo 15.6 ;;
         *) echo "" ;;
     esac
 }
@@ -177,13 +178,20 @@ sha256_of() {
     fi
 }
 
-ssd_file() {  # ssd_file <glob>: the first match on the SSD, or nothing
-    local match
-    for match in "$SSD"/$1; do
-        if [ -e "$match" ]; then echo "$match"; return 0; fi
+ssd_file() {  # ssd_file <glob>...: the first match on the SSD, or nothing
+    local pattern match
+    for pattern in "$@"; do
+        for match in "$SSD"/$pattern; do
+            if [ -e "$match" ]; then echo "$match"; return 0; fi
+        done
     done
     return 0
 }
+
+# Apple's file names: Xcode_26.5.xip, or with a suffix (Xcode_26.5_Universal.xip);
+# the runtime as the downloads page names it (iOS_26.5_Simulator_Runtime.dmg).
+xip_file() { ssd_file "Xcode_$XCODE_VERSION.xip" "Xcode_${XCODE_VERSION}_*.xip"; }
+runtime_file() { ssd_file "*[Ss]imulator*[Rr]untime*.dmg" "iphonesimulator*.dmg"; }
 
 developer_dir() {
     if [ -d "$XCODE_APP/Contents/Developer" ]; then
@@ -229,13 +237,15 @@ step_preflight() {
         [ "$DRY_RUN" = 1 ] || die "this is $os, not macOS"
         warn "not macOS ($os): a dry run with whatever tools are on PATH"
     fi
-    macos=$(sw_vers -productVersion)
+    macos=$(sw_vers -productVersion 2>/dev/null || echo unknown)
     arch=$(uname -m)
     record macos "$macos"
     record cpu "$arch"
     [ "$arch" = arm64 ] || warn "not Apple silicon ($arch)"
     minimum=$(min_macos_for_xcode "$XCODE_VERSION")
-    if [ -z "$minimum" ]; then
+    if [ "$macos" = unknown ]; then
+        fail "no sw_vers: can't tell the macOS version"
+    elif [ -z "$minimum" ]; then
         warn "no known minimum macOS for Xcode $XCODE_VERSION: check developer.apple.com/support/xcode"
     elif ! version_ge "$macos" "$minimum"; then
         fail "Xcode $XCODE_VERSION needs macOS $minimum or later; this Mac has $macos"
@@ -247,14 +257,17 @@ step_preflight() {
     if [ "$free" -lt "$need" ]; then
         fail "only $free GB free, $need GB needed"
     fi
-    for name in "Xcode_$XCODE_VERSION.xip" "*Simulator_Runtime*.dmg" xcodegen.zip chord-notepad.bundle \
-            ios-build-inputs.tar.gz; do
-        file=$(ssd_file "$name")
+    for name in xip runtime xcodegen.zip chord-notepad.bundle ios-build-inputs.tar.gz; do
+        case "$name" in
+            xip) file=$(xip_file); name="Xcode_$XCODE_VERSION.xip" ;;
+            runtime) file=$(runtime_file); name="the iOS simulator runtime .dmg" ;;
+            *) file=$(ssd_file "$name") ;;
+        esac
         if [ -n "$file" ]; then
             record ssd "$(basename "$file") $(du -h "$file" | cut -f1)"
         else
             case "$name" in
-                *.xip|*.dmg) if [ "$VERIFY" = 1 ]; then continue; fi ;;
+                *.xip|*.dmg|*runtime*) if [ "$VERIFY" = 1 ]; then continue; fi ;;
             esac
             warn "missing from the SSD: $name"
         fi
@@ -287,7 +300,7 @@ step_extract() {
     local xip
     if xcode_installed; then log "Xcode $XCODE_VERSION is already in $XCODE_APP"; return; fi
     if [ -f "$WORK/xcode/.extracted" ]; then log "Xcode is already extracted in $WORK/xcode"; return; fi
-    xip=$(ssd_file "Xcode_$XCODE_VERSION.xip")
+    xip=$(xip_file)
     if [ -z "$xip" ]; then fail "no Xcode_$XCODE_VERSION.xip on the SSD"; return; fi
     run mkdir -p "$WORK/xcode"
     log "Expanding $xip (20-40 minutes; xip checks Apple's signature)"
@@ -344,7 +357,7 @@ step_runtime() {
     elif [ "$VERIFY" = 1 ]; then
         fail "no iOS $(sdk_version) simulator runtime: run without --verify first"
     else
-        dmg=$(ssd_file "*Simulator_Runtime*.dmg")
+        dmg=$(runtime_file)
         if [ -n "$dmg" ]; then
             run xcrun simctl runtime add "$dmg"
         else
@@ -531,8 +544,9 @@ devices = json.load(open(sys.argv[1])).get("result", {}).get("devices", [])
 shown = 0
 for d in devices:
     hw, props, conn = d.get("hardwareProperties", {}), d.get("deviceProperties", {}), d.get("connectionProperties", {})
-    if hw.get("platform") not in ("iOS", "iPadOS"):
-        continue
+    if hw.get("platform") not in ("iOS", "iPadOS") and any(
+            x.get("hardwareProperties", {}).get("platform") in ("iOS", "iPadOS") for x in devices):
+        continue  # other devices (a watch, a Mac) once an iPhone is there
     shown += 1
     print("device: udid %s; %s (%s); iOS %s; pairing %s; transport %s; developer mode %s" % (
         hw.get("udid"), hw.get("marketingName"), hw.get("productType"), props.get("osVersionNumber"),

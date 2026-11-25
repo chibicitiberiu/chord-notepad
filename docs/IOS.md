@@ -1728,7 +1728,7 @@ pins in `android/docs-requirements.txt`, Android's licence list the iOS
 guide's entries must match) and `VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
 newer one doesn't cancel an older one.
 `build.yml` ignores pushes that touch only `ios/`, `packaging/ios/`,
-`ios.yml` or this file. Four jobs at once, three of them on `macos-26`
+`ios.yml` or this file. A push runs four jobs at once, three of them on `macos-26`
 (arm64), so a run takes as long as its slowest job rather than the sum (it
 was 44 minutes as one app job; the iPad's screenshots alone took 16, with
 both simulators booted on one runner):
@@ -1753,7 +1753,10 @@ both simulators booted on one runner):
   compiled icon and the stdlib, then by `check_app_store.py` ("App Store
   requirements"). It packs the prebuilt inputs a session on the borrowed
   Mac builds from (`ios-build-inputs`) and rehearses that session's
-  bootstrap: `mac_bootstrap.sh --verify` under `/bin/bash` 3.2, from an SSD
+  bootstrap with only the system's PATH (so the build phases use Xcode's own
+  `python3`, as on her Mac): a `--dry-run` of the Xcode and runtime steps,
+  which must find nothing to change, then `mac_bootstrap.sh --verify` under
+  `/bin/bash` 3.2, from an SSD
   folder laid out as `prepare_ssd.sh` lays it out (a git bundle, the inputs,
   XcodeGen's zip, SHA256SUMS), cloning, generating, building and running the
   app on a simulator and listing devices (`ios-bootstrap-rehearsal`).
@@ -2030,7 +2033,8 @@ The tools, all on Linux except `mac_bootstrap.sh`:
   the commit of the newest green run, that run's `ios-build-inputs`, the
   pinned `xcodegen.zip`, `xcode-version`, `mac_bootstrap.sh` and
   `SHA256SUMS`. It checks the two Apple downloads are there (by hand:
-  `Xcode_<version>.xip` and the matching `*Simulator_Runtime*.dmg`) and
+  `Xcode_<version>.xip`, also with a suffix like `_Universal`, and the
+  matching `iOS_<version>_Simulator_Runtime.dmg`) and
   exits 1 while one is missing.
 - `ios/tools/readiness.py S0|T|S1|S2 [--date …] [--issues FILE]`: the
   automated checks below, then this section's plan for the session and the
@@ -2056,9 +2060,11 @@ The tools, all on Linux except `mac_bootstrap.sh`:
 
 Before: `prepare_ssd.sh` done and `readiness.py S0` ready; her macOS
 version, free disk (60 GB or more) and iPhone iOS version known. Xcode 26.5
-(CI's pin) needs macOS 26.2 or later (developer.apple.com/support/xcode); if
-her Mac runs an older macOS, ask whether she would update it, or the
-session can only enroll.
+(CI's pin) needs macOS 26.2 or later (developer.apple.com/support/xcode,
+read 2026-11-25); if her Mac runs an older macOS, ask whether she would
+update it, or the session can only enroll. Xcode 26.5 runs apps on iOS 15
+to 26.5: a newer iOS on her iPhone needs a newer Xcode for S2 (the pin in
+`ios/.xcode-version` moves with CI's image).
 
 | Minutes | What |
 |---|---|

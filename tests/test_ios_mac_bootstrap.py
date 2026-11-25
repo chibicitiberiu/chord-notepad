@@ -81,7 +81,7 @@ def test_shellcheck_clean():
 
 
 def test_dry_run_changes_nothing(mac):
-    for name in ("Xcode_26.5.xip", "iOS_26.5_Simulator_Runtime.dmg", "xcodegen.zip", "chord-notepad.bundle",
+    for name in ("Xcode_26.5_Universal.xip", "iOS_26.5_Simulator_Runtime.dmg", "xcodegen.zip", "chord-notepad.bundle",
                  "ios-build-inputs.tar.gz"):
         (mac["ssd"] / name).write_text("x")
     (mac["ssd"] / "chord-notepad.ref").write_text("0" * 40 + "\n")
@@ -234,7 +234,7 @@ esac''')
                             env=mac["env"])
     assert "Inputs from run 222" in result.stdout, result.stdout + result.stderr
     assert result.returncode == 1  # the runtime .dmg is missing
-    assert "MISSING: *Simulator_Runtime*.dmg" in result.stdout
+    assert "MISSING: *[Ss]imulator*[Rr]untime*.dmg" in result.stdout
     assert (ssd / "chord-notepad.ref").read_text().strip() == head
     assert (ssd / "ios-build-inputs.tar.gz").read_bytes() == b"tarball"
     assert (ssd / "xcode-version").read_text().strip() == "26.5"

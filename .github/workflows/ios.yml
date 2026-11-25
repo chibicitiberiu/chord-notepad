@@ -398,7 +398,19 @@ jobs:
           cp ios/tools/mac_bootstrap.sh "$SSD/"
           (cd "$SSD" && shasum -a 256 chord-notepad.bundle chord-notepad.ref ios-build-inputs.tar.gz \
             xcodegen.zip xcode-version mac_bootstrap.sh > SHA256SUMS)
-          /bin/bash "$SSD/mac_bootstrap.sh" --ssd "$SSD" --verify --workdir "$RUNNER_TEMP/s0" \
+          # Her Mac has no other Python: the build phases must work with
+          # Xcode's python3, so the runner's setup-python stays off PATH.
+          MAC_PATH=/usr/bin:/bin:/usr/sbin:/sbin
+          # The install steps' probes on real macOS (licence, first launch,
+          # runtime): with Xcode and the runtime there, nothing would change
+          # but the DEVELOPER_DIR line for ~/.zprofile.
+          env PATH="$MAC_PATH" /bin/bash "$SSD/mac_bootstrap.sh" --ssd "$SSD" --dry-run --only "xcode runtime" \
+            --workdir "$RUNNER_TEMP/s0" --report-dir "$RUNNER_TEMP/s0-dry" | tee "$RUNNER_TEMP/s0-dry.log"
+          if grep '^DRY' "$RUNNER_TEMP/s0-dry.log" | grep -qv zprofile; then
+            echo "::error::mac_bootstrap.sh would change an installed Xcode or runtime"
+            exit 1
+          fi
+          env PATH="$MAC_PATH" /bin/bash "$SSD/mac_bootstrap.sh" --ssd "$SSD" --verify --workdir "$RUNNER_TEMP/s0" \
             --report-dir "$RUNNER_TEMP/s0-report"
 
       - name: Upload the build log
@@ -668,14 +680,16 @@ jobs:
             "expires $(plutil -extract ExpirationDate raw -o - "$RUNNER_TEMP/profile.plist" || echo '(unknown)')"
           rm -rf "$RUNNER_TEMP/ipa" "$RUNNER_TEMP/profile.plist"
 
-      # Decrypt on Linux: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000
-      # -pass env:IOS_ARTIFACT_PASSPHRASE -in ios-development.tar.enc | tar -x
+      # The logs go into the encrypted file too (the provisioning output names
+      # the devices). Decrypt on Linux: openssl enc -d -aes-256-cbc -pbkdf2
+      # -iter 200000 -pass env:IOS_ARTIFACT_PASSPHRASE -in ios-development.tar.enc | tar -x
       - name: Encrypt the IPA and dSYMs
         env:
           IOS_ARTIFACT_PASSPHRASE: ${{ secrets.IOS_ARTIFACT_PASSPHRASE }}
         run: |
           mkdir -p "$RUNNER_TEMP/artifact"
-          tar -cf - -C "$RUNNER_TEMP/export" ChordNotepad.ipa dSYMs build-info.txt \
+          cp "$RUNNER_TEMP/archive.log" "$RUNNER_TEMP/export-development.log" "$RUNNER_TEMP/export/"
+          tar -cf - -C "$RUNNER_TEMP/export" ChordNotepad.ipa dSYMs build-info.txt archive.log export-development.log \
             | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:IOS_ARTIFACT_PASSPHRASE \
                 -out "$RUNNER_TEMP/artifact/ios-development.tar.enc"
           cp "$RUNNER_TEMP/export/build-info.txt" "$RUNNER_TEMP/artifact/"
@@ -686,16 +700,6 @@ jobs:
         with:
           name: ios-development
           path: ${{ runner.temp }}/artifact
-
-      - name: Upload the archive and export logs
-        if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: ios-development-logs
-          path: |
-            ${{ runner.temp }}/archive.log
-            ${{ runner.temp }}/export-development.log
-          if-no-files-found: ignore
 
       - name: Remove the keychain and the key
         if: always()

@@ -184,7 +184,7 @@ def check_lane_artifacts(github: GitHub, names: list, session_day: dt.date, test
                 checks.append(check)
                 break
         else:
-            checks.append(Check(f"artifact {name}", FAIL, "no release-lane run has made it yet (docs/IOS.md, \"CI\")"))
+            checks.append(Check(f"artifact {name}", FAIL, "no release-lane run has made it yet (docs/IOS.md, \"Release lanes\")"))
     return checks
 
 
