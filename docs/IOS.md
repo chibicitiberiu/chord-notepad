@@ -2027,6 +2027,10 @@ repository, with the date, and fill it in during the session).
 | S2 | Device debugging and Instruments | MacBook and iPhone, or the VM and iPhone | late F | 3 h |
 | S3 | Mac App Store sandbox for the Qt app | MacBook | later | 2 h |
 
+With a Claude Code agent on the Mac, hand it `docs/IOS_MAC_AGENT.md`, a brief
+for a session without the SSD that works from a network share and the
+network.
+
 The tools, all on Linux except `mac_bootstrap.sh`:
 
 - `ios/tools/prepare_ssd.sh <SSD>` fills the SSD: a git bundle of main and
