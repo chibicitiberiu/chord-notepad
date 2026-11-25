@@ -349,9 +349,95 @@ spec always builds a folder and wraps it in `dist/Chord Notepad.app`
   signature and that libfluidsynth loads, opens it and waits for the startup
   banner in the log.
 
-The app isn't signed with a Developer ID or notarized, so users allow it once
-in System Settings > Privacy & Security. Notarizing needs a paid Apple
-Developer Program membership. Neither build has been run on a real Mac.
+The app isn't signed with a Developer ID or notarized yet, so users allow it
+once in System Settings > Privacy & Security. Neither build has been run on a
+real Mac.
+
+### Notarizing the macOS app
+
+The `build` job can sign both disk images with a Developer ID and notarize
+them. It does so only when the Developer ID secrets are in the `release`
+environment; until then every macOS step runs as before (`make_dmg.sh`, ad
+hoc). The Developer ID path hasn't run yet: it can't, before enrollment
+(docs/IOS.md, "Enrollment day").
+
+- **Detection:** the "Developer ID secrets (macOS)" step looks at the five
+  secrets below. None set: `developer_id=false`, the ad hoc steps run. All
+  set: `developer_id=true`. Some set: the job fails and names the missing
+  ones, so a half-finished setup doesn't ship an ad hoc build unnoticed.
+- **Signing** (`packaging/macos/make_notarized_dmg.sh`, which calls
+  `sign_app.sh`): every Mach-O file and nested bundle on its own, deepest
+  first (`sign_order.py`), then the app, each with `--options runtime
+  --timestamp`; executables and the app get `entitlements.plist`
+  (`allow-unsigned-executable-memory` for ctypes, `disable-library-validation`
+  for the bundled libraries). No `--deep`. Then the disk image is built as
+  `make_dmg.sh` builds it and signed itself.
+- **Notarization:** `xcrun notarytool submit --wait` with the App Store
+  Connect API key; anything but `Accepted` fails the job and prints
+  `notarytool log`. Then `stapler staple` and `stapler validate`.
+- **Check:** after the two smoke tests, `check_notarized.sh` wants
+  `source=Notarized Developer ID` from `spctl` for the image and for the app
+  copied out of it.
+- The keychain (`packaging/apple/import_certificates.sh`) and the key file
+  are deleted at the end of the job.
+
+| Secret (environment `release`) | What |
+|---|---|
+| `MACOS_DEVELOPER_ID_P12_BASE64` | base64 of the Developer ID Application certificate with its private key (`.p12`) |
+| `MACOS_DEVELOPER_ID_P12_PASSWORD` | the `.p12`'s password |
+| `ASC_KEY_P8_BASE64` | base64 of the App Store Connect API key (`AuthKey_<id>.p8`), the same key as in `ios-release` |
+| `ASC_KEY_ID` | the key's ID |
+| `ASC_ISSUER_ID` | the issuer ID |
+
+Making the `.p12` on Linux (Account Holder, developer.apple.com >
+Certificates > + > Developer ID Application, profile type G2 Sub-CA):
+
+```sh
+openssl req -new -newkey rsa:2048 -nodes -keyout developer-id.key \
+    -subj "/CN=Developer ID/emailAddress=<your Apple Account address>" -out developer-id.csr
+# upload developer-id.csr, download developerID_application.cer, and Apple's
+# Developer ID G2 intermediate (apple.com/certificateauthority: DeveloperIDG2CA.cer)
+openssl x509 -inform DER -in developerID_application.cer -out developer-id.pem
+openssl x509 -inform DER -in DeveloperIDG2CA.cer -out developer-id-g2.pem
+openssl pkcs12 -export -legacy -inkey developer-id.key -in developer-id.pem \
+    -certfile developer-id-g2.pem -out developer-id.p12
+base64 -w0 developer-id.p12 | gh secret set MACOS_DEVELOPER_ID_P12_BASE64 --env release
+```
+
+`-legacy` keeps the `.p12` in the older encryption macOS's `security import`
+reads. Keep the key and the `.p12` outside the repository (they are the
+signing identity).
+
+**Once a notarized release is out,** the "Open Anyway" instructions go. They
+stay for ad hoc builds only, so change them together with the first
+notarized release, not before:
+
+- `build.yml`, the release notes' macOS lines:
+
+  > **macOS (14.4 Sonoma or newer):** Open the `.dmg` and drag Chord Notepad
+  > to Applications, then open it from there. The app is signed and
+  > notarized by Apple, so it opens like any other downloaded app.
+
+- `README.md`, the macOS download line:
+
+  > **macOS** (14.4 Sonoma or newer): `ChordNotepad-macos-arm64.dmg` for
+  > Apple silicon (M1 and later) or `ChordNotepad-macos-x64.dmg` for Intel
+  > Macs. Open it and drag Chord Notepad to Applications (FluidSynth is
+  > bundled). The app is notarized by Apple. Step by step: [Installing on
+  > macOS](help/introduction.rst).
+
+- `help/introduction.rst`, the steps after dragging to Applications: replace
+  the "isn't notarized" step, the Privacy & Security step and the "is
+  damaged" paragraph with:
+
+  > #. Open Chord Notepad from Applications. The first time, macOS says it
+  >    was downloaded from the internet and asks whether to open it. Click
+  >    **Open**.
+  >
+  > From then on it opens like any other app. FluidSynth and the
+  > instruments are built in, so there's nothing else to install.
+
+  Keep `xattr -cr` out of the guide then: a notarized app never needs it.
 
 ## Flatpak bundle (Linux)
 

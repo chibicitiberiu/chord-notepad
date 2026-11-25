@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- The hardened runtime's exceptions the Developer ID build needs
+     (packaging/macos/sign_app.sh): Python's ctypes (libffi closures, the
+     FluidSynth binding) writes executable memory, and the interpreter loads
+     the extension modules and libraries PyInstaller bundled, which the
+     notarized build signs itself, not Apple. -->
+<plist version="1.0">
+<dict>
+	<key>com.apple.security.cs.allow-unsigned-executable-memory</key>
+	<true/>
+	<key>com.apple.security.cs.disable-library-validation</key>
+	<true/>
+</dict>
+</plist>

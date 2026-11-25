@@ -439,9 +439,63 @@ jobs:
         if: runner.os == 'Linux'
         run: xvfb-run --auto-servernum --server-args="-screen 0 1280x800x24" env QT_QPA_PLATFORM=xcb dist/${{ matrix.asset_name }} --smoke
 
-      - name: Prepare artifact (macOS)
+      # Developer ID signing and notarization (docs/RELEASE.md, "Notarizing
+      # the macOS app") once its secrets are in the release environment.
+      # Without any of them the disk image is built ad hoc exactly as before;
+      # with only some it fails and names the missing ones.
+      - name: Developer ID secrets (macOS)
+        id: apple_signing
         if: runner.os == 'macOS'
+        shell: bash
+        env:
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          required="MACOS_DEVELOPER_ID_P12_BASE64 MACOS_DEVELOPER_ID_P12_PASSWORD ASC_KEY_P8_BASE64 ASC_KEY_ID ASC_ISSUER_ID"
+          absent=""
+          for name in $required; do
+            if [ -z "${!name}" ]; then absent="$absent $name"; fi
+          done
+          absent=${absent# }
+          if [ "$absent" = "$required" ]; then
+            echo "No Developer ID secrets: the disk image is signed ad hoc (make_dmg.sh)"
+            echo "developer_id=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$absent" ]; then
+            echo "::error::The release environment is missing: $absent"
+            exit 1
+          else
+            echo "developer_id=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Prepare artifact (macOS)
+        if: runner.os == 'macOS' && steps.apple_signing.outputs.developer_id != 'true'
         run: packaging/macos/make_dmg.sh "dist/Chord Notepad.app" "dist/${{ matrix.asset_name }}"
+
+      # Inside-out Developer ID signing with the hardened runtime, then
+      # notarytool and stapler (packaging/macos/make_notarized_dmg.sh).
+      - name: Prepare artifact (macOS, Developer ID, notarized)
+        if: runner.os == 'macOS' && steps.apple_signing.outputs.developer_id == 'true'
+        env:
+          MACOS_DEVELOPER_ID_P12_BASE64: ${{ secrets.MACOS_DEVELOPER_ID_P12_BASE64 }}
+          MACOS_DEVELOPER_ID_P12_PASSWORD: ${{ secrets.MACOS_DEVELOPER_ID_P12_PASSWORD }}
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+        run: |
+          KEYCHAIN="$RUNNER_TEMP/developer-id.keychain-db"
+          packaging/apple/import_certificates.sh "$KEYCHAIN" MACOS_DEVELOPER_ID_P12_BASE64 MACOS_DEVELOPER_ID_P12_PASSWORD
+          CODESIGN_IDENTITY=$(security find-identity -v -p codesigning "$KEYCHAIN" \
+            | awk '/Developer ID Application/ { print $2; exit }')
+          [ -n "$CODESIGN_IDENTITY" ] || { echo "::error::No Developer ID Application identity in the .p12"; exit 1; }
+          mkdir -p "$RUNNER_TEMP/keys"
+          export ASC_KEY_PATH="$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$ASC_KEY_PATH"
+          chmod 600 "$ASC_KEY_PATH"
+          CODESIGN_IDENTITY=$CODESIGN_IDENTITY packaging/macos/make_notarized_dmg.sh \
+            "dist/Chord Notepad.app" "dist/${{ matrix.asset_name }}"
 
       # Mount the image, copy the app out as a user would, and start it.
       - name: Smoke-test disk image (macOS)
@@ -451,6 +505,18 @@ jobs:
       - name: Smoke-test the Qt window (macOS)
         if: runner.os == 'macOS'
         run: packaging/macos/smoke_test_qt.sh "dist/${{ matrix.asset_name }}"
+
+      # Gatekeeper must say "source=Notarized Developer ID" for the image and
+      # the app copied out of it.
+      - name: Check notarization (macOS)
+        if: runner.os == 'macOS' && steps.apple_signing.outputs.developer_id == 'true'
+        run: packaging/macos/check_notarized.sh "dist/${{ matrix.asset_name }}"
+
+      - name: Remove the signing keychain (macOS)
+        if: always() && runner.os == 'macOS' && steps.apple_signing.outputs.developer_id == 'true'
+        run: |
+          security delete-keychain "$RUNNER_TEMP/developer-id.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/keys"
 
       - name: Prepare artifact (Windows)
         if: runner.os == 'Windows'
