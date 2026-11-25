@@ -43,6 +43,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - Music volume, mute and metronome volume (`set_volume`, `set_muted`, `step_volume`, `set_metronome_volume`; desktop `player_bar.py:506-531`).
   - A Light / Dark / System theme setting (`set_ui_theme`); Android always follows the system (`ui/theme/AppTheme.kt:170`).
   - Hardware-keyboard shortcuts beyond files, zoom, help and undo (`ui/Shortcuts.kt`): play/pause and stop, metronome, speed, transpose, Edit/Play, the chord sheet and its views, Settings, find.
+  - Strings: "Resize the chord sheet" and the voicing editor's "Move up", "Move down" and "Duplicate" labels are hard-coded in Kotlin instead of string resources (found by the iOS accessibility pass).
   - To check: whether Edit mode shows a directive's hint as the cursor enters it, as the desktop's status bar does (Android explains a red or faded directive on a long press in Play).
 - CONTRIBUTING.md: a Development section (setup, `make help`, `make check`, the core/desktop rule, `docs/ANDROID.md`).
 - `.gitignore` backstop for `*.p12`, `*.jks`, `*.keystore`, `*.pem`, `*.env`.
