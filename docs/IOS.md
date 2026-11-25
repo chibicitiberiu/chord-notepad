@@ -26,8 +26,12 @@ Replace, the font settings, a pinch on the text, the keyboard shortcuts and
 the side column's width kept ("Find, the font, the pinch and the keys"), and the
 platform glue: interruptions, route changes and the background pausing as on
 Android, iPad multitasking widths, VoiceOver labels and the iOS export
-status ("Audio, multitasking and accessibility"). Still to come: enrollment, signing
-and TestFlight (A, E), then what `BACKLOG.md` lists.
+status ("Audio, multitasking and accessibility"). Ready and waiting for the
+Apple Developer account (2026-11-25): the release lanes in `ios.yml`
+(TestFlight, a development IPA; "Release lanes"), the notarized DMG in
+`build.yml` (`docs/RELEASE.md`), and the session tools in `ios/tools/`
+("Enrollment day", "Device sessions"). Still to come: enrollment itself, then
+what `BACKLOG.md` lists.
 
 ## Decisions and constraints
 
@@ -1674,7 +1678,7 @@ it, and the selection as a 25 % tint of the primary colour. It has no caret,
 and the live view's selection colour is the system's; unwrapped lines run
 past the right edge, as the live view shows them before it is scrolled.
 
-### App Store requirements already in place
+### App Store requirements
 
 `ITSAppUsesNonExemptEncryption = NO` (the app uses no encryption beyond
 the system's); `PrivacyInfo.xcprivacy` with no tracking and no collected
@@ -1687,6 +1691,27 @@ read and written by the app only). `_ssl` and `_hashlib` (which
 link OpenSSL, on Apple's list of SDKs that need a manifest) get one each
 from `packaging/ios/privacy/`. The icon is one 1024 px PNG, flattened on the
 Android icon's cream (`ios/tools/make_app_icon.py`, Inkscape and Pillow).
+
+`ios/tools/check_app_store.py` checks the built app against these on CI (the
+device build, the unsigned archive and the TestFlight archive) and fails
+when one slips:
+
+- Info.plist: bundle ID `com.tibich.chordnotepad`, the encryption flag present
+  and NO, `CFBundleIcons` and `CFBundleIcons~ipad` naming AppIcon, a launch
+  screen, all four iPad orientations (multitasking), numeric versions;
+- the privacy manifest: present, no tracking, and a reason for every
+  required-reason category whose APIs a binary in the app uses. The use is
+  read from the binaries (every Mach-O is searched for the symbols and
+  Foundation names Apple lists per category), so a new CPython module or
+  Swift call that starts using one fails the build instead of App Store
+  Connect's upload check. `_ssl`'s and `_hashlib`'s own manifests cover them;
+- native code only in the executable and in frameworks, each marked for
+  iPhoneOS with a MinimumOSVersion;
+- the compiled icon (`assetutil --info`) at the iPhone and iPad sizes (120,
+  180, 152, 167 px), and a 1024 × 1024 source with no alpha channel.
+
+The tests (`tests/test_ios_app_store_check.py`) run it on Linux over a
+synthetic bundle.
 
 ## CI
 
@@ -1722,7 +1747,13 @@ both simulators booted on one runner):
   device). One simulator failing doesn't cancel the other.
 - **device:** the same setup, then a Release `generic/platform=iOS` build
   with `CODE_SIGNING_ALLOWED=NO`, checked for the privacy manifests, the
-  compiled icon and the stdlib.
+  compiled icon and the stdlib, then by `check_app_store.py` ("App Store
+  requirements"). It packs the prebuilt inputs a session on the borrowed
+  Mac builds from (`ios-build-inputs`) and rehearses that session's
+  bootstrap: `mac_bootstrap.sh --verify` under `/bin/bash` 3.2, from an SSD
+  folder laid out as `prepare_ssd.sh` lays it out (a git bundle, the inputs,
+  XcodeGen's zip, SHA256SUMS), cloning, generating, building and running the
+  app on a simulator and listing devices (`ios-bootstrap-rehearsal`).
 - **merge** (Ubuntu): joins each simulator's `ios-screenshots-<device>` and
   `ios-results-<device>` (and the device job's build log) into
   `ios-screenshots` and `ios-results`, the names below.
@@ -1776,6 +1807,10 @@ Artifacts of each run:
   `selftest.json`, `chordsheet-live.png`, `editor-live.png` and `play-live.png` are attached) and the xcodebuild logs.
 - `ios-kit-tests`: the kit's `swift test` output on macOS.
 - `ios-help`: the iOS edition of the guide as the app ships it.
+- `ios-build-inputs` (30 days): `ios-build-inputs.tar.gz`, the frameworks,
+  the Python bundle and the guide from `ios/build`, with `INPUTS_COMMIT`.
+- `ios-bootstrap-rehearsal`: the rehearsal's `report.txt`, build log,
+  simulator screenshot and the app's Diagnostics folder.
 
 `gh run download <run> -n ios-screenshots` fetches one on Linux.
 
@@ -1790,7 +1825,7 @@ layout issue the catalog showed: at accessibility text sizes the shell's
 title truncated beside its three buttons; the main screen's app bar has
 Android's buttons only and drops the tabs' captions there on a phone.
 
-To build the same on a Mac (S0's `mac_bootstrap.sh` will do this):
+To build the same on a Mac with network access:
 
 ```sh
 packaging/ios/build_fluidsynth.sh ios/build/Frameworks
@@ -1799,6 +1834,81 @@ python3.14 -I packaging/ios/build_python_bundle.py ios/build/python-bundle
 xcodegen generate --spec ios/project.yml
 open ios/ChordNotepad.xcodeproj
 ```
+
+On the borrowed MacBook nothing is downloaded or compiled but the app:
+`mac_bootstrap.sh` unpacks CI's `ios-build-inputs` into `ios/build` instead
+("Device sessions"). The build phases then need only Xcode's own `python3`.
+
+### Release lanes
+
+Three more jobs, none of which runs on a push (`tests/test_ios_workflow_gating.py`
+reads the workflow and checks which jobs each event runs):
+
+- **release-gate** (Ubuntu, environment `ios-release`): runs on the monthly
+  schedule (the 1st, 06:17 UTC) and on a dispatch with `testflight` or
+  `development_ipa` ticked, from main only. With no signing secret set it
+  prints a notice and every lane is skipped; with only some set it fails and
+  names the missing ones. It picks the commit (a dispatch: its own; the
+  schedule: the newest one whose push or dispatch run is green) and the build
+  number.
+- **testflight** (environment `ios-release`): after the gate, and on a
+  dispatch only when this run's kit, simulator and device jobs passed. The
+  shared setup, the certificates into a temporary keychain
+  (`packaging/apple/import_certificates.sh`), `ios/tools/ci_archive.sh
+  archive` (automatic signing, `-allowProvisioningUpdates` and the API key:
+  `-authenticationKeyPath/-authenticationKeyID/-authenticationKeyIssuerID`),
+  `check_app_store.py` on the archived app, the dSYMs kept
+  (`ios-testflight-dsyms`, with `build-info.txt`: version, build, commit,
+  UUIDs), then `-exportArchive` with `packaging/ios/ExportOptions-testflight.plist`
+  (`method` app-store-connect, `destination` upload). The schedule re-uploads
+  monthly because TestFlight builds expire after 90 days, so there are always
+  60 or more days left.
+- **development** (environment `ios-release`, dispatch only): the same
+  archive exported with `ExportOptions-development.plist` (`method`
+  debugging: debuggable, installs on the registered iPhones). The IPA, its
+  dSYMs and `build-info.txt` go into `ios-development` as
+  `ios-development.tar.enc`, encrypted with `IOS_ARTIFACT_PASSPHRASE`,
+  because the profile inside lists the registered devices' UDIDs and the
+  repository's artifacts are public. On Linux:
+  `openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 -pass env:IOS_ARTIFACT_PASSPHRASE -in ios-development.tar.enc | tar -x`.
+- **archive-check** (dispatch with `unsigned_archive`, no secrets): the same
+  archive unsigned, the App Store checks on it, `plutil -lint` of both
+  ExportOptions plists and a check that `xcodebuild -help` knows their
+  methods, and the dSYMs (`ios-unsigned-archive`). It rehearses the lanes
+  before there is an account.
+
+**Build number:** `CFBundleVersion` is the workflow's run number, the same
+number the simulator and device builds of that run carry. It grows with
+every ios.yml run (push, dispatch or schedule), so App Store Connect never
+sees one twice for a version; a re-run of the same run adds its attempt
+(`57.2`, after 57 and before 58). A timestamp would also grow, but wouldn't
+match the run the dSYMs and logs belong to. `MARKETING_VERSION` is `VERSION`.
+
+**Signing:** the archive is signed with the Apple Development certificate
+from the secrets (automatic signing needs a development identity on the
+machine; one Xcode makes itself on a fresh runner every time would pile up
+in the account). For the TestFlight export Xcode uses a cloud-managed Apple
+Distribution certificate through the Admin key. If that doesn't work on an
+individual account (plan A.4), set `IOS_DISTRIBUTION_P12_BASE64` and its
+password: the job imports it too, and the export uses it.
+
+A dispatch on a commit whose push run is still going waits for it (the
+`ios-<sha>` concurrency group).
+
+| Secret (environment `ios-release`) | Lanes | What |
+|---|---|---|
+| `ASC_KEY_P8_BASE64` | all | base64 of the Team API key `AuthKey_<id>.p8` (Admin role); also in `release`, for notarization |
+| `ASC_KEY_ID` | all | the key's ID |
+| `ASC_ISSUER_ID` | all | the issuer ID (Users and Access > Integrations) |
+| `APPLE_TEAM_ID` | all | the 10-character team ID (developer.apple.com > Account > Membership) |
+| `IOS_DEVELOPMENT_P12_BASE64` | all | base64 of an Apple Development certificate and key (`.p12`) |
+| `IOS_DEVELOPMENT_P12_PASSWORD` | all | its password |
+| `IOS_ARTIFACT_PASSPHRASE` | development | encrypts the `ios-development` artifact |
+| `IOS_DISTRIBUTION_P12_BASE64`, `IOS_DISTRIBUTION_P12_PASSWORD` | testflight, optional | an Apple Distribution certificate, only if cloud signing fails |
+
+Set the environment's deployment branches to `main` (Settings >
+Environments > ios-release); no required reviewers, or the monthly upload
+waits for a click.
 
 ## Development loops
 
@@ -1813,64 +1923,204 @@ open ios/ChordNotepad.xcodeproj
 3. **TestFlight, after enrollment** (section E): her iPhone installs the
    build under her own Apple ID and runs the scripted checklist.
 
+## Enrollment day
+
+As late as possible: right before the first TestFlight build is wanted,
+since the $99 membership runs for a year from then. Everything here is on
+Linux in a browser unless it says S0. Keys, certificates and passphrases stay
+outside the repository (a password manager); nothing below goes into a
+commit.
+
+**Before (any time, free):**
+
+1. An Apple Account with two-factor authentication by SMS (account.apple.com),
+   if there isn't one. It is enough to download Xcode and the simulator
+   runtime for the SSD (developer.apple.com/download/all).
+2. `ios/tools/prepare_ssd.sh <SSD>` fills the SSD ("Device sessions");
+   `readiness.py S0` says whether S0 can go ahead.
+
+**Enrollment:**
+
+3. Try the web first, from Linux: developer.apple.com/account > Enroll >
+   Individual. If "Continue enrollment on the web" is offered, finish it
+   there (identity, then the payment).
+4. If the web flow insists on the Apple Developer app, enroll in S0 under
+   his own macOS user on the MacBook (iCloud signed in only there, Find My
+   Mac and iCloud Keychain off). That needs the Apple Developer app from the
+   Mac App Store, the one download a session can't avoid: it can't be
+   fetched on Linux. Enrollment can take up to two days to be approved.
+
+**After approval, in this order (all on the web):**
+
+5. Team ID: developer.apple.com > Account > Membership details (10
+   characters).
+6. API key: App Store Connect > Users and Access > Integrations > App Store
+   Connect API > Request Access (the Account Holder only), then a Team key
+   with the Admin role. Download `AuthKey_<key id>.p8` (it can be downloaded
+   only once) and note the key ID and the issuer ID.
+7. Bundle ID: Certificates, IDs & Profiles > Identifiers > + > App IDs > App,
+   explicit `com.tibich.chordnotepad`, no extra capabilities.
+8. App record: App Store Connect > Apps > + > New App: iOS, Chord Notepad,
+   English (U.K. or U.S.), bundle ID `com.tibich.chordnotepad`, any SKU
+   (`chordnotepad-ios`), full access.
+9. Certificates from Linux CSRs (`openssl req -new -newkey rsa:2048 -nodes
+   -keyout <name>.key -subj "/CN=<name>" -out <name>.csr`, upload the CSR,
+   download the `.cer`, then `openssl pkcs12 -export -legacy` with the
+   intermediate, as `docs/RELEASE.md` shows for the Developer ID):
+   - Apple Development (intermediate: Apple's WWDR G3,
+     apple.com/certificateauthority) → `IOS_DEVELOPMENT_P12_BASE64`, `_PASSWORD`;
+   - Developer ID Application, G2 Sub-CA (intermediate: Developer ID G2) →
+     `MACOS_DEVELOPER_ID_P12_BASE64`, `_PASSWORD`;
+   - Apple Distribution only if the first TestFlight run's cloud signing
+     fails (plan A.4) → `IOS_DISTRIBUTION_P12_BASE64`, `_PASSWORD`.
+10. His wife as an internal tester: App Store Connect > Users and Access > +,
+    her own Apple Account address, role Marketing, access to Chord Notepad
+    only. She accepts the e-mail on her phone. Then TestFlight > Internal
+    Testing > + a group with her in it, automatic distribution on. Internal
+    testing needs no Beta App Review. The fallback is an external tester,
+    whose first build is reviewed.
+11. The environments and secrets (`gh` from the repository):
+
+    ```sh
+    gh api -X PUT repos/{owner}/{repo}/environments/ios-release \
+        -F 'deployment_branch_policy[protected_branches]=false' \
+        -F 'deployment_branch_policy[custom_branch_policies]=true'
+    gh api -X POST repos/{owner}/{repo}/environments/ios-release/deployment-branch-policies -f name=main
+    base64 -w0 AuthKey_<key id>.p8 | gh secret set ASC_KEY_P8_BASE64 --env ios-release
+    gh secret set ASC_KEY_ID --env ios-release        # and ASC_ISSUER_ID, APPLE_TEAM_ID
+    base64 -w0 ios-development.p12 | gh secret set IOS_DEVELOPMENT_P12_BASE64 --env ios-release
+    gh secret set IOS_DEVELOPMENT_P12_PASSWORD --env ios-release
+    openssl rand -base64 32 | gh secret set IOS_ARTIFACT_PASSPHRASE --env ios-release   # keep a copy
+    # release (the macOS DMG): the same three ASC_ secrets, and the Developer ID pair
+    ```
+
+    The secrets each lane needs are in "Release lanes"; `docs/RELEASE.md`
+    has the `release` ones.
+12. Her iPhone's UDID from S0's report: `ASC_KEY_ID=… ASC_ISSUER_ID=…
+    ASC_KEY_PATH=… python3 -I ios/tools/asc_api.py register-device --udid
+    <udid> --name "<a label>"`.
+13. First runs: dispatch ios.yml with `unsigned_archive` if it hasn't run on
+    this Xcode, then with `testflight`. Wait for processing (10–30 minutes),
+    then `readiness.py T`. The notarized DMG first runs with the next weekly
+    nightly; check its two macOS legs ("Check notarization").
+
 ## Device sessions
 
 Her devices are borrowed for 2–3 hours at a time, so each session is
 prepared on Linux and CI first: nothing is downloaded or built on her
-machines, and every session ends with artifacts analysed offline.
+machines, and every session ends with artifacts analysed offline. Each
+session has a log template in `ios/tools/session_logs/` (copy it outside the
+repository, with the date, and fill it in during the session).
 
 | # | Session | Devices | When | Length |
 |---|---|---|---|---|
-| S0 | Bootstrap and enrollment | MacBook (iPhone for 10 min) | after D is green, right before E | 2.5 h |
+| S0 | Bootstrap and enrollment | MacBook (iPhone for 10 min) | right before enrollment's step 5 | 2.5 h |
 | U1 | Simulator runtimes and a re-verify | MacBook, overnight under his user | after S0 | – |
-| T1…Tn | TestFlight smoke | iPhone only | after E, then each screen milestone | 30 min |
+| T1…Tn | TestFlight smoke | iPhone only | after the first upload, then each screen milestone | 30 min |
 | S1 | Layout polish (needs Metal, so not a VM) | MacBook | mid-F | 2.5 h |
 | S2 | Device debugging and Instruments | MacBook and iPhone, or the VM and iPhone | late F | 3 h |
 | S3 | Mac App Store sandbox for the Qt app | MacBook | later | 2 h |
 
-**S0, bootstrap and enrollment.** Before: the Xcode `.xip` (matched to her
-macOS and CI's Xcode), the iOS runtime `.dmg` and xcodegen on a USB SSD;
-`ios/tools/mac_bootstrap.sh` and a green CI; her macOS version, free disk
-(60 GB or more) and iPhone iOS version known. Agenda: she creates his user
-(0–10); copy and start `xip -x` (10–20); enrollment in the Apple Developer
-app (20–85); Xcode into /Applications, licence, `-runFirstLaunch`, `simctl
-runtime add` with her admin password (85–110); `mac_bootstrap.sh --verify`,
-then `devicectl list devices` with her iPhone trusted to record UDID, model
-and iOS version, Developer Mode only if she agrees (110–135); session log
-(135–150). Bring back the verify report, the enrollment confirmation, the
-UDID (a secret) and a screenshot. Fallback: ID rejected, bootstrap only and
-a support case; Xcode won't install, enrollment only.
+The tools, all on Linux except `mac_bootstrap.sh`:
 
-**T sessions (30 min, no Mac).** Before: her invite accepted, the build
-processed and 30 or more days from expiry, the checklist printed. Agenda:
-install; under a screen recording, the quick-start song, tap a chord and
-hear it, play and pause, background and resume, the silent switch, a
-headphone or Bluetooth route change, an alarm interruption (later the Files
-picker and a StoreKit purchase); then Export diagnostics and TestFlight
-feedback. Fallback: a screenshot of the install error and the self-test
-screen.
+- `ios/tools/prepare_ssd.sh <SSD>` fills the SSD: a git bundle of main and
+  the commit of the newest green run, that run's `ios-build-inputs`, the
+  pinned `xcodegen.zip`, `xcode-version`, `mac_bootstrap.sh` and
+  `SHA256SUMS`. It checks the two Apple downloads are there (by hand:
+  `Xcode_<version>.xip` and the matching `*Simulator_Runtime*.dmg`) and
+  exits 1 while one is missing.
+- `ios/tools/readiness.py S0|T|S1|S2 [--date …] [--issues FILE]`: the
+  automated checks below, then this section's plan for the session and the
+  manual checklist.
+- `ios/tools/mac_bootstrap.sh` (on the MacBook, from the SSD): sets up and
+  verifies the Mac ("S0" below; its header lists the steps). Every step is
+  skipped when done, so it can be run again after a failure; `--dry-run`
+  shows what it would change.
+- `ios/tools/pull_testflight_feedback.py --out <folder>`: TestFlight's
+  feedback screenshots and crash logs.
+- `ios/tools/symbolicate.sh <crash.ips> <dSYMs>`: a crash report
+  symbolicated with the dSYMs of the run that built it (`ios-testflight-dsyms`
+  or `ios-development`); a dSYM whose UUID doesn't match is refused.
+- `ios/tools/asc_api.py register-device|devices`: her iPhone's UDID for the
+  development profile.
 
-**S1, layout polish.** Before: the CI catalog PNGs reviewed offline into a
-numbered issue list. Agenda: readiness check and generate (0–15); fix issues
-in Previews and the simulator, iPad split view, rotation, keyboard, Dynamic
-Type, one commit per issue (15–125); push and record what snapshots can't
-show (125–150). Fallback: snapshots plus the simulator if Previews break.
+### Session plans
 
-**S2, device debugging and Instruments.** Before: UDID registered, the CI
-development IPA and dSYM on the SSD, Developer Mode on, Xcode matching her
-iOS, a repro list from TestFlight logs. Agenda: connect and install with
-`devicectl device install app` (0–25, device preparation can take 10–30
-min); Instruments, saving each `.trace`: Audio System Trace with signposts
-for tap-to-sound latency, Time Profiler for launch including the music21
-import, Allocations during playback (25–90); LLDB on the open issues with
-`log stream` on our subsystem (90–150); copy everything off (150–170).
-Fallback: simulator Instruments and the TestFlight build's timing logs.
+#### S0: bootstrap and enrollment
+
+Before: `prepare_ssd.sh` done and `readiness.py S0` ready; her macOS
+version, free disk (60 GB or more) and iPhone iOS version known. Xcode 26.5
+(CI's pin) needs macOS 26.2 or later (developer.apple.com/support/xcode); if
+her Mac runs an older macOS, ask whether she would update it, or the
+session can only enroll.
+
+| Minutes | What |
+|---|---|
+| 0–10 | She creates his macOS user (an administrator for the session, or `--admin <her user>`). |
+| 10–20 | Plug in the SSD; `/Volumes/<SSD>/mac_bootstrap.sh --ssd /Volumes/<SSD> --dry-run`, then `--only extract` in the background (`nohup … > ~/extract.log &`, 20–40 minutes). |
+| 20–85 | Enrollment in the Apple Developer app, if the web flow didn't work ("Enrollment day", step 4). |
+| 85–110 | `mac_bootstrap.sh --ssd /Volumes/<SSD>`: Xcode into /Applications, the licence and `-runFirstLaunch` (her password), the simulator runtime, then the repo, XcodeGen, the inputs, the project, a simulator build and run. |
+| 110–135 | Her iPhone plugged in, unlocked, Trust tapped: the script's device step (or `--only device`) records UDID, model, iOS version, pairing and Developer Mode. Developer Mode only if she agrees (Settings > Privacy & Security; the phone restarts). |
+| 135–150 | The session log; copy `session-reports/` off the SSD. |
+
+Bring back: `session-reports/<date>/` (report, build log, screenshot,
+devices.json), the enrollment confirmation, the UDID (a secret: not in the
+repository), a photo of anything odd. Fallback: if the ID is rejected, the
+bootstrap only and a support case; if Xcode won't install, enrollment only.
+
+#### U1: simulator runtimes and a re-verify
+
+Overnight under his user, if she agrees: another runtime from the SSD
+(`xcrun simctl runtime add`) and `mac_bootstrap.sh --verify` for a fresh
+report.
+
+#### T: TestFlight smoke
+
+Before: `readiness.py T --tester-email <her address>` ready (invite
+accepted, the build processed and 30 or more days from expiry, the issue
+list), the checklist printed. Agenda: install from TestFlight; under a
+screen recording, the quick-start song, tap a chord and hear it, play and
+pause, background and resume, the silent switch, a headphone or Bluetooth
+route change, an alarm interruption (later the Files picker and a StoreKit
+purchase); then Export diagnostics and TestFlight feedback (screenshot,
+comment). After: `pull_testflight_feedback.py`, and `symbolicate.sh` on any
+crash. Fallback: a screenshot of the install error and the self-test screen.
+
+#### S1: layout polish
+
+Before: the CI catalog PNGs reviewed offline into a numbered issue list,
+`readiness.py S1 --issues <list>` ready, a fresh `prepare_ssd.sh` (the clone
+on the Mac is left alone if it exists; `git -C ~/ChordNotepad/chord-notepad
+fetch /Volumes/<SSD>/chord-notepad.bundle '+refs/*:refs/remotes/ssd/*'`
+brings it up to date). Agenda: `mac_bootstrap.sh --verify` (0–15); fix
+issues in Previews and the simulator, iPad split view, rotation, keyboard,
+Dynamic Type, one commit per issue (15–125); push and record what snapshots
+can't show (125–150). Fallback: snapshots plus the simulator if Previews
+break.
+
+#### S2: device debugging and Instruments
+
+Before: the UDID registered, then the development IPA built (dispatch with
+`development_ipa`; the profile only covers devices registered before the
+run), `ios-development` decrypted onto the SSD, Developer Mode on, Xcode
+matching her iOS, a repro list from TestFlight logs; `readiness.py S2
+--udid <udid> --issues <list>` ready. Agenda: connect and install with
+`xcrun devicectl device install app --device <udid> ChordNotepad.ipa` (0–25,
+device preparation can take 10–30 min); Instruments, saving each `.trace`:
+Audio System Trace with signposts for tap-to-sound latency, Time Profiler for
+launch including the music21 import, Allocations during playback (25–90);
+LLDB on the open issues with `log stream` on our subsystem (90–150); copy
+everything off (150–170). Fallback: simulator Instruments and the TestFlight
+build's timing logs.
 
 ### Readiness checklist (before each session)
 
-`ios/tools/readiness.py` (to come) checks CI is green, the artifacts are
-there (IPA, dSYM, catalog), the TestFlight build is processed and when it
-expires, her tester status and the issue list. By hand:
+`ios/tools/readiness.py <session>` checks CI is green, the artifacts the
+session needs are there and won't expire before it (`ios-build-inputs`, the
+catalog and screenshots, `ios-development`, `ios-testflight-dsyms`), and with
+App Store Connect credentials the TestFlight build's processing state and
+expiry, her tester status and the registered UDID, and that the issue list
+gives each issue an expected result. Exit status 0 is ready. By hand:
 
 - [ ] her consent, and the date
 - [ ] her macOS version and free disk space

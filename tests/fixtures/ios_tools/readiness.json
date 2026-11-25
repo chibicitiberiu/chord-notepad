@@ -1,0 +1,56 @@
+{
+  "_comment": "gh answers for tests/test_ios_readiness.py. The push runs and their artifacts were recorded from this repository on 2026-11-25 (gh run list --json databaseId,status,conclusion,headSha,event,createdAt,url; the artifacts trimmed to the fields readiness.py reads). The dispatch and schedule runs, their lane artifacts and the App Store Connect answers are synthetic, written from GitHub's and Apple's documented schemas.",
+  "runs": [
+    {"conclusion": "", "createdAt": "2026-11-24T23:50:53Z", "databaseId": 45513358669, "event": "push", "headSha": "bb1c2e44d8942b4c9aba9e8952014b18f4f91b74", "status": "in_progress", "url": "https://github.com/chibicitiberiu/chord-notepad/actions/runs/45513358669"},
+    {"conclusion": "success", "createdAt": "2026-11-24T23:22:47Z", "databaseId": 45509459724, "event": "push", "headSha": "1ddcdfb057a9d2ab94ac534a9edf40b047340542", "status": "completed", "url": "https://github.com/chibicitiberiu/chord-notepad/actions/runs/45509459724"},
+    {"conclusion": "success", "createdAt": "2026-11-24T23:10:00Z", "databaseId": 45507000001, "event": "workflow_dispatch", "headSha": "875c51f4bff91d41f3152ea225a4aa00112995f2", "status": "completed", "url": "https://github.com/chibicitiberiu/chord-notepad/actions/runs/45507000001"},
+    {"conclusion": "failure", "createdAt": "2026-11-24T23:02:36Z", "databaseId": 45506453523, "event": "push", "headSha": "875c51f4bff91d41f3152ea225a4aa00112995f2", "status": "completed", "url": "https://github.com/chibicitiberiu/chord-notepad/actions/runs/45506453523"},
+    {"conclusion": "success", "createdAt": "2026-11-01T06:00:00Z", "databaseId": 45000000002, "event": "schedule", "headSha": "c18f00e9ce5c9d81b1415d19819d0bfcbcc7894e", "status": "completed", "url": "https://github.com/chibicitiberiu/chord-notepad/actions/runs/45000000002"}
+  ],
+  "artifacts": {
+    "45509459724": [
+      {"created_at": "2026-11-24T23:40:53Z", "expired": false, "expires_at": "2027-02-22T23:22:47Z", "name": "ios-screenshots", "size_in_bytes": 10687693},
+      {"created_at": "2026-11-24T23:40:10Z", "expired": false, "expires_at": "2027-02-22T23:22:47Z", "name": "ios-help", "size_in_bytes": 7908062},
+      {"created_at": "2026-11-24T23:41:01Z", "expired": false, "expires_at": "2027-02-22T23:22:47Z", "name": "ios-results", "size_in_bytes": 119633409},
+      {"created_at": "2026-11-24T23:40:07Z", "expired": false, "expires_at": "2027-02-22T23:22:47Z", "name": "ios-catalog", "size_in_bytes": 117490984},
+      {"created_at": "2026-11-24T23:25:23Z", "expired": false, "expires_at": "2027-02-22T23:22:47Z", "name": "ios-kit-tests", "size_in_bytes": 16274},
+      {"created_at": "2026-11-24T23:38:00Z", "expired": false, "expires_at": "2026-12-24T23:22:47Z", "name": "ios-build-inputs", "size_in_bytes": 210000000}
+    ],
+    "45507000001": [
+      {"created_at": "2026-11-24T23:40:00Z", "expired": false, "expires_at": "2027-02-22T23:10:00Z", "name": "ios-development", "size_in_bytes": 98000000},
+      {"created_at": "2026-11-24T23:40:00Z", "expired": false, "expires_at": "2027-02-22T23:10:00Z", "name": "ios-testflight-dsyms", "size_in_bytes": 9000000}
+    ],
+    "45506453523": [],
+    "45000000002": [
+      {"created_at": "2026-11-01T06:30:00Z", "expired": true, "expires_at": "2026-11-20T06:00:00Z", "name": "ios-testflight-dsyms", "size_in_bytes": 9000000}
+    ]
+  },
+  "asc": {
+    "responses": [
+      {
+        "request": "GET /v1/apps?fields[apps]=bundleId,name&filter[bundleId]=com.tibich.chordnotepad",
+        "body": {"data": [{"type": "apps", "id": "1234567890", "attributes": {"bundleId": "com.tibich.chordnotepad", "name": "Chord Notepad"}}]}
+      },
+      {
+        "request": "GET /v1/builds?fields[buildBetaDetails]=internalBuildState&fields[builds]=version,uploadedDate,expirationDate,expired,processingState,buildBetaDetail&filter[app]=1234567890&include=buildBetaDetail&limit=1&sort=-uploadedDate",
+        "body": {
+          "data": [{"type": "builds", "id": "build-57", "attributes": {"version": "57", "uploadedDate": "2026-11-24T23:55:00.000-08:00", "expirationDate": "2027-02-22T23:55:00.000-08:00", "expired": false, "processingState": "VALID"},
+                    "relationships": {"buildBetaDetail": {"data": {"type": "buildBetaDetails", "id": "bbd-57"}}}}],
+          "included": [{"type": "buildBetaDetails", "id": "bbd-57", "attributes": {"internalBuildState": "IN_BETA_TESTING"}}]
+        }
+      },
+      {
+        "request": "GET /v1/betaTesters?fields[betaTesters]=state,inviteType&filter[apps]=1234567890&filter[email]=tester@example.invalid",
+        "body": {"data": [{"type": "betaTesters", "id": "tester-1", "attributes": {"state": "ACCEPTED", "inviteType": "EMAIL"}}]}
+      },
+      {
+        "request": "GET /v1/devices?filter[platform]=IOS&filter[udid]=00008110-0000000000000000",
+        "body": {"data": [{"type": "devices", "id": "dev-1", "attributes": {"name": "Test iPhone", "model": "iPhone 15", "status": "ENABLED", "udid": "00008110-0000000000000000"}}]}
+      },
+      {
+        "request": "GET /v1/devices?filter[platform]=IOS&filter[udid]=00008110-FFFF",
+        "body": {"data": []}
+      }
+    ]
+  }
+}
