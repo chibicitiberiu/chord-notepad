@@ -17,6 +17,7 @@ from tests.conftest import QT_PROBLEM
 if QT_PROBLEM:
     pytest.skip(f"Qt not available: {QT_PROBLEM}", allow_module_level=True)
 
+from PySide6.QtCore import QUrl  # noqa: E402
 from PySide6.QtGui import QFont, QFontDatabase, QGuiApplication  # noqa: E402
 from PySide6.QtQuick import QQuickWindow  # noqa: E402
 from PySide6.QtQuickControls2 import QQuickStyle  # noqa: E402
@@ -147,3 +148,25 @@ def test_qmllint_finds_nothing():
     lines = [line for line in (result.stdout + result.stderr).splitlines()
              if line.strip() and not any(line.endswith(known) for known in QMLLINT_FALSE_POSITIVES)]
     assert result.returncode == 0 and lines == [], "\n".join(lines)
+
+
+def test_points_are_sized_at_96_dpi_on_every_os(qapp):
+    """macOS draws a point as one logical pixel (72 dpi), Windows and Linux as
+    4/3 (96 dpi): Theme scales its points on macOS so the UI, the editor and
+    the chord sheet (pixels at 96 dpi) come out the same size everywhere."""
+    from PySide6.QtQml import QQmlComponent, QQmlEngine
+
+    engine = QQmlEngine()
+    engine.addImportPath(str(QML_DIR))
+    component = QQmlComponent(engine)
+    component.setData(b"import QtQuick\nimport CNTheme\nQtObject {\n"
+                      b"    property real pointScale: Theme.pointScale\n"
+                      b"    property real baseSize: Theme.baseSize\n}\n",
+                      QUrl())
+    probe = component.create()
+    assert probe is not None, component.errorString()
+    expected = 96 / 72 if sys.platform == "darwin" else 1.0
+    assert probe.property("pointScale") == pytest.approx(expected)
+    assert probe.property("baseSize") == pytest.approx(10 * expected, abs=0.002)
+    # The editor's size (the session's points) goes through the same factor.
+    assert "pointSize * scale * pointScale" in qml("CNTheme/Theme.qml")

@@ -50,6 +50,10 @@ def pytest_collection_modifyitems(config, items):
     for item in items:
         if str(item.fspath).startswith(here):
             item.add_marker(pytest.mark.qt_log_level_fail("WARNING"))
+            # macOS: the offscreen platform's default family ("Sans Serif")
+            # isn't installed, so the first font lookup fills Qt's alias table
+            # and says how long it took; that failed whichever test came first.
+            item.add_marker(pytest.mark.qt_log_ignore(r"^Populating font family aliases took"))
 
 
 @pytest.fixture(scope="session")
