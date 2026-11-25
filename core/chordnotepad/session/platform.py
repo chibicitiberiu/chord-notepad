@@ -16,8 +16,10 @@ a playhead like Android's (:data:`TRACKS_PLAYHEAD`).
 :data:`PICKER_CREATES_FILE`, so
 :func:`pick` falls back ios -> android -> desktop: a text with no iOS variant
 uses Android's, and one with neither uses the desktop's. Only a text that
-names something Android-only (Android's Back button, say) would need an iOS
-variant of its own; none does today.
+names something Android-only (Android's Back button, say) or says something
+that isn't so on iOS needs an iOS variant of its own: the status after an
+export (``formatting.exported_midi_status``), since iOS's export picker
+opens after the file is written.
 """
 
 from typing import Mapping, TypeVar

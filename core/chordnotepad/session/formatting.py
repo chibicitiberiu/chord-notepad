@@ -9,7 +9,7 @@ from typing import Any, Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
-from chordnotepad.session.platform import ANDROID, DESKTOP, pick
+from chordnotepad.session.platform import ANDROID, DESKTOP, IOS, pick
 from chordnotepad.session.state import InstrumentFamily, MenuItem
 
 READY = "Ready"
@@ -346,9 +346,20 @@ def exporting_midi_status(location: str) -> str:
     return f"Exporting MIDI: {location}..."
 
 
-def exported_midi_status(location: str) -> str:
-    """The status after a MIDI file was exported."""
-    return f"Exported MIDI: {location}"
+#: The status after an export wrote its file, by platform: the desktop's and
+#: Android's pickers chose the place before the export ran; iOS's export
+#: picker opens after it, so the file isn't saved anywhere yet (and isn't
+#: if the picker is cancelled).
+_EXPORTED = {
+    DESKTOP: {"midi": "Exported MIDI: {}", "audio": "Exported audio: {}", "pdf": "Exported PDF: {}"},
+    IOS: {"midi": "MIDI ready to save: {}", "audio": "Audio ready to save: {}", "pdf": "PDF ready to save: {}"},
+}
+
+
+def exported_midi_status(location: str, platform: str = DESKTOP) -> str:
+    """The status after a MIDI file was exported (iOS: written, waiting for
+    the export picker)."""
+    return pick(_EXPORTED, platform)["midi"].format(location)
 
 
 def exporting_audio_status(fraction: float) -> str:
@@ -356,9 +367,10 @@ def exporting_audio_status(fraction: float) -> str:
     return f"Exporting audio… {int(round(max(0.0, min(1.0, fraction)) * 100))}%"
 
 
-def exported_audio_status(location: str) -> str:
-    """The status after an audio file was exported."""
-    return f"Exported audio: {location}"
+def exported_audio_status(location: str, platform: str = DESKTOP) -> str:
+    """The status after an audio file was exported (iOS: written, waiting
+    for the export picker)."""
+    return pick(_EXPORTED, platform)["audio"].format(location)
 
 
 def pdf_export_name(stem: Optional[str]) -> str:
@@ -366,9 +378,10 @@ def pdf_export_name(stem: Optional[str]) -> str:
     return f"{stem or UNTITLED}.pdf"
 
 
-def exported_pdf_status(location: str) -> str:
-    """The status after a PDF file was exported."""
-    return f"Exported PDF: {location}"
+def exported_pdf_status(location: str, platform: str = DESKTOP) -> str:
+    """The status after a PDF file was exported (iOS: written, waiting for
+    the export picker)."""
+    return pick(_EXPORTED, platform)["pdf"].format(location)
 
 
 def file_error_message(action: str, location: str, reason: Optional[str]) -> str:

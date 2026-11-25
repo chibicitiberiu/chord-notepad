@@ -3541,7 +3541,7 @@ class AppSession:
         """The worker rendered (or failed to render) a MIDI export: write it."""
         # Not remembered as recent: exports aren't documents to reopen here.
         if self._main.finish_midi_export(ref, outcome.value, outcome.error):
-            self._set_status(formatting.exported_midi_status(ref.location))
+            self._set_status(formatting.exported_midi_status(ref.location, self._platform))
         else:
             self._set_status(formatting.READY)
             self._file_error(formatting.EXPORT_FAILED, ref)
@@ -3594,7 +3594,7 @@ class AppSession:
         self._audio_job = None
         # Not remembered as recent: exports aren't documents to reopen here.
         if self._main.finish_audio_export(ref, outcome.error):
-            self._set_status(formatting.exported_audio_status(ref.location))
+            self._set_status(formatting.exported_audio_status(ref.location, self._platform))
             return
         self._set_status(formatting.READY)
         message = formatting.file_error_message(
@@ -3615,7 +3615,7 @@ class AppSession:
         answer = yield PaintPdfRequest(0, ref, layout)
         # Not remembered as recent: exports aren't documents to reopen here.
         if answer == "":
-            self._set_status(formatting.exported_pdf_status(ref.location))
+            self._set_status(formatting.exported_pdf_status(ref.location, self._platform))
             return
         reason = answer if isinstance(answer, str) else None
         message = formatting.file_error_message(

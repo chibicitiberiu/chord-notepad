@@ -354,3 +354,14 @@ def test_startup_removes_only_stale_temp_files(tmp_path):
     env = Env(tmp_path)
     assert env.temp_files() == ["audio-export-b.wav"]
     env.session.shutdown()
+
+
+def test_on_ios_written_says_ready_to_save(tmp_path):
+    # iOS's export picker opens after the write: the file isn't saved anywhere yet.
+    env = Env(tmp_path, platform="ios")
+    env.session.export_audio()
+    env.answer(env.store.ref("out.wav"))
+    env.settle()
+    assert env.status() == "Audio ready to save: out.wav"
+    assert env.errors() == []
+    env.session.shutdown()

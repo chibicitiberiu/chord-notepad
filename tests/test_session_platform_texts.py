@@ -161,3 +161,19 @@ def test_ios_texts_and_tooltips_follow_android():
     assert formatting.audio_unavailable_message("x", True, IOS) == (
         formatting.audio_unavailable_message("x", True, ANDROID))
     assert (voicing_form.editor_schema(IOS)["help"] == voicing_form.editor_schema(ANDROID)["help"])
+
+
+def test_the_export_status_says_ready_to_save_on_ios_only():
+    """iOS's export picker opens after the file is written; the other
+    platforms' pickers chose the place first, and their text is unchanged."""
+    from chordnotepad.session.platform import DESKTOP_QT, IOS
+
+    for platform in (DESKTOP, ANDROID, DESKTOP_QT):
+        assert formatting.exported_midi_status("song.mid", platform) == "Exported MIDI: song.mid"
+        assert formatting.exported_audio_status("song.wav", platform) == "Exported audio: song.wav"
+        assert formatting.exported_pdf_status("song.pdf", platform) == "Exported PDF: song.pdf"
+    assert formatting.exported_midi_status("song.mid") == "Exported MIDI: song.mid"
+    assert formatting.exported_audio_status("a {b}.wav") == "Exported audio: a {b}.wav"
+    assert formatting.exported_midi_status("Lullaby (2).mid", IOS) == "MIDI ready to save: Lullaby (2).mid"
+    assert formatting.exported_audio_status("song.wav", IOS) == "Audio ready to save: song.wav"
+    assert formatting.exported_pdf_status("song.pdf", IOS) == "PDF ready to save: song.pdf"

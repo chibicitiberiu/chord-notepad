@@ -199,3 +199,12 @@ def test_an_unknown_page_size_is_refused(env):
     with pytest.raises(ValueError):
         env.session.export_pdf("a5")
     assert env.session.pending_request is None
+
+
+def test_on_ios_written_says_ready_to_save(tmp_path):
+    # iOS's export picker opens after the write: the file isn't saved anywhere yet.
+    env = Env(tmp_path, platform="ios")
+    env.session.export_pdf("a4")
+    env.session.respond(env.pick().request_id, "")
+    assert env.status() == "PDF ready to save: " + env.store.ref("out.pdf").location
+    env.session.shutdown()
