@@ -192,8 +192,12 @@ developer_dir() {
 }
 
 xcode_installed() {
-    [ -x "$XCODE_APP/Contents/Developer/usr/bin/xcodebuild" ] &&
-        "$XCODE_APP/Contents/Developer/usr/bin/xcodebuild" -version 2>/dev/null | head -n 1 | grep -q "^Xcode $XCODE_VERSION\$"
+    local version
+    [ -x "$XCODE_APP/Contents/Developer/usr/bin/xcodebuild" ] || return 1
+    # Read it whole: with pipefail, `| head -n 1` would fail the check when
+    # xcodebuild gets SIGPIPE (ios.yml's first rehearsal did).
+    version=$("$XCODE_APP/Contents/Developer/usr/bin/xcodebuild" -version 2>/dev/null || true)
+    [ "${version%%$'\n'*}" = "Xcode $XCODE_VERSION" ]
 }
 
 sdk_version() { xcrun --sdk iphonesimulator --show-sdk-version 2>/dev/null || true; }

@@ -262,3 +262,14 @@ def test_the_real_pins_parse():
     result = subprocess.run(["sed", "-n", r"s/^ *XCODEGEN_SHA256: '\{0,1\}\([0-9A-Za-z.]*\)'\{0,1\}$/\1/p",
                              str(ROOT / ".github/actions/ios-app-setup/action.yml")], capture_output=True, text=True)
     assert len(result.stdout.strip()) == 64
+
+
+def test_verify_sees_an_installed_xcode(mac):
+    """Xcode's version is read whole: a pipe into head made xcodebuild abort on CI."""
+    developer = mac["tmp"] / "Applications/Xcode_26.5.app/Contents/Developer/usr/bin"
+    developer.mkdir(parents=True)
+    stub(developer, "xcodebuild", 'echo "Xcode 26.5"; echo "Build version 17F42"')
+    result = bootstrap(mac, "--verify", "--only", "preflight", HAVE_RUNTIME="1")
+    assert result.returncode == 0, result.stdout + result.stderr
+    report = (mac["tmp"] / "report/report.txt").read_text()
+    assert "error" not in report

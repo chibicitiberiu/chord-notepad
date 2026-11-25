@@ -54,7 +54,7 @@ case "$MODE" in
         app="$ARCHIVE/Products/Applications/ChordNotepad.app"
         plutil -p "$app/Info.plist" | grep -E 'CFBundle(Short)?Version|CFBundleIdentifier|CNGitCommit'
         if [ "${3:-}" != --unsigned ]; then
-            codesign --display --verbose=2 "$app" 2>&1 | grep -E '^(Identifier|TeamIdentifier|Authority)=' | head -n 3
+            codesign --display --verbose=2 "$app" 2>&1 | grep -E '^(Identifier|TeamIdentifier|Authority)=' || true
         fi
         ;;
     export)
