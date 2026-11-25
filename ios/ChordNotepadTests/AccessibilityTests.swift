@@ -19,6 +19,33 @@ final class AccessibilityTests: XCTestCase {
         let identifier: String
         let traits: UIAccessibilityTraits
         let frame: CGRect
+        let kind: String
+    }
+
+    /// SwiftUI builds its accessibility tree only for an assistive technology
+    /// (run 45513358669's walk found no SwiftUI element without this): turn
+    /// on the automation accessibility XCUITest and KIF use, through the
+    /// simulator's libAccessibility (test bundle only; the app never calls it).
+    override class func setUp() {
+        super.setUp()
+        guard let library = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW),
+              let symbol = dlsym(library, "_AXSSetAutomationEnabled") else {
+            print("Accessibility: libAccessibility's _AXSSetAutomationEnabled not found")
+            return
+        }
+        typealias SetEnabled = @convention(c) (Int32) -> Void
+        unsafeBitCast(symbol, to: SetEnabled.self)(1)
+    }
+
+    /// An element's identifier: SwiftUI's nodes answer `accessibilityIdentifier`
+    /// without declaring `UIAccessibilityIdentification`.
+    private static func identifier(of object: NSObject) -> String {
+        if let identified = object as? UIAccessibilityIdentification {
+            return identified.accessibilityIdentifier ?? ""
+        }
+        let selector = NSSelectorFromString("accessibilityIdentifier")
+        guard object.responds(to: selector) else { return "" }
+        return object.perform(selector)?.takeUnretainedValue() as? String ?? ""
     }
 
     /// The accessibility elements under `root`, in VoiceOver's order.
@@ -30,9 +57,9 @@ final class AccessibilityTests: XCTestCase {
             if let view = object as? UIView, view.isHidden || view.alpha == 0 { return }
             if object.accessibilityElementsHidden { return }
             if object.isAccessibilityElement {
-                let identifier = (object as? UIAccessibilityIdentification)?.accessibilityIdentifier ?? ""
-                found.append(Element(label: object.accessibilityLabel ?? "", identifier: identifier,
-                                     traits: object.accessibilityTraits, frame: object.accessibilityFrame))
+                found.append(Element(label: object.accessibilityLabel ?? "", identifier: identifier(of: object),
+                                     traits: object.accessibilityTraits, frame: object.accessibilityFrame,
+                                     kind: String(describing: type(of: object))))
                 return
             }
             if let children = object.accessibilityElements, !children.isEmpty {
@@ -94,7 +121,8 @@ final class AccessibilityTests: XCTestCase {
                 let isButton = element.traits.contains(.button)
                 if isButton { buttons += 1 }
                 let label = element.label.trimmingCharacters(in: .whitespacesAndNewlines)
-                report.append("\(screen.name)\t\(isButton ? "button" : "-")\t\(element.identifier)\t\(label)")
+                report.append("\(screen.name)\t\(isButton ? "button" : "-")\t\(element.identifier)\t\(label)\t"
+                              + "\(element.kind)\t\(element.traits.rawValue)")
                 // VoiceOver reads any element: a part of its label named after an image is a bug.
                 if label.components(separatedBy: ", ").contains(where: Self.looksLikeAnImageName) {
                     problems.append("\(screen.name): \(element.identifier.isEmpty ? "?" : element.identifier) "
@@ -108,6 +136,8 @@ final class AccessibilityTests: XCTestCase {
                 }
             }
         }
+        // In the log too, so a failed run shows what the walk saw.
+        print("Accessibility elements:\n" + report.prefix(400).joined(separator: "\n"))
         let attachment = XCTAttachment(string: report.joined(separator: "\n"))
         attachment.name = "accessibility-elements.tsv"
         attachment.lifetime = .keepAlways
