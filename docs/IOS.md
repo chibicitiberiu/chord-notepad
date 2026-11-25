@@ -1707,8 +1707,11 @@ when one slips:
   Connect's upload check. `_ssl`'s and `_hashlib`'s own manifests cover them;
 - native code only in the executable and in frameworks, each marked for
   iPhoneOS with a MinimumOSVersion;
-- the compiled icon (`assetutil --info`) at the iPhone and iPad sizes (120,
-  180, 152, 167 px), and a 1024 × 1024 source with no alpha channel.
+- the icon: Xcode 26 compiles the single 1024 px source into one 1024 px
+  AppIcon rendition in Assets.car (`assetutil --info`) and writes the loose
+  `AppIcon60x60@2x.png` and `AppIcon76x76@2x~ipad.png` that
+  `CFBundleIconFiles` names; both must be there, and the source must be
+  1024 × 1024 with no alpha channel.
 
 The tests (`tests/test_ios_app_store_check.py`) run it on Linux over a
 synthetic bundle.

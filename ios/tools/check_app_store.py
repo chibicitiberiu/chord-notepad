@@ -25,8 +25,9 @@ over a synthetic bundle. It fails (exit 1) when:
   executable and its frameworks), or a framework's Info.plist doesn't say
   iPhoneOS or has no MinimumOSVersion.
 - The icon: no Assets.car; with --assetutil-json (``xcrun --sdk iphoneos
-  assetutil --info Assets.car``), an AppIcon size iPhone or iPad needs is
-  missing; with --icon-source, the 1024 px source isn't 1024 x 1024 or has an
+  assetutil --info Assets.car``), no 1024 px AppIcon rendition; a loose icon
+  file Info.plist's CFBundleIconFiles names (iPhone or iPad) is missing; with
+  --icon-source, the 1024 px source isn't 1024 x 1024 or has an
   alpha channel (App Store Connect refuses those).
 """
 
@@ -43,9 +44,11 @@ from typing import Optional
 
 BUNDLE_ID = "com.tibich.chordnotepad"
 ICON_NAME = "AppIcon"
-# Pixel sizes Xcode makes from the single 1024 px icon that iPhone and iPad
-# need: 60 pt @2x/@3x (iPhone), 76 pt @2x and 83.5 pt @2x (iPad).
-REQUIRED_ICON_PIXELS = {120, 180, 152, 167}
+# From a single-size (1024 px) icon, Xcode 26 compiles one 1024 px AppIcon
+# rendition into Assets.car (the system scales it) and writes the loose
+# AppIcon60x60@2x.png / AppIcon76x76@2x~ipad.png files Info.plist's
+# CFBundleIconFiles name (seen in ios.yml's device build, run 45518102280).
+REQUIRED_ICON_PIXELS = {1024}
 IPAD_ORIENTATIONS = {"UIInterfaceOrientationPortrait", "UIInterfaceOrientationPortraitUpsideDown",
                      "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"}
 
@@ -232,6 +235,12 @@ def check_icons(app: pathlib.Path, assetutil: Optional[pathlib.Path], source: Op
             result.error(f"the compiled {ICON_NAME} has {sizes} px, missing {sorted(missing)}")
         else:
             result.note(f"{ICON_NAME} sizes: {sizes} px")
+    info = plistlib.loads((app / "Info.plist").read_bytes()) if (app / "Info.plist").is_file() else {}
+    for key, suffix in (("CFBundleIcons", ""), ("CFBundleIcons~ipad", "~ipad")):
+        for name in ((info.get(key) or {}).get("CFBundlePrimaryIcon") or {}).get("CFBundleIconFiles") or []:
+            # An iPad looks for <name>@2x~ipad.png, then <name>@2x.png.
+            if not list(app.glob(f"{name}@*x{suffix}.png")) and not list(app.glob(f"{name}@*x.png")):
+                result.error(f"{key} names {name}, but there is no {name}@2x{suffix}.png in the app")
     if source:
         width, height, colour = png_header(source)
         if (width, height) != (1024, 1024):

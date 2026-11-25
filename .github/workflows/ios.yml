@@ -357,6 +357,7 @@ jobs:
       # (ios/tools/check_app_store.py; docs/IOS.md, "App Store requirements").
       - name: App Store checks
         run: |
+          find "$DEVICE_APP" -maxdepth 1 -name 'AppIcon*' -print
           xcrun --sdk iphoneos assetutil --info "$DEVICE_APP/Assets.car" > "$RUNNER_TEMP/assets.json"
           python3 -I ios/tools/check_app_store.py "$DEVICE_APP" --assetutil-json "$RUNNER_TEMP/assets.json" \
             --icon-source ios/ChordNotepad/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
@@ -658,8 +659,10 @@ jobs:
           # How many devices the profile covers (not which: the log is public).
           unzip -q -o "$RUNNER_TEMP/export/ChordNotepad.ipa" 'Payload/ChordNotepad.app/embedded.mobileprovision' -d "$RUNNER_TEMP/ipa"
           security cms -D -i "$RUNNER_TEMP/ipa/Payload/ChordNotepad.app/embedded.mobileprovision" > "$RUNNER_TEMP/profile.plist"
-          echo "The profile covers $(plutil -extract ProvisionedDevices raw -o - "$RUNNER_TEMP/profile.plist" | wc -l | tr -d ' ') device(s)," \
-            "expires $(plutil -extract ExpirationDate raw -o - "$RUNNER_TEMP/profile.plist")"
+          devices=$(plutil -extract ProvisionedDevices json -o - "$RUNNER_TEMP/profile.plist" \
+            | python3 -I -c 'import json, sys; print(len(json.load(sys.stdin)))')
+          echo "The profile covers $devices device(s)," \
+            "expires $(plutil -extract ExpirationDate raw -o - "$RUNNER_TEMP/profile.plist" || echo '(unknown)')"
           rm -rf "$RUNNER_TEMP/ipa" "$RUNNER_TEMP/profile.plist"
 
       # Decrypt on Linux: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000

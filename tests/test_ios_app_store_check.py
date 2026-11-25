@@ -47,13 +47,18 @@ def app(tmp_path):
         "CFBundleIdentifier": "com.tibich.chordnotepad", "CFBundleExecutable": "ChordNotepad",
         "CFBundleShortVersionString": "0.6.2", "CFBundleVersion": "57", "MinimumOSVersion": "17.0",
         "ITSAppUsesNonExemptEncryption": False, "UILaunchScreen": {},
-        "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
-        "CFBundleIcons~ipad": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon"}},
+        # As Xcode 26 writes them for a single-size icon (ios.yml's device build).
+        "CFBundleIcons": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon",
+                                                  "CFBundleIconFiles": ["AppIcon60x60"]}},
+        "CFBundleIcons~ipad": {"CFBundlePrimaryIcon": {"CFBundleIconName": "AppIcon",
+                                                       "CFBundleIconFiles": ["AppIcon60x60", "AppIcon76x76"]}},
         "UISupportedInterfaceOrientations~ipad": ORIENTATIONS,
     }
     (bundle / "Info.plist").write_bytes(plistlib.dumps(info, fmt=plistlib.FMT_BINARY))
     shutil.copy(MANIFEST, bundle / "PrivacyInfo.xcprivacy")
     (bundle / "Assets.car").write_bytes(b"car")
+    for name in ("AppIcon60x60@2x.png", "AppIcon60x60@2x~ipad.png", "AppIcon76x76@2x~ipad.png"):
+        (bundle / name).write_bytes(b"png")
     # The executable: Swift's clocks and UserDefaults; Python's file and disk calls.
     (bundle / "ChordNotepad").write_bytes(macho("_mach_absolute_time", "_OBJC_CLASS_$_NSUserDefaults"))
     framework(bundle, "Python", "_stat", "_fstat", "_lstat", "_statvfs", "_fstatvfs", "_mach_absolute_time")
@@ -146,14 +151,20 @@ def test_framework_not_for_iphoneos(app):
     assert any("_hashlib.framework isn't marked for iPhoneOS" in e for e in errors(app))
 
 
-def test_icon_sizes_from_assetutil(app, tmp_path):
-    listing = [{"AssetType": "Icon Image", "Name": "AppIcon", "PixelWidth": size} for size in (120, 180, 152, 167, 1024)]
-    listing.append({"AssetType": "Image", "Name": "mdi_play", "PixelWidth": 72})
+def test_icon_rendition_from_assetutil(app, tmp_path):
+    # assetutil's listing of the device build's Assets.car: one 1024 px AppIcon.
+    listing = [{"AssetStorageVersion": "x"}, {"AssetType": "Icon Image", "Name": "AppIcon", "PixelWidth": 1024},
+               {"AssetType": "Image", "Name": "mdi_play", "PixelWidth": 72}]
     path = tmp_path / "assets.json"
-    path.write_text(json.dumps([{"AssetStorageVersion": "x"}] + listing))
+    path.write_text(json.dumps(listing))
     assert errors(app, assetutil=path) == []
-    path.write_text(json.dumps([e for e in listing if e["PixelWidth"] != 167]))
-    assert any("missing [167]" in e for e in errors(app, assetutil=path))
+    path.write_text(json.dumps(listing[:1] + listing[2:]))
+    assert any("missing [1024]" in e for e in errors(app, assetutil=path))
+
+
+def test_loose_icon_files(app):
+    (app / "AppIcon76x76@2x~ipad.png").unlink()
+    assert errors(app) == ["CFBundleIcons~ipad names AppIcon76x76, but there is no AppIcon76x76@2x~ipad.png in the app"]
 
 
 def png(width, height, colour):
