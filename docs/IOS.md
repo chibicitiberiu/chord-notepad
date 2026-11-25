@@ -2043,7 +2043,10 @@ The tools, all on Linux except `mac_bootstrap.sh`:
   feedback screenshots and crash logs.
 - `ios/tools/symbolicate.sh <crash.ips> <dSYMs>`: a crash report
   symbolicated with the dSYMs of the run that built it (`ios-testflight-dsyms`
-  or `ios-development`); a dSYM whose UUID doesn't match is refused.
+  or `ios-development`); a dSYM whose UUID doesn't match is refused. Needs
+  `llvm-symbolizer` (Fedora's LLVM 18 reads Xcode 26.5's dSYMs, checked on
+  run 45519499248's) and, for Swift names, `swift-demangle` from the Swift
+  toolchain (`SWIFT_DEMANGLE=/mnt/data_linux/Bin/swiftly/bin/swift-demangle`).
 - `ios/tools/asc_api.py register-device|devices`: her iPhone's UDID for the
   development profile.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Symbolicate an iOS crash report on Linux with llvm-symbolizer and the dSYMs
-# from CI (docs/IOS.md, "Crash reports").
+# from CI (docs/IOS.md, "Device sessions").
 #
 #   ios/tools/symbolicate.sh <crash.ips> <dSYMs>... > crash.txt
 #

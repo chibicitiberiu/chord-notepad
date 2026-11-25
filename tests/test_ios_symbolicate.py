@@ -7,6 +7,7 @@ dsymutil, and skips when those LLVM tools aren't installed.
 """
 
 import json
+import os
 import shutil
 import subprocess
 
@@ -149,3 +150,12 @@ def test_symbolicates_a_real_dsym(tmp_path):
     result = subprocess.run(["bash", str(TOOLS / "symbolicate.sh"), str(report), str(tmp_path)],
                             capture_output=True, text=True, env=env)
     assert result.returncode == 1 and "no dSYM with the UUID of Demo" in result.stderr
+
+
+@pytest.mark.skipif(not (os.environ.get("SWIFT_DEMANGLE") or shutil.which("swift-demangle")),
+                    reason="no swift-demangle (the Swift toolchain; or set SWIFT_DEMANGLE)")
+def test_swift_names_are_demangled():
+    """One plain name per symbol (--compact), as the report shows it; a symbol from CI's real dSYM."""
+    demangler = os.environ.get("SWIFT_DEMANGLE") or shutil.which("swift-demangle")
+    names = ips.demangle(["$s12ChordNotepad11AppLicencesO7entries_WZ", "_main"], demangler)
+    assert names == {"$s12ChordNotepad11AppLicencesO7entries_WZ": "one-time initialization function for entries"}

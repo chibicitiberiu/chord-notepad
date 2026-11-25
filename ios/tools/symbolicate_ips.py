@@ -23,7 +23,9 @@ but a thread's first, one byte less, since those are return addresses
 llvm-symbolizer (``--output-style=JSON``, LLVM 14 or later) turns addresses
 into function, file and line; Swift names go through ``swift-demangle`` when
 one is on PATH (the Swift toolchain's), C++ names through the symbolizer's
-own demangler.
+own demangler. Fedora's LLVM 18 reads Xcode 26.5's DWARF: checked on the
+dSYM of ios.yml run 45519499248's unsigned archive (Swift functions with
+their file and line).
 """
 
 from __future__ import annotations
@@ -254,7 +256,7 @@ def demangle(names: list, demangler: Optional[str]) -> dict:
     swift = sorted({n for n in names if n.startswith(("$s", "_$s", "$S", "_T0"))})
     if not swift or not demangler:
         return {}
-    result = subprocess.run([demangler, "--simplified", *swift], capture_output=True, text=True, check=False)
+    result = subprocess.run([demangler, "--simplified", "--compact", *swift], capture_output=True, text=True, check=False)
     lines = result.stdout.splitlines() if result.returncode == 0 else []
     return dict(zip(swift, lines)) if len(lines) == len(swift) else {}
 
@@ -347,7 +349,7 @@ def main(argv: Optional[list] = None) -> int:
     if missing and not args.allow_missing:
         print("error: no dSYM with the UUID of " + ", ".join(f"{i.name} ({i.uuid})" for i in missing)
               + ". dSYMs found: " + (", ".join(f"{s.path.name} {u}" for u, s in sorted(dsyms.items())) or "none")
-              + ". Take them from the same CI run as the build (docs/IOS.md, \"Crash reports\").", file=sys.stderr)
+              + ". Take them from the same CI run as the build (docs/IOS.md, \"Device sessions\").", file=sys.stderr)
         return 1
     sys.stdout.write(render(report))
     return 0
