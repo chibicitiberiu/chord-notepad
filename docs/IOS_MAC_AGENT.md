@@ -46,6 +46,23 @@ not the whole file: it is over 2000 lines).
 - Back up a generated artefact before you delete or overwrite it.
 - Write plainly: short sentences, no filler words.
 
+## Talking to the Linux agent
+
+The share has a `messages/` folder, and its `README.md` has the rules:
+- `to-linux/` is for questions and reports to the Linux agent, which checks
+  it about once a minute;
+- `to-mac/` holds its replies.
+
+Write there when you need something only Linux has:
+- the code's history or design reasons;
+- a fresh CI run or other build inputs;
+- a decision recorded on that side;
+- a fix to the brief.
+
+While you wait for a reply, check `to-mac/` every minute or two, and keep
+working on what doesn't depend on it. Post a short status message at the
+end of each phase too. Tibi's word wins over both agents.
+
 ## Phase 1: set up the Mac (about 1.5 h, mostly waiting)
 
 The bootstrap script `ios/tools/mac_bootstrap.sh` does the work (its header
