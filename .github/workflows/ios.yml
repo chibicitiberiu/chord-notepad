@@ -1,10 +1,14 @@
 name: iOS
 
-# The iOS app on GitHub's macOS runners, with no Apple account and no signing
-# (docs/IOS.md, "CI"): the kit's tests on a Mac host, then the app built for
-# the simulator and tested on an iPhone and an iPad, the preview catalog
-# rendered to PNGs, screenshots of the running app, and an unsigned device
-# build.
+# The iOS app on GitHub's macOS runners (docs/IOS.md, "CI"): the kit's tests
+# on a Mac host, then the app built for the simulator and tested on an iPhone
+# and an iPad, the preview catalog rendered to PNGs, screenshots of the
+# running app, and an unsigned device build with the App Store checks, the
+# prebuilt inputs for the borrowed Mac and a rehearsal of its bootstrap.
+#
+# The release lanes (TestFlight, the development IPA) run only by hand or on
+# the monthly schedule, in the ios-release environment, and are skipped
+# while its secrets aren't set (docs/IOS.md, "Release lanes").
 
 on:
   push:
@@ -47,7 +51,27 @@ on:
       - 'desktop/chordnotepad_desktop/qml/app/FindBar.qml'
       - '.github/workflows/ios.yml'
       - '.github/actions/ios-app-setup/**'
+      # The release lanes' keychain script.
+      - 'packaging/apple/**'
+  # TestFlight builds expire after 90 days: re-upload the newest tested
+  # commit once a month (only the TestFlight lane runs, and only with the
+  # secrets; the tests ran on that commit's push).
+  schedule:
+    - cron: '17 6 1 * *'
   workflow_dispatch:
+    inputs:
+      testflight:
+        description: 'Archive, sign and upload to TestFlight (ios-release secrets)'
+        type: boolean
+        default: false
+      development_ipa:
+        description: 'Development-signed IPA and dSYM for the registered iPhone (ios-release secrets)'
+        type: boolean
+        default: false
+      unsigned_archive:
+        description: 'xcodebuild archive without signing, as the lanes archive (no secrets)'
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -62,6 +86,8 @@ concurrency:
 jobs:
   kit:
     name: Kit tests (macOS host)
+    # The monthly schedule only re-uploads to TestFlight (testflight below).
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 30
     steps:
@@ -132,6 +158,7 @@ jobs:
   # longest of the three instead of their sum.
   simulator:
     name: App on the ${{ matrix.label }} simulator
+    if: github.event_name != 'schedule'
     runs-on: macos-26
     timeout-minutes: 60
     strategy:
@@ -282,10 +309,15 @@ jobs:
   # phase, architectures) show up only in a device build.
   device:
     name: Unsigned device build
+    if: github.event_name != 'schedule'
     runs-on: macos-26
-    timeout-minutes: 45
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # The whole history: the bootstrap rehearsal below clones a git
+          # bundle of it, as the SSD carries one (a shallow clone can't be bundled).
+          fetch-depth: 0
 
       - uses: ./.github/actions/ios-app-setup
 
@@ -318,6 +350,52 @@ jobs:
             plutil -extract CFBundleSupportedPlatforms json -o - "$framework/Info.plist" | grep -q iPhoneOS \
               || { echo "$framework isn't marked for iPhoneOS"; exit 1; }
           done
+          echo "DEVICE_APP=$APP" >> "$GITHUB_ENV"
+
+      # The bundle ID, the encryption flag, the icons, and a reason in the
+      # privacy manifest for every required-reason API the binaries use
+      # (ios/tools/check_app_store.py; docs/IOS.md, "App Store requirements").
+      - name: App Store checks
+        run: |
+          xcrun --sdk iphoneos assetutil --info "$DEVICE_APP/Assets.car" > "$RUNNER_TEMP/assets.json"
+          python3 -I ios/tools/check_app_store.py "$DEVICE_APP" --assetutil-json "$RUNNER_TEMP/assets.json" \
+            --icon-source ios/ChordNotepad/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
+      # What a session on the borrowed Mac builds from (ios/tools/prepare_ssd.sh
+      # copies it to the SSD): the frameworks, the Python bundle and the guide,
+      # so nothing is downloaded or compiled there but the app.
+      - name: Pack the build inputs for the Mac sessions
+        run: |
+          git rev-parse HEAD > ios/build/INPUTS_COMMIT
+          tar -czf "$RUNNER_TEMP/ios-build-inputs.tar.gz" -C ios/build Frameworks python-bundle help INPUTS_COMMIT
+          ls -la "$RUNNER_TEMP/ios-build-inputs.tar.gz"
+
+      - name: Upload the build inputs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-build-inputs
+          path: ${{ runner.temp }}/ios-build-inputs.tar.gz
+          retention-days: 30
+          compression-level: 0
+
+      # S0's script as it will run on the MacBook (/bin/bash 3.2, the BSD
+      # tools), from an SSD laid out as prepare_ssd.sh lays it out: --verify
+      # clones the bundle, unpacks the inputs, generates the project, builds
+      # and runs the app on a simulator and lists devices. Only the Xcode and
+      # runtime installs aren't rehearsed (the runner has both).
+      - name: Rehearse the Mac bootstrap (mac_bootstrap.sh --verify)
+        run: |
+          SSD="$RUNNER_TEMP/ssd"
+          mkdir -p "$SSD"
+          git bundle create "$SSD/chord-notepad.bundle" HEAD
+          git rev-parse HEAD > "$SSD/chord-notepad.ref"
+          cp "$RUNNER_TEMP/ios-build-inputs.tar.gz" "$RUNNER_TEMP/xcodegen.zip" "$SSD/"
+          cp ios/.xcode-version "$SSD/xcode-version"
+          cp ios/tools/mac_bootstrap.sh "$SSD/"
+          (cd "$SSD" && shasum -a 256 chord-notepad.bundle chord-notepad.ref ios-build-inputs.tar.gz \
+            xcodegen.zip xcode-version mac_bootstrap.sh > SHA256SUMS)
+          /bin/bash "$SSD/mac_bootstrap.sh" --ssd "$SSD" --verify --workdir "$RUNNER_TEMP/s0" \
+            --report-dir "$RUNNER_TEMP/s0-report"
 
       - name: Upload the build log
         if: always()
@@ -327,12 +405,20 @@ jobs:
           path: ${{ runner.temp }}/build-device.log
           if-no-files-found: ignore
 
+      - name: Upload the bootstrap rehearsal
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-bootstrap-rehearsal
+          path: ${{ runner.temp }}/s0-report
+          if-no-files-found: ignore
+
   # The artifacts under the names one job used to upload them as
   # (ios-screenshots, ios-results), so `gh run download -n ios-screenshots`
   # still gets both simulators' screenshots. On Linux: no macOS runner.
   merge:
     name: Merge the artifacts
-    if: always()
+    if: always() && github.event_name != 'schedule'
     needs: [simulator, device]
     runs-on: ubuntu-latest
     timeout-minutes: 10
@@ -352,3 +438,316 @@ jobs:
           name: ios-results
           pattern: ios-results-*
           delete-merged: true
+
+  # ---- Release lanes (docs/IOS.md, "Release lanes") ------------------------
+  # None of these runs on a push. The gate reads which ios-release secrets
+  # are set: with none it says so and every lane is skipped; with only some
+  # it fails and names the missing ones, so a half-finished setup can't pass
+  # for "not enrolled yet".
+  release-gate:
+    name: Release lanes (secrets and commit)
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'schedule' ||
+       (github.event_name == 'workflow_dispatch' && (inputs.testflight || inputs.development_ipa)))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: ios-release
+    permissions:
+      contents: read
+      actions: read
+    outputs:
+      testflight: ${{ steps.secrets.outputs.testflight }}
+      development: ${{ steps.secrets.outputs.development }}
+      sha: ${{ steps.commit.outputs.sha }}
+      build: ${{ steps.commit.outputs.build }}
+    steps:
+      - name: Which secrets are set
+        id: secrets
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_DEVELOPMENT_P12_BASE64: ${{ secrets.IOS_DEVELOPMENT_P12_BASE64 }}
+          IOS_DEVELOPMENT_P12_PASSWORD: ${{ secrets.IOS_DEVELOPMENT_P12_PASSWORD }}
+          IOS_ARTIFACT_PASSPHRASE: ${{ secrets.IOS_ARTIFACT_PASSPHRASE }}
+          WANT_TESTFLIGHT: ${{ github.event_name == 'schedule' || inputs.testflight }}
+          WANT_DEVELOPMENT: ${{ github.event_name == 'workflow_dispatch' && inputs.development_ipa }}
+        run: |
+          required="ASC_KEY_P8_BASE64 ASC_KEY_ID ASC_ISSUER_ID APPLE_TEAM_ID IOS_DEVELOPMENT_P12_BASE64 IOS_DEVELOPMENT_P12_PASSWORD"
+          absent=""
+          for name in $required; do
+            if [ -z "${!name}" ]; then absent="$absent $name"; fi
+          done
+          absent=${absent# }
+          if [ "$absent" = "$required" ]; then
+            echo "::notice::No iOS signing secrets in the ios-release environment yet: the release lanes are skipped (docs/IOS.md, \"Enrollment day\")"
+            { echo "testflight=false"; echo "development=false"; } >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ -n "$absent" ]; then
+            echo "::error::The ios-release environment is missing: $absent"
+            exit 1
+          fi
+          if [ "$WANT_DEVELOPMENT" = true ] && [ -z "$IOS_ARTIFACT_PASSPHRASE" ]; then
+            echo "::error::The development IPA needs IOS_ARTIFACT_PASSPHRASE: its profile lists the registered iPhones' UDIDs, so the artifact is encrypted"
+            exit 1
+          fi
+          { echo "testflight=$WANT_TESTFLIGHT"; echo "development=$WANT_DEVELOPMENT"; } >> "$GITHUB_OUTPUT"
+
+      # The schedule builds the newest commit whose tests passed (its own
+      # push or dispatch run); a dispatch builds its own commit, after this
+      # run's tests. CFBundleVersion is this workflow's run number, which
+      # only grows across pushes, dispatches and the schedule, so App Store
+      # Connect never sees a number twice; a re-run adds its attempt (57.2
+      # comes after 57 and before 58).
+      - name: The commit and build number
+        id: commit
+        if: steps.secrets.outputs.testflight == 'true' || steps.secrets.outputs.development == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = schedule ]; then
+            sha=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow ios.yml --branch main --status success \
+              --limit 50 --json headSha,event \
+              -q '[.[] | select(.event == "push" or .event == "workflow_dispatch")][0].headSha // ""')
+            [ -n "$sha" ] || { echo "::error::No green ios.yml run on main to upload"; exit 1; }
+          else
+            sha=$GITHUB_SHA
+          fi
+          build=$GITHUB_RUN_NUMBER
+          if [ "$GITHUB_RUN_ATTEMPT" != 1 ]; then build="$build.$GITHUB_RUN_ATTEMPT"; fi
+          echo "Building ${sha:0:7} as build $build"
+          { echo "sha=$sha"; echo "build=$build"; } >> "$GITHUB_OUTPUT"
+
+  # Archive with automatic signing (the development certificate from the
+  # secrets signs the archive; the export's distribution signing is Xcode's
+  # cloud-managed certificate through the Admin key, or the
+  # IOS_DISTRIBUTION_P12 fallback when that secret is set), then upload.
+  testflight:
+    name: TestFlight upload
+    needs: [release-gate, kit, simulator, device]
+    if: >-
+      always() && needs.release-gate.outputs.testflight == 'true' &&
+      (github.event_name == 'schedule' ||
+       (needs.kit.result == 'success' && needs.simulator.result == 'success' && needs.device.result == 'success'))
+    runs-on: macos-26
+    timeout-minutes: 75
+    environment: ios-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-gate.outputs.sha }}
+
+      - uses: ./.github/actions/ios-app-setup
+
+      - name: Signing (API key, certificates)
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          IOS_DEVELOPMENT_P12_BASE64: ${{ secrets.IOS_DEVELOPMENT_P12_BASE64 }}
+          IOS_DEVELOPMENT_P12_PASSWORD: ${{ secrets.IOS_DEVELOPMENT_P12_PASSWORD }}
+          IOS_DISTRIBUTION_P12_BASE64: ${{ secrets.IOS_DISTRIBUTION_P12_BASE64 }}
+          IOS_DISTRIBUTION_P12_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_P12_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          chmod 600 "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" >> "$GITHUB_ENV"
+          packaging/apple/import_certificates.sh "$RUNNER_TEMP/ios-signing.keychain-db" IOS_DEVELOPMENT_P12_BASE64 IOS_DEVELOPMENT_P12_PASSWORD \
+            IOS_DISTRIBUTION_P12_BASE64 IOS_DISTRIBUTION_P12_PASSWORD
+
+      - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CN_BUILD_NUMBER: ${{ needs.release-gate.outputs.build }}
+        run: ios/tools/ci_archive.sh archive "$RUNNER_TEMP/ChordNotepad.xcarchive"
+
+      - name: App Store checks
+        run: |
+          APP="$RUNNER_TEMP/ChordNotepad.xcarchive/Products/Applications/ChordNotepad.app"
+          xcrun --sdk iphoneos assetutil --info "$APP/Assets.car" > "$RUNNER_TEMP/assets.json"
+          python3 -I ios/tools/check_app_store.py "$APP" --assetutil-json "$RUNNER_TEMP/assets.json" \
+            --icon-source ios/ChordNotepad/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
+      - name: Keep the dSYMs
+        run: ios/tools/ci_archive.sh dsyms "$RUNNER_TEMP/ChordNotepad.xcarchive" "$RUNNER_TEMP/dsyms"
+
+      - name: Upload the dSYMs
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-testflight-dsyms
+          path: ${{ runner.temp }}/dsyms
+
+      - name: Upload to TestFlight
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: ios/tools/ci_archive.sh export "$RUNNER_TEMP/ChordNotepad.xcarchive" testflight "$RUNNER_TEMP/export"
+
+      - name: Upload the archive and export logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-testflight-logs
+          path: |
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/export-testflight.log
+          if-no-files-found: ignore
+
+      - name: Remove the keychain and the key
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ios-signing.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/keys"
+
+  # The same archive exported with development signing, for her iPhone in
+  # S2 (its UDID registered first: ios/tools/asc_api.py register-device).
+  # The artifact is encrypted with IOS_ARTIFACT_PASSPHRASE: the profile in
+  # the IPA lists the registered devices, and the repository is public.
+  development:
+    name: Development IPA
+    needs: [release-gate, kit, simulator, device]
+    if: >-
+      always() && needs.release-gate.outputs.development == 'true' &&
+      needs.kit.result == 'success' && needs.simulator.result == 'success' && needs.device.result == 'success'
+    runs-on: macos-26
+    timeout-minutes: 75
+    environment: ios-release
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.release-gate.outputs.sha }}
+
+      - uses: ./.github/actions/ios-app-setup
+
+      - name: Signing (API key, certificate)
+        env:
+          ASC_KEY_P8_BASE64: ${{ secrets.ASC_KEY_P8_BASE64 }}
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          IOS_DEVELOPMENT_P12_BASE64: ${{ secrets.IOS_DEVELOPMENT_P12_BASE64 }}
+          IOS_DEVELOPMENT_P12_PASSWORD: ${{ secrets.IOS_DEVELOPMENT_P12_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8_BASE64" | base64 --decode > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          chmod 600 "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" >> "$GITHUB_ENV"
+          packaging/apple/import_certificates.sh "$RUNNER_TEMP/ios-signing.keychain-db" IOS_DEVELOPMENT_P12_BASE64 IOS_DEVELOPMENT_P12_PASSWORD
+
+      - name: Archive
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          CN_BUILD_NUMBER: ${{ needs.release-gate.outputs.build }}
+        run: ios/tools/ci_archive.sh archive "$RUNNER_TEMP/ChordNotepad.xcarchive"
+
+      - name: Export the development IPA
+        env:
+          ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+          ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          ios/tools/ci_archive.sh export "$RUNNER_TEMP/ChordNotepad.xcarchive" development "$RUNNER_TEMP/export"
+          ios/tools/ci_archive.sh dsyms "$RUNNER_TEMP/ChordNotepad.xcarchive" "$RUNNER_TEMP/export"
+          # How many devices the profile covers (not which: the log is public).
+          unzip -q -o "$RUNNER_TEMP/export/ChordNotepad.ipa" 'Payload/ChordNotepad.app/embedded.mobileprovision' -d "$RUNNER_TEMP/ipa"
+          security cms -D -i "$RUNNER_TEMP/ipa/Payload/ChordNotepad.app/embedded.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          echo "The profile covers $(plutil -extract ProvisionedDevices raw -o - "$RUNNER_TEMP/profile.plist" | wc -l | tr -d ' ') device(s)," \
+            "expires $(plutil -extract ExpirationDate raw -o - "$RUNNER_TEMP/profile.plist")"
+          rm -rf "$RUNNER_TEMP/ipa" "$RUNNER_TEMP/profile.plist"
+
+      # Decrypt on Linux: openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000
+      # -pass env:IOS_ARTIFACT_PASSPHRASE -in ios-development.tar.enc | tar -x
+      - name: Encrypt the IPA and dSYMs
+        env:
+          IOS_ARTIFACT_PASSPHRASE: ${{ secrets.IOS_ARTIFACT_PASSPHRASE }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/artifact"
+          tar -cf - -C "$RUNNER_TEMP/export" ChordNotepad.ipa dSYMs build-info.txt \
+            | openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt -pass env:IOS_ARTIFACT_PASSPHRASE \
+                -out "$RUNNER_TEMP/artifact/ios-development.tar.enc"
+          cp "$RUNNER_TEMP/export/build-info.txt" "$RUNNER_TEMP/artifact/"
+          ls -la "$RUNNER_TEMP/artifact"
+
+      - name: Upload the development IPA
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-development
+          path: ${{ runner.temp }}/artifact
+
+      - name: Upload the archive and export logs
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-development-logs
+          path: |
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/export-development.log
+          if-no-files-found: ignore
+
+      - name: Remove the keychain and the key
+        if: always()
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ios-signing.keychain-db" 2>/dev/null || true
+          rm -rf "$RUNNER_TEMP/keys"
+
+  # By hand, with no secrets: the archive the lanes make, unsigned, to show
+  # that the build phases work under `xcodebuild archive`, the archived app
+  # passes the App Store checks, this Xcode knows the export methods the
+  # ExportOptions plists name, and what its dSYMs look like (for
+  # ios/tools/symbolicate.sh).
+  archive-check:
+    name: Unsigned archive (rehearses the release lanes)
+    if: github.event_name == 'workflow_dispatch' && inputs.unsigned_archive
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: ./.github/actions/ios-app-setup
+
+      - name: Archive without signing
+        env:
+          CN_BUILD_NUMBER: ${{ github.run_number }}
+        run: ios/tools/ci_archive.sh archive "$RUNNER_TEMP/ChordNotepad.xcarchive" --unsigned
+
+      - name: App Store checks
+        run: |
+          APP="$RUNNER_TEMP/ChordNotepad.xcarchive/Products/Applications/ChordNotepad.app"
+          xcrun --sdk iphoneos assetutil --info "$APP/Assets.car" > "$RUNNER_TEMP/assets.json"
+          python3 -I ios/tools/check_app_store.py "$APP" --assetutil-json "$RUNNER_TEMP/assets.json" \
+            --icon-source ios/ChordNotepad/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png
+
+      - name: Export options and methods
+        run: |
+          plutil -lint packaging/ios/ExportOptions-*.plist
+          xcodebuild -help > "$RUNNER_TEMP/xcodebuild-help.txt" 2>&1 || true
+          for plist in packaging/ios/ExportOptions-*.plist; do
+            method=$(plutil -extract method raw -o - "$plist")
+            if grep -q -- "$method" "$RUNNER_TEMP/xcodebuild-help.txt"; then
+              echo "$plist: method $method is known to this Xcode"
+            else
+              echo "::error::$plist names method $method, which xcodebuild -help doesn't list"
+              exit 1
+            fi
+          done
+
+      - name: Keep the dSYMs
+        run: ios/tools/ci_archive.sh dsyms "$RUNNER_TEMP/ChordNotepad.xcarchive" "$RUNNER_TEMP/dsyms"
+
+      - name: Upload the dSYMs and the log
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: ios-unsigned-archive
+          path: |
+            ${{ runner.temp }}/dsyms
+            ${{ runner.temp }}/archive.log
+            ${{ runner.temp }}/xcodebuild-help.txt
+          if-no-files-found: ignore
