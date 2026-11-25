@@ -491,8 +491,8 @@ ChordNotepad.app/
   executable a bundle, and the install rule for FluidSynth's program has no
   bundle destination) and `-lobjc -framework Foundation` for the
   AVAudioSession code. That code also asks for `defaultToSpeaker` with the
-  Playback category, which CoreAudio logs as an error and ignores; the
-  session still ends up in Playback.
+  Playback category; the session ends up in Playback with both options
+  (the self-test's `audioOptions`, run 45517323581).
 - **Start:** `AppModel.start` starts Python with `home = <app>/python`,
   `python/app` and `python/app_packages` in front of `sys.path`, and
   `CHORD_NOTEPAD_LIBFLUIDSYNTH=<app>/Frameworks/FluidSynth.framework/FluidSynth`;
@@ -1539,8 +1539,8 @@ session's `pause`, `app_background` and `app_foreground` are all it takes.
   suspended (iOS 14.5 to 16) is ignored.
 - **The category.** FluidSynth sets it each time it opens its output
   (`setupAVAudioSession` in `fluid_coreaudio_avaudiosession.m`, 2.6.1):
-  Playback with mix-with-others and default-to-speaker (CoreAudio refuses
-  the last with Playback and logs it), then `setActive(true)`. That happens
+  Playback with mix-with-others and default-to-speaker (the simulators'
+  self-test reads both back, run 45517323581), then `setActive(true)`. That happens
   at the session's start, at each `app_foreground` and when a play or tap
   reopens a released output, so whatever the app sets is overwritten then.
   **Playback, not Ambient:** Android plays music at the media volume
