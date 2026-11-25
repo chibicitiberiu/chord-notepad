@@ -388,7 +388,10 @@ jobs:
         run: |
           SSD="$RUNNER_TEMP/ssd"
           mkdir -p "$SSD"
-          git bundle create "$SSD/chord-notepad.bundle" HEAD
+          # A named ref, as prepare_ssd.sh bundles origin/main (the
+          # bootstrap fetches refs/*; a bundle of HEAD alone has none).
+          git branch -f ssd-rehearsal HEAD
+          git bundle create "$SSD/chord-notepad.bundle" ssd-rehearsal
           git rev-parse HEAD > "$SSD/chord-notepad.ref"
           cp "$RUNNER_TEMP/ios-build-inputs.tar.gz" "$RUNNER_TEMP/xcodegen.zip" "$SSD/"
           cp ios/.xcode-version "$SSD/xcode-version"

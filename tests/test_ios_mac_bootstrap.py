@@ -273,3 +273,14 @@ def test_verify_sees_an_installed_xcode(mac):
     assert result.returncode == 0, result.stdout + result.stderr
     report = (mac["tmp"] / "report/report.txt").read_text()
     assert "error" not in report
+
+
+def test_a_bundle_without_a_ref_is_refused(mac):
+    ssd, tmp = mac["ssd"], mac["tmp"]
+    repo, head = make_source_repo(tmp, "0" * 64)
+    subprocess.run(["git", "-C", str(repo), "bundle", "create", str(ssd / "chord-notepad.bundle"), "HEAD"],
+                   check=True, capture_output=True)
+    (ssd / "chord-notepad.ref").write_text(head)
+    result = bootstrap(mac, "--only", "repo")
+    assert result.returncode == 1 and "has no branch holding" in result.stderr
+    assert not (mac["work"] / "chord-notepad").exists()  # the next run starts clean

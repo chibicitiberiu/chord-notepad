@@ -375,6 +375,11 @@ step_repo() {
     run mkdir -p "$WORK"
     run xcrun git init -q "$REPO"
     run xcrun git -C "$REPO" fetch -q "$SSD/chord-notepad.bundle" "+refs/*:refs/remotes/ssd/*"
+    if [ "$DRY_RUN" = 0 ] && ! xcrun git -C "$REPO" cat-file -e "$commit^{commit}" 2>/dev/null; then
+        rm -rf "$REPO"
+        fail "chord-notepad.bundle has no branch holding $commit (bundle a ref, as prepare_ssd.sh does)"
+        return
+    fi
     run xcrun git -C "$REPO" checkout -q -B main "$commit"
     if [ "$DRY_RUN" = 0 ]; then
         record repo "$(xcrun git -C "$REPO" rev-parse --short HEAD) (cloned from the SSD)"
@@ -427,7 +432,12 @@ step_inputs() {
 }
 
 step_project() {
+    local python
     developer_dir
+    # The build phases run python3 (Xcode's own on a Mac without other Pythons).
+    python=$(command -v python3.14 || xcrun --find python3 2>/dev/null || true)
+    record python3 "${python:-missing}; Xcode's: $(xcrun --find python3 2>/dev/null || echo none)"
+    [ -n "$python" ] || fail "no python3 for the build phases (Xcode's is xcrun --find python3)"
     run "$XCODEGEN" generate --spec "$REPO/ios/project.yml"
 }
 
