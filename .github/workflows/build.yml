@@ -64,7 +64,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y fluidsynth libfluidsynth3 \
-            libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3
+            libegl1 libgl1 libxkbcommon0 libfontconfig1 libdbus-1-3 librsvg2-bin
 
       # Pinned to the pipenv that wrote Pipfile.lock: newer ones hash the Pipfile
       # differently, call the lock out of date and re-lock to newer packages.
@@ -90,7 +90,15 @@ jobs:
           QT_QPA_PLATFORM: offscreen
           QT_QUICK_BACKEND: software
         run: |
+          set -o pipefail
+          # The window icon and About's picture are generated, not committed
+          # (make icons; the bundle jobs' "Generate icon files"): the PNGs the
+          # app loads, from the SVG with librsvg.
+          for size in 32 128 256; do
+            rsvg-convert -w $size -h $size resources/chord-notepad-icon.svg -o resources/icon-$size.png
+          done
           pipenv run python -c "import PySide6.QtGui, PySide6.QtQuick, PySide6.QtQuickControls2, PySide6.QtSvg"
+          # pipefail: a failed test fails the step (tee alone hid two, run 45525335035).
           pipenv run pytest tests/qt -v -rs | tee "$RUNNER_TEMP/qt-tests.log"
           if grep -E "SKIPPED.*(Qt not available|qmllint not installed)" "$RUNNER_TEMP/qt-tests.log"; then
             echo "::error::Qt tests were skipped: Qt or qmllint is missing on the runner"
