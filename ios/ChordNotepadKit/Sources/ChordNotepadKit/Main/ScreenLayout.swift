@@ -78,6 +78,37 @@ public func collapseHeader(mode: AppMode, keyboardVisible: Bool, textRoom: Doubl
     mode == .edit && keyboardVisible && textRoom < MainMetrics.minTextRoom
 }
 
+/// A rectangle in points (the screen's coordinates), for ``keyboardOverlap(window:keyboard:)``.
+public struct PointRect: Sendable, Equatable {
+    public var x: Double
+    public var y: Double
+    public var width: Double
+    public var height: Double
+
+    public init(x: Double, y: Double, width: Double, height: Double) {
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+    }
+}
+
+/// How much of the window's bottom the software keyboard covers, both
+/// rectangles in the screen's coordinates: the keyboard's top to the
+/// window's bottom where they overlap. A full-screen window gets the
+/// keyboard's height; a Split View, Slide Over or Stage Manager window gets
+/// only what lies over it (none for a window beside the keyboard, above it,
+/// or a keyboard that has gone below the screen).
+public func keyboardOverlap(window: PointRect, keyboard: PointRect) -> Double {
+    let left = max(window.x, keyboard.x)
+    let right = min(window.x + window.width, keyboard.x + keyboard.width)
+    let top = max(window.y, keyboard.y)
+    let bottom = window.y + window.height
+    guard right > left, keyboard.height > 0, keyboard.width > 0, top < bottom,
+          keyboard.y < bottom, keyboard.y + keyboard.height > window.y else { return 0 }
+    return bottom - top
+}
+
 /// The least share of a side-by-side row `rowWidth` wide the chord sheet
 /// column may take: 30 %, or more when the compact player needs it for all
 /// its buttons. The column gets its share of the row without the handle.

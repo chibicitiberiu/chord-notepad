@@ -30,7 +30,7 @@ final class CatalogTests: XCTestCase {
     }
 
     func testEveryChordSheetSceneHasABufferAtEachDevicesHeight() throws {
-        for screen in PreviewCatalog.screens where ["play", "help_play", "help_play_phone"].contains(screen.name) {
+        for screen in PreviewCatalog.screens where ["play", "help_play", "help_play_phone", "split_play"].contains(screen.name) {
             for name in screen.fixtures {
                 let fixture = try XCTUnwrap(PreviewCatalog.fixture(name), name)
                 guard let state = try fixture.snapshot().chordSheet, state.visible else { continue }

@@ -220,6 +220,22 @@ enum PreviewCatalog {
                                       MainUiState(mode: .edit),
                                       snackbar: scene.snapshot.status.map { Snackbar(text: $0.text, error: false, id: 1) })
         },
+        // iPad multitasking: an iPad Air on its side shared in Split View, about a third (also
+        // Slide Over's width) and a half. Every layout reads the window, so these are a phone's.
+        CatalogScreen("split_play", fixtures: ["scarborough_piano_roll"], devices: CatalogRenderer.split) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        CatalogScreen("split_edit", fixtures: ["scarborough_edit"], devices: CatalogRenderer.split) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
+        },
+        CatalogScreen("split_settings", fixtures: ["settings_open"], devices: CatalogRenderer.split) { scene, _ in
+            PreviewCatalog.settings(scene)
+        },
+        CatalogScreen("split_identify", fixtures: ["identifier_cmaj7"], devices: CatalogRenderer.split) { scene, _ in
+            var ui = MainUiState(mode: .edit, route: .identify)
+            ui.tools.identifier = IdentifierModel(typed: scene.snapshot.identifier?.notesText ?? "", picked: "Cmaj7")
+            return PreviewCatalog.mainScreen(scene, ui)
+        },
         // About, the licences and one licence's text, from the bundle's licence list.
         CatalogScreen("about", fixtures: ["empty_song"]) { _, _ in
             AboutScreen(info: AboutBuildInfo(versionName: "0.6.2", buildNumber: "1", commit: "f31fbb5",
@@ -382,6 +398,13 @@ enum CatalogRenderer {
                                         keyboardHeight: 209)
     static let ipadLandscape = Device(name: "ipad-landscape", size: CGSize(width: 1180, height: 820), scale: 2,
                                       keyboardHeight: 398)
+    /// The iPad Air on its side in Split View: about a third (also Slide Over's
+    /// width) and a half of its 1180 pt. The exact widths vary by model.
+    static let ipadThird = Device(name: "ipad-third", size: CGSize(width: 375, height: 820), scale: 2,
+                                  keyboardHeight: 398)
+    static let ipadHalf = Device(name: "ipad-half", size: CGSize(width: 585, height: 820), scale: 2,
+                                 keyboardHeight: 398)
+    static var split: [Device] { [ipadThird, ipadHalf] }
     static var upright: [Device] { devices }
     static var all: [Device] { devices + [iphoneLandscape, ipadLandscape] }
     static let schemes: [(String, ColorScheme)] = [("light", .light), ("dark", .dark)]

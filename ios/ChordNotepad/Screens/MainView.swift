@@ -115,13 +115,18 @@ struct MainView: View {
         model.ui.route = route
     }
 
-    /// The software keyboard's height over the screen (a hardware keyboard's
-    /// shortcut bar is short; it counts too).
+    /// How much of the window the software keyboard covers (a hardware
+    /// keyboard's shortcut bar is short; it counts too). The keyboard's frame
+    /// is in the screen's coordinates; the window is the whole screen only
+    /// when the app is: in Split View, Slide Over and Stage Manager it covers
+    /// what lies over the window (``keyboardOverlap(window:keyboard:)``).
     private func keyboardChanged(_ notification: Notification) {
         guard let frame = notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
-        let screen = UIScreen.main.bounds
-        let height = max(0, screen.maxY - frame.minY)
-        if model.ui.keyboardHeight != Double(height) { model.ui.keyboardHeight = Double(height) }
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first,
+              let window = scene.keyWindow ?? scene.windows.first else { return }
+        let inScreen = window.convert(window.bounds, to: scene.screen.coordinateSpace)
+        let height = keyboardOverlap(window: PointRect(inScreen), keyboard: PointRect(frame))
+        if model.ui.keyboardHeight != height { model.ui.keyboardHeight = height }
     }
 
     private var actions: MainActions {
@@ -157,5 +162,11 @@ struct MainView: View {
             sheet: { model.sheet($0) },
             find: { editor.find($0) },
             sideFraction: { model.keepSideFraction($0) })
+    }
+}
+
+extension PointRect {
+    init(_ rect: CGRect) {
+        self.init(x: Double(rect.minX), y: Double(rect.minY), width: Double(rect.width), height: Double(rect.height))
     }
 }

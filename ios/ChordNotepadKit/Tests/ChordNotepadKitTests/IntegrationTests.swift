@@ -391,7 +391,7 @@ final class IntegrationTests: XCTestCase {
         session.submit(.respondToPickDocumentRequest(requestId: export.requestId, value: exportRef))
         try await log.wait("the MIDI bytes") { store.contents(exportRef.id)?.prefix(4) == Data("MThd".utf8) }
         try await log.wait("the exported status") {
-            (try? log.decodeLatest(StatusState.self, "StatusState"))?.text == "Exported MIDI: Lullaby (2).mid"
+            (try? log.decodeLatest(StatusState.self, "StatusState"))?.text == "MIDI ready to save: Lullaby (2).mid"
         }
         let statuses = log.events(since: asked, type: "StatusState").compactMap {
             try? log.decode(StatusState.self, $0).text
@@ -615,8 +615,10 @@ struct SceneRecorder {
 
     /// The windows the preview catalog shows Play mode in, in points (the
     /// app's `CatalogRenderer.devices`: iPhone 17 and iPad Air 11-inch, each
-    /// upright and on its side).
-    static let catalogWindows: [(width: Double, height: Double)] = [(402, 874), (820, 1180), (874, 402), (1180, 820)]
+    /// upright and on its side, and the iPad's Split View third and half,
+    /// `CatalogRenderer.split`).
+    static let catalogWindows: [(width: Double, height: Double)] = [(402, 874), (820, 1180), (874, 402), (1180, 820),
+                                                                    (375, 820), (585, 820)]
 
     /// The content heights the main screen's chord sheet asks for in those
     /// windows, for a sheet whose stored height is `stored` (below the text
