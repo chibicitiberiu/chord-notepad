@@ -32,13 +32,16 @@ QtObject {
     // by 0.001 pt per revision parity, invisible), so all Text relayouts at the new ratio.
     // Text laid out at the old ratio keeps its glyph positions otherwise (pitfall 10).
     property int fontRevision: 0
-    // Points are sized as at 96 dpi on every OS. Qt draws a point as one
-    // logical pixel on macOS (72 dpi) but 4/3 of one on Windows and Linux
-    // (96 dpi), so without this every font, and through `u` the whole UI,
-    // came out a quarter smaller on a Mac, while the chord sheet (drawn in
-    // pixels at 96 dpi, sheet_paint.PT_TO_PX) didn't. QT_FONT_DPI doesn't
-    // help there: on macOS it scales the whole window by a fractional ratio.
-    readonly property real pointScale: Qt.platform.os === "osx" ? 96 / 72 : 1.0
+    // Points are sized as at 96 dpi everywhere. Qt's macOS platform (cocoa)
+    // draws a point as one logical pixel (72 dpi); Windows, Linux and the
+    // offscreen platform the tests use (on a Mac too) draw it as 4/3 (96 dpi).
+    // Without this every font, and through `u` the whole UI, came out a
+    // quarter smaller on a Mac, while the chord sheet (drawn in pixels at
+    // 96 dpi, sheet_paint.PT_TO_PX) didn't. It goes by the platform plugin,
+    // not the screen's dpi, so a Linux desktop's own font dpi still counts.
+    // QT_FONT_DPI doesn't help: on macOS it scales the whole window by a
+    // fractional ratio.
+    readonly property real pointScale: Qt.platform.pluginName === "cocoa" ? 96 / 72 : 1.0
     readonly property real baseSize: 10 * scale * pointScale + (fontRevision % 2) * 0.001
     readonly property real fontCaption: baseSize * 0.85
     readonly property real fontSmall:   baseSize * 0.92

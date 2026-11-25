@@ -151,9 +151,11 @@ def test_qmllint_finds_nothing():
 
 
 def test_points_are_sized_at_96_dpi_on_every_os(qapp):
-    """macOS draws a point as one logical pixel (72 dpi), Windows and Linux as
-    4/3 (96 dpi): Theme scales its points on macOS so the UI, the editor and
-    the chord sheet (pixels at 96 dpi) come out the same size everywhere."""
+    """Qt's macOS platform (cocoa) draws a point as one logical pixel (72 dpi),
+    the others (Windows, Linux, offscreen) as 4/3 (96 dpi): Theme scales its
+    points on cocoa so the UI, the editor and the chord sheet (pixels at
+    96 dpi) come out the same size everywhere. The tests run offscreen, so
+    here the factor is 1 on every OS; the cocoa branch is checked in the source."""
     from PySide6.QtQml import QQmlComponent, QQmlEngine
 
     engine = QQmlEngine()
@@ -165,8 +167,9 @@ def test_points_are_sized_at_96_dpi_on_every_os(qapp):
                       QUrl())
     probe = component.create()
     assert probe is not None, component.errorString()
-    expected = 96 / 72 if sys.platform == "darwin" else 1.0
+    expected = 96 / 72 if QGuiApplication.platformName() == "cocoa" else 1.0
     assert probe.property("pointScale") == pytest.approx(expected)
     assert probe.property("baseSize") == pytest.approx(10 * expected, abs=0.002)
     # The editor's size (the session's points) goes through the same factor.
     assert "pointSize * scale * pointScale" in qml("CNTheme/Theme.qml")
+    assert 'pointScale: Qt.platform.pluginName === "cocoa" ? 96 / 72 : 1.0' in qml("CNTheme/Theme.qml")
