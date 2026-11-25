@@ -37,6 +37,17 @@ final class AccessibilityTests: XCTestCase {
         unsafeBitCast(symbol, to: SetEnabled.self)(1)
     }
 
+    /// Off again for the tests after these (run 45515601010's session test ran
+    /// slow on the iPhone with it left on).
+    override class func tearDown() {
+        if let library = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW),
+           let symbol = dlsym(library, "_AXSSetAutomationEnabled") {
+            typealias SetEnabled = @convention(c) (Int32) -> Void
+            unsafeBitCast(symbol, to: SetEnabled.self)(0)
+        }
+        super.tearDown()
+    }
+
     /// An element's identifier: SwiftUI's nodes answer `accessibilityIdentifier`
     /// without declaring `UIAccessibilityIdentification`.
     private static func identifier(of object: NSObject) -> String {
@@ -81,9 +92,12 @@ final class AccessibilityTests: XCTestCase {
         return found
     }
 
-    /// A label VoiceOver would read as an asset's or a symbol's name.
+    /// A label VoiceOver would read as an asset's or a symbol's name: shaped
+    /// like one and naming an image the app has (a file name such as
+    /// `song.txt` in the recent songs is a word).
     static func looksLikeAnImageName(_ label: String) -> Bool {
-        label.range(of: #"^[a-z0-9]+([_.][a-z0-9]+)+$"#, options: .regularExpression) != nil
+        guard label.range(of: #"^[a-z0-9]+([_.][a-z0-9]+)+$"#, options: .regularExpression) != nil else { return false }
+        return UIImage(named: label) != nil || UIImage(systemName: label) != nil
     }
 
     /// `screen` drawn with `fixture` in a `device`-sized window, and its elements.
@@ -153,7 +167,9 @@ final class AccessibilityTests: XCTestCase {
         expect("play", "menu", AccessibilityLabels.menu)
         expect("play", "save", AccessibilityLabels.save)
         expect("play", "tab-edit", AccessibilityLabels.edit)
-        expect("play", "player-play", AccessibilityLabels.playSong)
+        // The scene is frozen while a chord sounds: ⏸.
+        expect("play", "player-play", AccessibilityLabels.pause)
+        expect("edit", "menu", AccessibilityLabels.menu)
         expect("play", "player-rewind", AccessibilityLabels.rewind)
         expect("play", "player-metronome", AccessibilityLabels.metronome)
         expect("play", "player-speed", AccessibilityLabels.speed)
@@ -168,7 +184,8 @@ final class AccessibilityTests: XCTestCase {
         for name in ["mdi_menu", "chevron.right", "arrow.uturn.backward", "settings_close", "ic_capo"] {
             XCTAssertTrue(Self.looksLikeAnImageName(name), name)
         }
-        for label in ["Save", "Open the menu", "Voicing: Piano", "Zoom in", "Aa", "W", "Bar 5/56", "C"] {
+        for label in ["Save", "Open the menu", "Voicing: Piano", "Zoom in", "Aa", "W", "Bar 5/56", "C", "song.txt",
+                      "chorus"] {
             XCTAssertFalse(Self.looksLikeAnImageName(label), label)
         }
     }
