@@ -23,7 +23,10 @@ tools"), Settings, About and the licences ("Settings, About and
 Licences"), the user guide, the Quick Start tour and Export PDF ("The user guide,
 Quick Start and Export PDF"), and the editor's remaining features: Find and
 Replace, the font settings, a pinch on the text, the keyboard shortcuts and
-the side column's width kept ("Find, the font, the pinch and the keys"). Still to come: enrollment, signing
+the side column's width kept ("Find, the font, the pinch and the keys"), and the
+platform glue: interruptions, route changes and the background pausing as on
+Android, iPad multitasking widths, VoiceOver labels and the iOS export
+status ("Audio, multitasking and accessibility"). Still to come: enrollment, signing
 and TestFlight (A, E), then what `BACKLOG.md` lists.
 
 ## Decisions and constraints
@@ -173,7 +176,7 @@ it at import even with the fake player.
 ## Running the tests
 
 ```sh
-make ios-kit-test      # swift test: 452 tests, about 47 s after the first build
+make ios-kit-test      # swift test: 493 tests, about 50 s after the first build
 make ios-bridge-gen    # regenerate Generated/Bridge.swift after a schema change
 make ios-fixtures      # rewrite ios/Fixtures after an intended output change
 ```
@@ -219,6 +222,9 @@ What the tests cover:
 | `SheetPainterTests` | the painter on the Android fixtures with a recording canvas: paint order, clips and translations, glyph rectangles and tints (widths against `clef_assets.scaled_width`), text anchoring and pixel snapping, lane clips, the playhead marks, the key bed, culling |
 | `DiagnosticsTests` | the offline render of a chord is not silent (system libfluidsynth, the repo's SoundFont), a missing SoundFont is reported, the fault handler's file |
 | `MainScreenTests` | Android's `ModeControllerTest`, `ScreenLayoutTest`, `PlaybackUiTest`, `RenameFlowTest` and `MenuModelsTest`, case for case; the chord sheet pane's height upright and on its side, the speed badge, the snackbars, the menu's entries, the rename dialog's state, the player's state from a snapshot |
+| `PlaybackAudioPolicyTests` | Android's `PlaybackAudioPolicyTest` case for case (focus at play, kept through a pause, asked again after a loss, a denial pauses; the noisy receiver as the route-change filter) and `AppLifecycleHooks`' case; iOS's interruptions (the output released and reopened, no resume, the suspended note ignored, one in the background, one that never ends), route changes, the media services reset, the scene phases, a late focus answer, AVFoundation's userInfo values |
+| `AccessibilityLabelsTests` | every icon button's VoiceOver label against Android's string resource (`res/values/strings*.xml`), the find bar's against the Qt desktop's tooltips |
+| `MultitaskingTests` | the layouts at an iPad's Split View, Slide Over and Stage Manager window sizes (Android's sw600dp line, the Settings panes, the identifier's dialog, the sheet's pane), the keyboard over a window that isn't the whole screen |
 | `PlayheadGesturesTests` | Android's `PlayheadGesturesTest`, case for case, and the marker's shape |
 | `FileDocumentStoreTests` | Android's `SafDocumentStoreTest` as behaviour on real files (`PlainFileAccess`): raw bytes, the desktop's wording with the document's location, a recent file that has gone (named from its entry, dropped with its bookmark), the 5 MB cap, a cloud file not downloaded, the same file picked twice, a stale bookmark made again under its id, a moved file, a relaunch, corrupt lists, writes in place, `copyFromFile`, the shipped song, example copies (rename, a taken name), rename keeping the id, the recent list's order, cap and pruning, exports and their written callback; the id scheme |
 | `ExampleLibraryTests` | Android's `ExampleLibraryTest`, case for case (ids are `app:examples/<name>`) |
@@ -257,7 +263,8 @@ runtime; another one is an error):
 - `environment` is applied with `setenv` before the start:
   `CHORD_NOTEPAD_LIBFLUIDSYNTH` on iOS (the framework's binary, which
   `audio/fluid_ctypes.py` loads at import time), `CN_TEST_FAKE_PLAYER=1`
-  in the tests.
+  in the kit's tests (`hold` in the app's session test: a FakePlayer that
+  keeps a started song playing).
 - After the start the GIL is released (`PyEval_SaveThread`). A failed
   `PyStatus` comes back as a Swift error; nothing calls `exit`.
 
@@ -355,7 +362,7 @@ quick-start song after `convert_notation european`), then the file scenes:
 `files_recent` (three songs opened from the store, the recent list with them
 and the song saved earlier), `export_done` (the lullaby's copy, saved with
 Save As and reopened from Recent so the scene carries its text, exported as
-MIDI: "Exported MIDI: Lullaby (2).mid") and `discard_question` (a session edit,
+MIDI: "MIDI ready to save: Lullaby (2).mid") and `discard_question` (a session edit,
 then New: the scene ends on `ConfirmDiscardRequest`), then the sheets' and
 tools' scenes on Amazing Grace, as Android's help screenshots show it
 (`android/tools/help_shots.json`, the songs in `android/tools/help_shot_songs/`):
@@ -412,11 +419,11 @@ They are the same on every run.
 
 The catalog can't call Python, so each scene with the sheet shown also keeps
 its op buffers: `chord_sheet_buffers`, a list of `{height, base64}`, packed at
-the content heights the main screen asks for in Play in the catalog's four
+the content heights the main screen asks for in Play in the catalog's six
 windows (`MainSheetPane`: below the text upright, the split's height; in the
 side column on its side, the window less the app bar and the player; then
 less the pane's header, progress bar, inset and the 20 pt marker lane): 102,
-185, 355 and 603 pt for a 160 pt sheet, 185, 272 and 603 pt for 330.
+185, 355 and 603 pt for a 160 pt sheet, 185, 272 and 603 pt for 330 (the iPad's Split View third and half ask for heights already there).
 `CatalogTests` checks the heights still match the catalog's devices. The theme is applied at paint
 time, so light and dark share the recordings.
 
@@ -935,9 +942,9 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
   `forExporting:asCopy: true`. The export picker rather than the share sheet:
   Android's exports are saved to a place the user picks, and the share sheet
   would put AirDrop and Messages before "Save to Files". The status says
-  "Exported MIDI: song.mid" before the user has picked a place, and a
-  cancelled picker drops the file without a word (a note for the core:
-  an iOS wording such as "Ready to save").
+  "MIDI ready to save: song.mid" (the core's iOS wording; "Audio ready to
+  save", "PDF ready to save"), since the user picks the place after it, and
+  a cancelled picker drops the file without a word.
 - **Export PDF** is an export like these with one step more: the core
   doesn't make the PDF, it sends `PaintPdfRequest` with the pages laid out
   (`PdfLayout`); the app paints them and writes the file through the store,
@@ -1484,6 +1491,133 @@ iPadOS menu bar, a finger pinch (the session test calls the recognizer's
 handler), the software keyboard over the bar on a phone, typing into the
 find field, the column's handle dragged by a finger, VoiceOver.
 
+### Audio, multitasking and accessibility
+
+The ninth slice: the platform glue, ported from Android's `lifecycle/`
+(`PlaybackAudioPolicy.kt`, `AndroidAudioGateways.kt`, `AppLifecycleHooks.kt`,
+wired in `AppGraph.install`). Nothing in the bridge schema changed: the
+session's `pause`, `app_background` and `app_foreground` are all it takes.
+
+- **In the kit** (tested on Linux): `Lifecycle/PlaybackAudioPolicy.swift`
+  (which event sends which command, and the userInfo values of
+  AVFoundation's notifications, decoded), `Main/AccessibilityLabels.swift`
+  (the icon buttons' VoiceOver labels) and `keyboardOverlap` in
+  `Main/ScreenLayout.swift`.
+- **In the app:** `App/AudioSessionObserver.swift` (the notifications into
+  the policy, its commands into the session; `SystemAudioFocus`, the
+  category while a song plays), `AppModel.scenePhaseChanged` (the scene phase
+  into the policy), `MainView.keyboardChanged` (the keyboard over the
+  window, not the screen).
+
+**Which event sends what:**
+
+| Event | Android | iOS |
+|---|---|---|
+| Play starts | ask for audio focus (`AUDIOFOCUS_GAIN`); denied: `pause` | Playback without mix-with-others, `setActive(true)` (`SystemAudioFocus`); refused: `pause` |
+| A resume after a pause | focus still held: nothing | the same, unless the output was reopened since (then ask again) |
+| Back to idle (stop, ⏮, the end) | give focus back | Playback with mix-with-others again (the session stays active: the output is open) |
+| Another app's audio, a call | focus lost: `pause` | interruption began: `app_background` |
+| The interruption over | (no focus gain handled) | interruption ended: `app_foreground` on screen; never a resume, `shouldResume` or not |
+| Headphones out, Bluetooth gone | "becoming noisy": `pause` while playing or paused | route change `oldDeviceUnavailable`: `pause` while playing or paused; other reasons nothing |
+| The media services reset | (none) | `app_background`, then `app_foreground` on screen |
+| The app leaves the screen | `onStop`: `app_background` | scene `background`: `app_background` |
+| Back on screen | `onStart`: `app_foreground` | scene `active` after `background`: `app_foreground` |
+
+- **Why `app_background` for an interruption.** The system stops the app's
+  output for an interruption (and destroys it in a media services reset);
+  FluidSynth's CoreAudio driver doesn't watch for that, so a chord tapped
+  afterwards would be silent. The only way through the bridge to a new
+  driver is `app_background` (pause, save the settings, release the output)
+  then `app_foreground` (open it again). The policy sends the second only on
+  screen and only once the interruption is over; if no end comes (iOS
+  doesn't promise one), the next play or tap opens the output itself, as
+  after the background. An interruption that only says the app was
+  suspended (iOS 14.5 to 16) is ignored.
+- **The category.** FluidSynth sets it each time it opens its output
+  (`setupAVAudioSession` in `fluid_coreaudio_avaudiosession.m`, 2.6.1):
+  Playback with mix-with-others and default-to-speaker (CoreAudio refuses
+  the last with Playback and logs it), then `setActive(true)`. That happens
+  at the session's start, at each `app_foreground` and when a play or tap
+  reopens a released output, so whatever the app sets is overwritten then.
+  **Playback, not Ambient:** Android plays music at the media volume
+  whatever the ringer mode, and a music app on iOS plays through the
+  Ring/Silent switch too; Ambient would mute the song with the switch and
+  mix it under other apps. **Mix-with-others only while idle:** a tapped
+  chord plays along with other apps' music (Android's taps take no focus),
+  while a song takes the session for itself (Android's focus), which stops
+  other apps' music and lets theirs interrupt ours. The policy asks again
+  after every reopened output, since FluidSynth made it mixable.
+- **No background playback** (no `UIBackgroundModes` audio), as on Android
+  (BACKLOG, "Android background playback"): the scene in the background
+  sends `app_background`, which pauses; the user taps ▶ to go on.
+- **The self-test** reports the category's options (`audioOptions` in
+  `selftest.json`, a row in Diagnostics), so a device shows what
+  FluidSynth and the app left.
+- **iPad multitasking.** Every layout rule reads the window's size, not the
+  device: `ScreenLayout` (a phone below 600 pt on the smaller side,
+  Android's sw600dp), the Settings panes (600 pt), the identifier's dialog
+  (600 × 600). So a third or a half of an iPad in Split View, Slide Over
+  and a small Stage Manager window are laid out as a phone upright, and a
+  short wide Stage Manager window as a phone on its side (`MultitaskingTests`).
+  The catalog draws the main screen, Settings and the identifier at about a
+  third (375 × 820) and a half (585 × 820) of the iPad Air on its side. The
+  keyboard's height is now how much of the window it covers
+  (`keyboardOverlap`, the frame in the screen's coordinates): it was the
+  screen's bottom less the keyboard's top, wrong for a window that doesn't
+  reach the screen's bottom. `UIRequiresFullScreen` stays unset, so iPadOS
+  offers Split View and Stage Manager.
+- **One window** (`UIApplicationSupportsMultipleScenes` false): the process
+  has one Python interpreter and one session, so a second window could only
+  show the same song with the same playback. Android's app is one activity
+  too.
+- **VoiceOver labels.** Every button whose face is an icon has a label
+  (`.accessibilityLabel`), and the icons themselves are hidden from
+  VoiceOver. The words are Android's `contentDescription` strings in one
+  table (`AccessibilityLabels`, with the Settings, identifier, tour and
+  licence texts the kit already had); `AccessibilityLabelsTests` reads
+  `android/app/src/main/res/values/strings*.xml` and checks each, and the
+  find bar's against the Qt desktop's tooltips (`FindBar.qml`). The
+  dialogs' pickers say their field and value. `AccessibilityTests` hosts
+  every catalog screen in a window and walks its accessibility elements as
+  VoiceOver does: a button without a label, or any element whose label is
+  an image's name (`mdi_menu`, `chevron.right`), fails, and the main
+  screens' known buttons must carry Android's words. Dynamic Type is the
+  catalog's `accessibility2` images.
+- **The export status on iOS** is "MIDI ready to save: song.mid" (audio and
+  PDF the same), not "Exported MIDI: …": the export picker opens after the
+  file is written, so the file isn't saved anywhere yet, and a cancelled
+  picker saves nothing. The core picks it by platform
+  (`formatting._EXPORTED`, `pick`); the desktop's and Android's texts are
+  unchanged (`test_session_platform_texts.py`). The guide's iOS edition says
+  so.
+
+Deliberate differences from Android:
+
+- Focus is the audio session's mixability: while idle the app mixes with
+  other apps' audio, as Android's taps do without focus.
+- An interruption releases and reopens the output (`app_background`,
+  `app_foreground`), where Android's focus loss only pauses: the system
+  stops an iOS app's output, Android's stays open.
+- The settings are saved at each interruption too (part of `app_background`).
+- A media services reset has no Android counterpart.
+- The export status says "ready to save" (above).
+
+What CI tests: `SessionTests` (`AudioSessionTests.swift`) holds a song
+playing with the FakePlayer (`CN_TEST_FAKE_PLAYER=hold`) and posts the
+notifications with the system's names, object and userInfo: an interruption
+pauses and its end (with `shouldResume`) reopens the output without a
+resume, a plugged-in device and a category change don't pause, the old
+device gone does, the background pauses, a media services reset pauses and
+opens a new output, focus is asked for at each play after a reopened output
+and given back at the stop; then the real `SystemAudioFocus` on the
+simulator's session, reported in `audio-session.json` (not blocking).
+`AccessibilityTests` walks the catalog screens; the catalog draws the split
+widths. What CI doesn't test: a real call, alarm or Siri, a real route
+(headphones, Bluetooth), the Ring/Silent switch, other apps' music stopping,
+a real media services reset, Split View, Slide Over and Stage Manager
+themselves (simulator windows can't be split from a test; the catalog draws
+the widths), the keyboard over a split window, VoiceOver itself.
+
 ### Preview catalog
 
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
@@ -1491,8 +1625,9 @@ with and the windows it is drawn in; adding a screen is one line there.
 `#Preview`s use the same `PreviewCatalog.scene("<scene>")`. `CatalogTests`
 renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
-1180×820) where the layout differs, light and dark, default and
-`accessibility2` text: 540 PNGs.
+1180×820) where the layout differs, and the iPad on its side in Split View
+(about a third, 375×820, and a half, 585×820), light and dark, default and
+`accessibility2` text: 572 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1502,7 +1637,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `menu` | `scarborough_edit`; `files_recent` (the recent songs) | iPhone, iPad |
 | `rename` | `scarborough_edit`; `errors` for the refused rename with Save as… | iPhone, iPad |
 | `discard` | `discard_question` in Edit: the unsaved-changes question | iPhone, iPad |
-| `export`, `export_edit` | `export_done`: "Exported MIDI: …" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
+| `export`, `export_edit` | `export_done`: "MIDI ready to save: …" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
 | `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
 | `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
@@ -1522,6 +1657,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `quick_start` | `quick_start_tour`: the tour's first page | iPhone, iPad |
 | `help_play`, `help_play_phone`, `help_edit`, `help_voicing`, `help_rename` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit; the Voicing sheet over `grace_play` (My 7-String made by then); Rename over `grace_edit` | all four; iPhone; iPhone, iPad, iPhone on its side; iPhone; iPhone |
 | `find`, `find_play`, `find_replaced` | `scarborough_edit` with the find bar and its Replace row (Am, match case and whole words, the second of the matches selected, Em to replace with); `scarborough_piano_roll` in Play finding "parsley" (no Replace row; beside the chord sheet on the phone on its side); `find_replaced` after Replace all, its status as a snackbar | iPhone, iPad; iPhone, iPad, iPhone on its side; iPhone, iPad |
+| `split_play`, `split_edit`, `split_settings`, `split_identify` | `scarborough_piano_roll` in Play (the sheet below the text), `scarborough_edit`, `settings_open` (one pane), `identifier_cmaj7` (full screen): the iPad's Split View windows, laid out as a phone's | the iPad's third and half |
 
 The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
 its scroll view (live only) is UIKit. ImageRenderer can't draw a
@@ -1834,6 +1970,32 @@ expires, her tester status and the issue list. By hand:
   6. Settings › General: each font family and a typed size, in the editor.
   7. Play on a phone on its side with the chord sheet: drag the handle,
      relaunch, the column keeps its width.
+
+  Standing items for audio, multitasking and accessibility:
+  1. Play a long song, then: a call to her iPhone (decline it), an alarm or
+     a timer going off, Siri ("Hey Siri" or the side button). Each time: the
+     song pauses ("Paused"), doesn't resume after, ▶ goes on from there, and
+     a tapped chord sounds right after it (the output was reopened).
+  2. Music playing in Apple Music or Spotify, then ▶ in Chord Notepad: the
+     other app stops. Pause and start the other app again: Chord Notepad is
+     interrupted, and after the other app stops a tapped chord sounds. With
+     the other app playing and Chord Notepad idle, tap a chord: both sound.
+  3. Wired headphones (or an adapter) and AirPods or a Bluetooth speaker:
+     play, unplug or switch the device off: the song pauses and doesn't
+     carry on through the speaker. Plug back in: nothing starts by itself.
+  4. The Ring/Silent switch (or the Action button's silent mode) on: a song
+     and a tapped chord still sound; the volume buttons change it.
+  5. Play, then the Home screen, the app switcher and the lock button: the
+     song pauses; back in the app, ▶ goes on and a tapped chord sounds.
+  6. Diagnostics › Run again: the category (Playback) and its options
+     (mix with others while idle); the log's "Audio policy" lines.
+  7. VoiceOver on (triple-click if set up): walk the main screen in Play and
+     Edit, the ribbon, the player, the find bar, a sheet, Settings and About:
+     every button says what it does in Android's words, no image names.
+  8. Split View, Slide Over and Stage Manager can't be tried on her iPhone
+     and there's no iPad to borrow: the catalog's `split_*` images and
+     `MultitaskingTests` stand in; check on an iPad if one turns up (the
+     keyboard over a split window, a resized Stage Manager window).
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
