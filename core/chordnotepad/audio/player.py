@@ -17,6 +17,7 @@ from typing import Callable, List, Optional, Tuple
 
 from chordnotepad.audio.audio_options import AudioOptions
 from chordnotepad.audio import fluid_ctypes
+from chordnotepad.audio.output_device import OutputDeviceWatcher, needs_watch
 from chordnotepad.audio.player_interface import IPlayer
 from chordnotepad.audio.sequencer import TICKS_PER_SECOND, SynthSequencer
 from chordnotepad.audio.song_scheduler import (
@@ -42,6 +43,9 @@ class NotePlayer(IPlayer):
     #: The metronome slider (0.0-1.0) and whether the click is on.
     _metronome_level: float = DEFAULT_METRONOME_VOLUME
     _metronome_on: bool = False
+    #: Follows the system's default output for drivers that stay on the
+    #: device they opened (macOS's coreaudio): see :mod:`audio.output_device`.
+    _device_watcher: Optional[OutputDeviceWatcher] = None
 
     def __init__(
         self,
@@ -167,6 +171,8 @@ class NotePlayer(IPlayer):
             self.fs.program_select(self.channel, self.sfid, 0, self.instrument)
             self._apply_music_volume()
 
+            self._start_device_watch()
+
         except Exception as e:
             logger.error(f"Failed to initialize FluidSynth: {e}", exc_info=True)
             self._release_synth()  # release the audio device we may hold
@@ -219,14 +225,9 @@ class NotePlayer(IPlayer):
             logger.info("Not suspending the audio output while a song plays")
             return False
         self.stop_all_notes()
-        fs = self.fs
-        try:
-            if fs.audio_driver:
-                fluid_ctypes.delete_fluid_audio_driver(fs.audio_driver)
-        except Exception:
-            logger.debug("Could not free the audio driver", exc_info=True)
-        fs.audio_driver = None
-        self._audio_suspended = True
+        with self._driver_lock:
+            self._delete_driver()
+            self._audio_suspended = True
         logger.info("Audio output released (suspended)")
         return True
 
@@ -243,6 +244,62 @@ class NotePlayer(IPlayer):
             return True
         if self.fs is None:
             return False
+        with self._driver_lock:
+            if not self._open_driver():
+                logger.warning("The audio output could not be reopened")
+                return False
+            self._audio_suspended = False
+            logger.info(f"Audio output reopened with driver: {self.driver_name}")
+            return True
+
+    def restart_audio_driver(self) -> bool:
+        """Close the audio driver and open it again, on the current default
+        output device.
+
+        For when the system's default output changes and the driver stays on
+        the device it opened (:mod:`audio.output_device`). Works while a song
+        plays: the sequencer runs on the synth's sample clock, so the song
+        just waits the few milliseconds the driver is closed, and notes that
+        are sounding carry on.
+
+        Returns:
+            True if a driver runs again; False if there is no synth, the
+            output is suspended (it opens the current default when resumed)
+            or no driver started (the next change tries again).
+        """
+        with self._driver_lock:
+            if self.fs is None or self._audio_suspended:
+                return False
+            self._delete_driver()
+            if not self._open_driver():
+                logger.warning("The audio output could not be reopened on the new device")
+                return False
+            logger.info(f"Audio output reopened on the new default device ({self.driver_name})")
+            return True
+
+    @property
+    def _driver_lock(self) -> threading.RLock:
+        """Guards the driver handle: the device watcher's thread restarts
+        the driver while the host may suspend, resume or clean up."""
+        lock = self.__dict__.get("_driver_lock_instance")
+        if lock is None:
+            lock = self.__dict__.setdefault("_driver_lock_instance", threading.RLock())
+        return lock
+
+    def _delete_driver(self) -> None:
+        """Free the running audio driver, if any (the synth stays)."""
+        fs = self.fs
+        if fs is None:
+            return
+        try:
+            if fs.audio_driver:
+                fluid_ctypes.delete_fluid_audio_driver(fs.audio_driver)
+        except Exception:
+            logger.debug("Could not free the audio driver", exc_info=True)
+        fs.audio_driver = None
+
+    def _open_driver(self) -> bool:
+        """Start the driver that ran before, else the other candidates."""
         candidates = list(self._driver_candidates)
         if self.driver_name in candidates:
             candidates.remove(self.driver_name)
@@ -251,11 +308,23 @@ class NotePlayer(IPlayer):
         for driver in candidates:
             if self._start_audio_driver(driver):
                 self.driver_name = driver
-                self._audio_suspended = False
-                logger.info(f"Audio output reopened with driver: {driver}")
                 return True
-        logger.warning("The audio output could not be reopened")
         return False
+
+    def _start_device_watch(self) -> None:
+        """Watch the default output device if the running driver stays on
+        the one it opened."""
+        if self._device_watcher is not None or not needs_watch(sys.platform, self.driver_name):
+            return
+        watcher = OutputDeviceWatcher(self.restart_audio_driver)
+        if watcher.start():
+            self._device_watcher = watcher
+            logger.debug("Following the default output device (%s)", watcher.device)
+
+    def _stop_device_watch(self) -> None:
+        watcher, self._device_watcher = self._device_watcher, None
+        if watcher is not None:
+            watcher.stop()
 
     def _create_sequencer(self) -> None:
         """Create the sample-clocked sequencer and its two source clients."""
@@ -269,15 +338,12 @@ class NotePlayer(IPlayer):
         The driver goes first so nothing renders while the sequencer (whose
         sample timer the synth calls) is freed.
         """
+        self._stop_device_watch()
         fs = self.fs
         if fs is None:
             return
-        try:
-            if fs.audio_driver:
-                fluid_ctypes.delete_fluid_audio_driver(fs.audio_driver)
-        except Exception:
-            logger.debug("Could not free the audio driver", exc_info=True)
-        fs.audio_driver = None
+        with self._driver_lock:
+            self._delete_driver()
         sequencer = getattr(self, "_sequencer", None)
         if sequencer is not None:
             try:
