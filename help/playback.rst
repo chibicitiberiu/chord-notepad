@@ -196,8 +196,20 @@ While playing:
    .. only:: ios
 
       Chord Notepad doesn't play in the background. Playback pauses, and stays
-      paused until you tap **▶**, when the app leaves the screen (you switch apps,
-      go to the Home screen or lock the screen).
+      paused until you tap **▶**, when:
+
+      * the app leaves the screen (you switch apps, go to the Home screen or lock
+        the screen);
+      * a call comes in, an alarm or a timer goes off, Siri listens, or another
+        app starts playing audio;
+      * headphones are unplugged or a Bluetooth headset disconnects, so the song
+        doesn't suddenly play out loud through the speaker.
+
+      When you play a song, music playing in another app stops, as it does when
+      you start a song in a music app. A short sound from another app, such as a
+      navigation prompt, doesn't pause it: iOS lowers the volume for a moment
+      instead. The Ring/Silent switch (or the Action button's silent mode)
+      doesn't mute the song; the volume buttons set how loud it plays.
 
 .. only:: android
 
@@ -733,7 +745,7 @@ Different instruments can highlight different aspects of a chord progression.
 
    Under the player's buttons a status line shows where you are, for example
    "Bar 6/24 · Playing Em" or "Bar 6/24 · Paused". While nothing plays it
-   shows the bar the playhead is in. Messages such as "Exported MIDI: …" show
+   shows the bar the playhead is in. Messages such as "Saved: …" show
    there too while you're in the Play tab; in the Edit tab they pop up at the
    bottom of the screen instead.
 

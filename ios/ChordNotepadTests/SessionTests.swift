@@ -201,7 +201,7 @@ final class SessionTests: XCTestCase {
             XCTAssertEqual(file.lastPathComponent, "Morning copy.mid")
             XCTAssertEqual(try Data(contentsOf: file).prefix(4), Data("MThd".utf8))
         }
-        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text == "Exported MIDI: Morning copy.mid" }
+        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text == "MIDI ready to save: Morning copy.mid" }
         XCTAssertTrue(status, "\(String(describing: model.snapshot.status))")
         let leftover = (try? FileManager.default.contentsOfDirectory(
             atPath: AppPaths.filesDir.appendingPathComponent("exports").path)) ?? []
@@ -727,7 +727,7 @@ extension SessionTests {
         let report = PdfReport.of(file, song: model.editor.model.text)
         XCTAssertTrue(report.ok, report.problem ?? "")
         XCTAssertGreaterThan(report.pages, 0)
-        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text.hasPrefix("Exported PDF") == true }
+        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text.hasPrefix("PDF ready to save: ") == true }
         XCTAssertTrue(status, model.snapshot.status?.text ?? "")
         XCTAssertNil(model.snapshot.request, "the paint request answered")
         let attachment = XCTAttachment(contentsOfFile: file)

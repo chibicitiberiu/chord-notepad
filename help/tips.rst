@@ -330,8 +330,10 @@ No Sound?
    .. only:: ios
 
       **Check whether playback was paused:**
-      Playback pauses when you leave the app. The status line then says "Paused".
-      Tap **▶** to resume.
+      Playback pauses when you leave the app, when a call, an alarm or Siri
+      interrupts it or another app starts playing, and when headphones are
+      unplugged or a Bluetooth device disconnects. The status line then says
+      "Paused". Tap **▶** to resume.
 
 .. only:: desktop
 

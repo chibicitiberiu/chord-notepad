@@ -45,14 +45,14 @@ Exporting MIDI
 
       1. Tap **☰** at the top left and choose **Export MIDI…**.
       2. Chord Notepad renders the song and writes the file. The status says
-         "Exporting MIDI: …" while it works and "Exported MIDI: …" when the file is
-         ready: on the player's status line in the Play tab, or at the bottom of the
+         "Exporting MIDI: …" while it works and "MIDI ready to save: …" when the file
+         is ready: on the player's status line in the Play tab, or at the bottom of the
          screen in the Edit tab.
       3. iOS's save sheet opens with the song's name and ``.mid`` (for a song you
          haven't saved yet, its first line of lyrics, or ``Untitled.mid`` without
          lyrics). Choose a folder in Files, iCloud Drive or another provider, change
          the name in the **Save as** field if you like, and confirm. If you cancel the
-         sheet, nothing is saved, even though the status has already said "Exported".
+         sheet, nothing is saved.
 
 .. platform-figure:: drawer
    :platforms: android
@@ -261,7 +261,7 @@ audio editor can open.
       1. Tap **☰** at the top left and choose **Export audio…**.
       2. Chord Notepad plays the song into the file, faster than real time. The
          status counts up while it works ("Exporting audio… 40%") and says
-         "Exported audio: …" when the file is ready: on the player's status line in
+         "Audio ready to save: …" when the file is ready: on the player's status line in
          the Play tab, or at the bottom of the screen in the Edit tab.
       3. iOS's save sheet opens with the song's name and ``.wav``, picked the same
          way as for MIDI. Choose a folder, change the name in the **Save as** field if
@@ -298,7 +298,7 @@ open as it was, and the ``.wav`` file doesn't join the recent songs.
 
 One audio export runs at a time. Choosing **Export audio** again before the
 first one has finished says so and asks for no file; try again once the
-status says "Exported audio".
+status has stopped counting up.
 
 A WAV file is large: about 10 MB per minute of music. If the export fails (a
 song without chords, a full disk, or a folder the app can't write to), a
@@ -357,7 +357,7 @@ along.
       2. iOS's save sheet opens with the song's name and ``.pdf``, picked the same
          way as for MIDI. Choose a folder, change the name in the **Save as** field if
          you like, and confirm.
-      3. The status says "Exported PDF: …" when the file is ready: on the player's
+      3. The status says "PDF ready to save: …" when the file is ready: on the player's
          status line in the Play tab, or at the bottom of the screen in the Edit tab.
          If you cancel the save sheet, nothing is saved.
 

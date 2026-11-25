@@ -875,7 +875,8 @@ The User Interface
    .. only:: ios
 
       While a song plays, the screen stays on. Playback pauses by itself when you
-      leave the app.
+      leave the app, when another app starts playing sound or a call, an alarm or
+      Siri interrupts it, and when you unplug your headphones.
 
    .. _android-edit-ribbon:
 

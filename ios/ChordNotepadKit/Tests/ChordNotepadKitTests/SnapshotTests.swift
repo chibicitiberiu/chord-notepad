@@ -150,7 +150,7 @@ final class SnapshotTests: XCTestCase {
         XCTAssertNil(recent.request)
 
         let export = try Fixture(contentsOf: fixtures.appendingPathComponent("export_done.json")).snapshot()
-        XCTAssertEqual(export.status?.text, "Exported MIDI: Lullaby (2).mid")
+        XCTAssertEqual(export.status?.text, "MIDI ready to save: Lullaby (2).mid")
         XCTAssertEqual(export.document?.displayName, "Lullaby (2).txt")
         XCTAssertTrue(export.text.hasSuffix("Sleep until the morning\n"), export.text)
         XCTAssertEqual(export.recentDocuments?.items.first?.displayName, "Lullaby (2).txt")
