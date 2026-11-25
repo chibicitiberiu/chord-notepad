@@ -1,0 +1,101 @@
+{
+  "_comment": "Synthetic App Store Connect API responses for tests/test_ios_asc_tools.py, written from the schema in Apple's documentation (BetaFeedbackScreenshotSubmission, BetaFeedbackCrashSubmission, BetaCrashLog, Build), not recorded from a real account. IDs, names and addresses are placeholders.",
+  "responses": [
+    {
+      "request": "GET /v1/apps?fields[apps]=bundleId,name&filter[bundleId]=com.tibich.chordnotepad",
+      "status": 200,
+      "body": {"data": [{"type": "apps", "id": "1234567890", "attributes": {"bundleId": "com.tibich.chordnotepad", "name": "Chord Notepad"}}]}
+    },
+    {
+      "request": "GET /v1/apps/1234567890/betaFeedbackScreenshotSubmissions?fields[builds]=version&include=build&limit=200&sort=-createdDate",
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "type": "betaFeedbackScreenshotSubmissions",
+            "id": "shot-0002",
+            "attributes": {
+              "createdDate": "2026-12-03T18:04:11.000+00:00",
+              "comment": "The chord sheet is cut off on the right",
+              "email": "tester@example.invalid",
+              "deviceModel": "iPhone16,1",
+              "osVersion": "26.1",
+              "locale": "en-GB",
+              "timeZone": "Europe/London",
+              "architecture": "arm64e",
+              "connectionType": "WIFI",
+              "batteryPercentage": 81,
+              "screenWidthInPoints": 393,
+              "screenHeightInPoints": 852,
+              "appPlatform": "IOS",
+              "devicePlatform": "IOS",
+              "deviceFamily": "IPHONE",
+              "buildBundleId": "com.tibich.chordnotepad",
+              "screenshots": [
+                {"url": "https://example.invalid/feedback/shot-0002-a.png?sig=abc", "width": 1179, "height": 2556, "expirationDate": "2026-12-04T18:04:11Z"},
+                {"url": "https://example.invalid/feedback/shot-0002-b.jpg", "width": 1179, "height": 2556, "expirationDate": "2026-12-04T18:04:11Z"}
+              ]
+            },
+            "relationships": {"build": {"data": {"type": "builds", "id": "build-57"}}}
+          }
+        ],
+        "included": [{"type": "builds", "id": "build-57", "attributes": {"version": "57"}}],
+        "links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/1234567890/betaFeedbackScreenshotSubmissions", "next": "https://api.appstoreconnect.apple.com/v1/apps/1234567890/betaFeedbackScreenshotSubmissions?cursor=Mg&limit=200"}
+      }
+    },
+    {
+      "request": "GET /v1/apps/1234567890/betaFeedbackScreenshotSubmissions?cursor=Mg&limit=200",
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "type": "betaFeedbackScreenshotSubmissions",
+            "id": "shot-0001",
+            "attributes": {
+              "createdDate": "2026-12-01T09:00:00.000+00:00",
+              "comment": "",
+              "deviceModel": "iPhone16,1",
+              "osVersion": "26.1",
+              "screenshots": [{"url": "https://example.invalid/feedback/shot-0001.png", "width": 1179, "height": 2556}]
+            },
+            "relationships": {"build": {"data": {"type": "builds", "id": "build-56"}}}
+          }
+        ],
+        "included": [{"type": "builds", "id": "build-56", "attributes": {"version": "56"}}],
+        "links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/1234567890/betaFeedbackScreenshotSubmissions?cursor=Mg&limit=200"}
+      }
+    },
+    {
+      "request": "GET /v1/apps/1234567890/betaFeedbackCrashSubmissions?fields[builds]=version&include=build&limit=200&sort=-createdDate",
+      "status": 200,
+      "body": {
+        "data": [
+          {
+            "type": "betaFeedbackCrashSubmissions",
+            "id": "crash-0001",
+            "attributes": {
+              "createdDate": "2026-12-03T18:10:00.000+00:00",
+              "comment": "It closed when I unplugged the headphones",
+              "deviceModel": "iPhone16,1",
+              "osVersion": "26.1",
+              "appUptimeInMilliseconds": 48211
+            },
+            "relationships": {"build": {"data": {"type": "builds", "id": "build-57"}}}
+          }
+        ],
+        "included": [{"type": "builds", "id": "build-57", "attributes": {"version": "57"}}],
+        "links": {"self": "https://api.appstoreconnect.apple.com/v1/apps/1234567890/betaFeedbackCrashSubmissions"}
+      }
+    },
+    {
+      "request": "GET /v1/betaFeedbackCrashSubmissions/crash-0001/crashLog?fields[betaCrashLogs]=logText",
+      "status": 200,
+      "body": {"data": {"type": "betaCrashLogs", "id": "log-0001", "attributes": {"logText": "{\"app_name\":\"ChordNotepad\",\"bug_type\":\"309\"}\n{\"exception\":{\"type\":\"EXC_CRASH\"}}\n"}}}
+    }
+  ],
+  "files": {
+    "https://example.invalid/feedback/shot-0002-a.png?sig=abc": "PNG-A",
+    "https://example.invalid/feedback/shot-0002-b.jpg": "JPG-B",
+    "https://example.invalid/feedback/shot-0001.png": "PNG-C"
+  }
+}
