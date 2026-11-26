@@ -237,6 +237,16 @@ public struct MainUiState: Sendable, Equatable {
         if modes.opened > 0 || !modes.expectingOpen { launching = false }
     }
 
+    /// The session reported an error. While the launch state waits for the
+    /// launch's song, that is the open failing (the last song's file gone,
+    /// a song from Files that can't be read): the screen shows the empty
+    /// song with the error, and nothing is expected any more.
+    public mutating func errorArrived() {
+        guard launching, modes.expectingOpen else { return }
+        modes.openFailed()
+        launching = false
+    }
+
     /// The launch is over without that song (start failed, nothing to open,
     /// or it took too long): the screen shows what there is.
     public mutating func launchEnded() {

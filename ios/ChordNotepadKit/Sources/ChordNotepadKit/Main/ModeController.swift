@@ -23,6 +23,8 @@ public enum AppMode: String, Sendable, Hashable, CaseIterable {
 ///   (``select(_:playback:)``).
 /// - Every open that arrives after ``expectOpen(target:current:)`` counts in
 ///   ``opened``, so the main screen can close a page over it.
+/// - The launch's last song (``expectRestore(documentId:modified:mode:)``)
+///   lands in the tab it was left in, untitled or not.
 public struct ModeController: Sendable, Equatable {
     /// The open tab.
     public private(set) var mode: AppMode
@@ -34,7 +36,11 @@ public struct ModeController: Sendable, Equatable {
     private var lastDocument: String?
     private var lastModified = false
 
-    private enum Expect: Sendable, Equatable { case none, open, new }
+    private enum Expect: Sendable, Equatable {
+        case none, open, new
+        /// The launch's last song (``expectRestore(documentId:modified:mode:)``).
+        case restore(id: String?, modified: Bool, mode: AppMode)
+    }
 
     public init(_ initial: AppMode? = nil) {
         mode = initial ?? .edit
@@ -75,8 +81,26 @@ public struct ModeController: Sendable, Equatable {
         expecting = .open
     }
 
-    /// An asked-for open hasn't arrived yet.
-    public var expectingOpen: Bool { expecting == .open }
+    /// An asked-for open (or the launch's last song) hasn't arrived yet.
+    public var expectingOpen: Bool {
+        switch expecting {
+        case .open, .restore: return true
+        case .none, .new: return false
+        }
+    }
+
+    /// The launch reopens the last song: the document `documentId` (nil for
+    /// a never-saved song) with `modified` as given. It lands in `mode`, the
+    /// tab it was left in, and counts in ``opened``; the start-up replay's
+    /// empty untitled song (no id, unmodified) isn't it.
+    public mutating func expectRestore(documentId: String?, modified: Bool, mode: AppMode) {
+        expecting = .restore(id: documentId, modified: modified, mode: mode)
+    }
+
+    /// The asked-for open failed (its error came instead): nothing is expected any more.
+    public mutating func openFailed() {
+        if expectingOpen { expecting = .none }
+    }
 
     /// New was asked for.
     public mutating func expectNew() {
@@ -96,6 +120,18 @@ public struct ModeController: Sendable, Equatable {
         let reread = !changed && lastModified && !document.isModified
         lastDocument = id
         lastModified = document.isModified
+        if case .restore(let target, let modified, let restoredMode) = expecting {
+            if id == target && document.isModified == modified {
+                mode = restoredMode
+                decided = true
+                expecting = .none
+                opened += 1
+            } else if !decided {
+                mode = id != nil ? .play : .edit
+                decided = true
+            }
+            return
+        }
         if !decided {
             mode = id != nil ? .play : .edit
             decided = true

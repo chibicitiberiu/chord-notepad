@@ -333,6 +333,9 @@ public struct EditorModel: Sendable {
         text == syncedText ? [] : [sendUserText()]
     }
 
+    /// The view has typing the session hasn't been sent yet.
+    public var hasUnsentText: Bool { text != syncedText }
+
     private mutating func sendUserText() -> BridgeCommand {
         lastToken += 1
         identity = TextIdentity(clientToken: lastToken, revision: nil)

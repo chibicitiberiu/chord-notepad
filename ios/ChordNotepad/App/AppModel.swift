@@ -1,4 +1,5 @@
 import ChordNotepadKit
+import Combine
 import Foundation
 import SwiftUI
 import UIKit
@@ -40,7 +41,12 @@ final class AppModel: ObservableObject {
             if ui.route.isFullPage && !oldValue.route.isFullPage { snackbars.pageOpened() }
             // Any change of tab, the user's or an open's (the launch's song opens in Play),
             // puts a status from Edit away, as Android's StatusSnackbars does on a mode change.
-            if ui.mode != oldValue.mode { snackbars.modeChanged(ui.mode) }
+            if ui.mode != oldValue.mode {
+                snackbars.modeChanged(ui.mode)
+                scheduleLastSongSave()
+            }
+            // The launch's song is on screen (or given up): songs from Files held behind it open now.
+            if oldValue.launching && !ui.launching { openHeldURLs() }
         }
     }
     /// The snackbar on screen.
@@ -91,6 +97,22 @@ final class AppModel: ObservableObject {
     private var pdfCheck = false
     /// Songs from Files were waiting when the session started (a document launch).
     private var launchOpensDocument = false
+    /// The last song's file (docs/IOS.md, "The last song"), in Application Support.
+    private let lastSongFile = LastSongFile(url: AppPaths.filesDir.appendingPathComponent("last_song.json"))
+    /// This launch reopens and keeps the last song: a person's launch and
+    /// CI's relaunch check, never CI's other hooks or XCTest's session.
+    private var keepsLastSong = false
+    /// What this launch opened (`launch.json`), once decided.
+    private var launchSong: LaunchSong?
+    /// The launch's song has been sent (or there was none to send): the
+    /// last song may be written over from now on.
+    private var lastSongSettled = false
+    /// Songs from Files wait in ``waitingURLs`` until the launch's song is on screen.
+    private var holdingURLs = false
+    private var lastSongSave: Task<Void, Never>?
+    private var editorWatch: AnyCancellable?
+    /// How long the last song waits after a change before it is written (seconds).
+    static let lastSongDelay = 2.0
     /// The tour's "Show at startup" as the user just set it, until the
     /// session's settings echo it (Android's `QuickStartRoute`).
     @Published private(set) var quickStartPicked: Bool?
@@ -115,11 +137,14 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// The app's launch: start the session and open the quick-start song,
-    /// unless XCTest hosts the process (its tests start their own).
+    /// The app's launch: start the session and reopen the last song (the
+    /// quick-start song at the first launch), unless XCTest hosts the
+    /// process (its tests start their own).
     func launch() async {
         guard !AppEnvironment.isRunningTests, phase == .idle else { return }
         ui.launchBegan()
+        keepsLastSong = Self.keepsLastSong(startScreen: AppEnvironment.startScreen)
+        holdingURLs = keepsLastSong
         Task { [weak self] in
             // A launch song that never comes doesn't hide the screen for good.
             try? await Task.sleep(for: .seconds(Self.launchStateLimit))
@@ -140,7 +165,9 @@ final class AppModel: ObservableObject {
                 return startup.screen != .quickStart || (model.ui.route == .quickStart && model.snapshot.quickStart != nil)
             }
             let tour = ui.route == .quickStart && snapshot.quickStart != nil
-            Diagnostics.shared.writeJSON(ToolScreenReport(name: "startup", ok: tour, route: String(describing: ui.route)),
+            Diagnostics.shared.writeJSON(ToolScreenReport(name: "startup", ok: tour, route: String(describing: ui.route),
+                                                          detail: "launch \(launchSong?.kind ?? "none"), "
+                                                              + "document \(snapshot.document?.displayName ?? "none")"),
                                          name: "startup.json")
         }
     }
@@ -189,8 +216,16 @@ final class AppModel: ObservableObject {
                 adopt: { url, _ in try store.adopt(url) },
                 prepareExport: { _, name in try store.prepareExport(named: name) },
                 runOffMain: { work, done in
+                    let asked = Date()
                     Task.detached {
+                        let started = Date()
                         let ref = work()
+                        // A picked file's bookmark and facts (CI run 45739838967: an Open's
+                        // answer came 46 s late): how long the wait for a thread and the I/O took.
+                        let waited = started.timeIntervalSince(asked), took = Date().timeIntervalSince(started)
+                        if waited > 1 || took > 1 {
+                            Log.store.info("A picker's file I/O waited \(waited, format: .fixed(precision: 1), privacy: .public) s for a thread and took \(took, format: .fixed(precision: 1), privacy: .public) s")
+                        }
                         await MainActor.run { done(ref) }
                     }
                 },
@@ -215,11 +250,16 @@ final class AppModel: ObservableObject {
             }
             chordSheet = ChordSheetSource(session: session)
             phase = .running
-            openQuickStart()
             let waiting = waitingURLs
             waitingURLs = []
             launchOpensDocument = !waiting.isEmpty
-            waiting.forEach(openURL)
+            if keepsLastSong {
+                openLastSong(urlsWaiting: waiting)
+            } else {
+                // XCTest's session and CI's hooks: the quick-start song, always the same.
+                openQuickStart()
+                waiting.forEach(openURL)
+            }
             switch AppEnvironment.startScreen {
             case "chordsheet":
                 // CI's live chord sheet screenshot (ios/tools/ci_screenshots.sh): Play with the sheet.
@@ -245,6 +285,12 @@ final class AppModel: ObservableObject {
             case "pdf":
                 // CI's live PDF export: painted, written through the store, checked, then the picker.
                 Task { await self.runPdfCheck() }
+            case "draft":
+                // CI's relaunch check, first half: a new song typed, kept when the app leaves the screen.
+                Task { await self.runDraftCheck() }
+            case "restored":
+                // CI's relaunch check, second half: that song back, unsaved, in Edit.
+                Task { await self.runRestoredCheck() }
             default:
                 break
             }
@@ -296,6 +342,107 @@ final class AppModel: ObservableObject {
                                      readOnly: true, text: text))
     }
 
+    // MARK: - The last song (docs/IOS.md, "The last song")
+
+    /// A person's launch keeps the last song; of CI's hooks only the relaunch check does.
+    static func keepsLastSong(startScreen: String?) -> Bool {
+        startScreen == nil || startScreen == "draft" || startScreen == "restored"
+    }
+
+    /// Reopen what was open last time (the kit's ``LastSongPolicy``). A song
+    /// from Files waiting for the session wins over it, unless the last song
+    /// has unsaved words: those come back first, and the song from Files
+    /// then asks about them as any open does.
+    private func openLastSong(urlsWaiting waiting: [URL]) {
+        guard let session, let store else { return }
+        let launch = LastSongPolicy.launchSong(lastSongFile.read())
+        launchSong = launch
+        Log.ui.info("Launch song: \(String(describing: launch.kind), privacy: .public)")
+        // The user's typing (the editor's model; the session's output is watched in receive).
+        editorWatch = editor.$model.dropFirst().sink { [weak self] _ in
+            MainActor.assumeIsolated { self?.scheduleLastSongSave() }
+        }
+        if !waiting.isEmpty && !launch.hasUnsavedText {
+            lastSongSettled = true
+            holdingURLs = false
+            // The launch state waits for the song from Files, not the start-up replay's empty one.
+            ui.modes.expectOpen()
+            waiting.forEach(openURL)
+            return
+        }
+        waitingURLs = waiting
+        switch launch {
+        case .quickStart:
+            lastSongSettled = true
+            openQuickStart()
+        case .empty:
+            lastSongSettled = true
+            ui.launchEnded()
+        case .open(let ref, let readOnly, let mode):
+            // Read again through the store; a failure is the open's usual error over the empty song.
+            lastSongSettled = true
+            ui.modes.expectRestore(documentId: ref.id, modified: false, mode: mode)
+            session.submit(.openDocument(readOnly: readOnly, ref: ref))
+        case .draft(let song):
+            // Until the restore is sent, the start-up replay's empty song doesn't end the launch state.
+            ui.modes.expectRestore(documentId: song.documentId, modified: true, mode: song.appMode)
+            // Resolving a bookmark is provider I/O (it once took a minute in CI): off the main actor.
+            Task.detached {
+                let resolved = song.documentId.flatMap { store.refFor($0) }
+                await MainActor.run { self.restoreLastDraft(song, resolved: resolved) }
+            }
+        }
+    }
+
+    private func restoreLastDraft(_ song: LastSong, resolved: DocumentRef?) {
+        guard let session else { return }
+        let restore = LastSongPolicy.restore(song, resolved: resolved)
+        ui.modes.expectRestore(documentId: restore.documentId, modified: restore.modified, mode: song.appMode)
+        snapshot.requestAnswered(nil)
+        session.submit(restore.command)
+        if let notice = restore.notice {
+            Log.store.error("The last song's document is gone; its draft opens as a new song")
+            showError(notice)
+        }
+        lastSongSettled = true
+        openHeldURLs()
+    }
+
+    /// Open the songs from Files held while the launch's song was put back.
+    private func openHeldURLs() {
+        guard holdingURLs, lastSongSettled, !ui.launching, phase == .running else { return }
+        holdingURLs = false
+        let held = waitingURLs
+        waitingURLs = []
+        held.forEach(openURL)
+    }
+
+    /// Write the last song soon (``lastSongDelay``), once changes rest.
+    private func scheduleLastSongSave() {
+        guard keepsLastSong, lastSongSettled else { return }
+        lastSongSave?.cancel()
+        lastSongSave = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(Self.lastSongDelay))
+            guard !Task.isCancelled else { return }
+            self?.saveLastSong()
+        }
+    }
+
+    /// Write the song on screen as the last song now. Not while the launch
+    /// state hides the start-up replay's empty song, which would write over
+    /// the song about to come back.
+    @discardableResult
+    private func saveLastSong() -> Bool {
+        lastSongSave?.cancel()
+        lastSongSave = nil
+        guard keepsLastSong, lastSongSettled, !ui.launching, phase == .running,
+              let song = LastSong.of(document: snapshot.document, editorText: editor.model.text,
+                                     unsentTyping: editor.model.hasUnsentText, mode: ui.mode) else { return false }
+        let written = lastSongFile.write(song)
+        if !written { Log.store.error("The last song couldn't be written") }
+        return written
+    }
+
     /// Play chord `index` of the song, as a tap on it does.
     func audition(index: Int = 0) {
         guard let session else { return }
@@ -332,6 +479,12 @@ final class AppModel: ObservableObject {
                 break
             }
             switch output {
+            case .documentState, .textEdited:
+                scheduleLastSongSave()
+            default:
+                break
+            }
+            switch output {
             case .documentState(let document):
                 // The start-up replay's empty untitled song, hidden by the launch state (launch.json).
                 if ui.launching && document.documentId == nil { launchHidUntitled = true }
@@ -359,12 +512,14 @@ final class AppModel: ObservableObject {
         if event.typeName == "UnexpectedError" || event.typeName == "UserError" || event.typeName == "AudioUnavailable" {
             Log.bridge.error("\(event.typeName, privacy: .public): \(event.json, privacy: .public)")
         }
+        // The launch's song: a saved one, or a draft with words (an untitled one has no id).
         if timings.firstText == nil, !snapshot.text.isEmpty, snapshot.editor != nil,
-           snapshot.document?.documentId != nil {
+           snapshot.document?.documentId != nil || snapshot.document?.isModified == true {
             timings.firstText = elapsed()
             Log.ui.info("First text after \(self.timings.firstText ?? 0, format: .fixed(precision: 3)) s")
             Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot, launching: ui.launching,
-                                                      hidUntitled: launchHidUntitled), name: "launch.json")
+                                                      hidUntitled: launchHidUntitled, lastSong: launchSong?.kind),
+                                         name: "launch.json")
         }
     }
 
@@ -659,7 +814,7 @@ final class AppModel: ObservableObject {
     /// A song opened from Files or another app (`onOpenURL`): bookmarked and
     /// opened like a picked one (the session asks about unsaved changes first).
     func openURL(_ url: URL) {
-        guard phase == .running, let store, let session else {
+        guard phase == .running, !holdingURLs, let store, let session else {
             waitingURLs.append(url)
             return
         }
@@ -682,6 +837,8 @@ final class AppModel: ObservableObject {
                     session.submit(.openDocument(readOnly: false, ref: ref))
                 case .failure(let error):
                     Log.store.error("Can't keep \(url.lastPathComponent, privacy: .public): \(String(describing: error), privacy: .public)")
+                    // A launch waiting for this song shows the empty song with the error.
+                    if self.ui.launching { self.ui.launchEnded() }
                     self.showError("Failed to open file: \(url.lastPathComponent)")
                 }
             }
@@ -895,6 +1052,48 @@ final class AppModel: ObservableObject {
         let report = EditorScript.report(editor, typed: typed, highlighted: highlighted)
         Log.ui.info("Editor check: \(report.ok ? "passed" : "failed", privacy: .public) \(report.problems.joined(separator: "; "), privacy: .public)")
         Diagnostics.shared.writeJSON(report, name: "editor.json")
+    }
+
+    /// The song CI's relaunch check types (`-CNScreen draft`, then `restored`).
+    static let relaunchText = "Kept across launches\nG       D       Em      C\n"
+
+    /// `-CNScreen draft` (CI's relaunch check, first half): once the launch's
+    /// song is on screen, a new song (its question answered Don't save) with
+    /// ``relaunchText`` typed in Edit, left unsaved; `draft.json` says so.
+    /// ci_screenshots.sh then sends the app to the background, where the
+    /// last song is written (`draft-kept.json`), and ends it.
+    func runDraftCheck() async {
+        _ = await waitForModel(timeout: .seconds(120)) { !$0.ui.launching }
+        choose(.newSong)
+        _ = await waitFor(timeout: .seconds(30)) { snapshot in
+            if case .confirmDiscard? = snapshot.request { return true }
+            return snapshot.document?.documentId == nil && snapshot.text.isEmpty
+        }
+        if case .confirmDiscard? = snapshot.request { answerDiscard(.discard) }
+        var ok = await waitFor(timeout: .seconds(30)) { $0.document?.documentId == nil && $0.text.isEmpty }
+        selectMode(.edit)
+        try? await Task.sleep(for: .seconds(1))
+        ok = ok && EditorScript.type(Self.relaunchText, at: 0, into: editor)
+        ok = ok && editor.model.text == Self.relaunchText
+        Diagnostics.shared.writeJSON(ToolScreenReport(name: "draft", ok: ok, route: String(describing: ui.route),
+                                                      detail: "mode \(ui.mode), \(editor.model.text.count) characters"),
+                                     name: "draft.json")
+    }
+
+    /// `-CNScreen restored` (CI's relaunch check, second half): the launch
+    /// after `-CNScreen draft` was ended in the background brings its song
+    /// back: untitled, unsaved, the typed text, in Edit. `restored.json`.
+    func runRestoredCheck() async {
+        let arrived = await waitForModel(timeout: .seconds(120)) { !$0.ui.launching }
+        _ = await waitForModel(timeout: .seconds(10)) { $0.editor.model.text == Self.relaunchText }
+        let document = snapshot.document
+        let ok = arrived && launchSong?.kind == "draft" && editor.model.text == Self.relaunchText
+            && document?.documentId == nil && document?.isModified == true && ui.mode == .edit
+        Diagnostics.shared.writeJSON(
+            ToolScreenReport(name: "restored", ok: ok, route: String(describing: ui.route),
+                             detail: "launch \(launchSong?.kind ?? "none"), document \(document?.title ?? "none"), "
+                                 + "mode \(ui.mode), text \(editor.model.text.debugDescription)"),
+            name: "restored.json")
     }
 
     /// `-CNScreen export` (CI): once the song is on screen, export it as audio
@@ -1152,6 +1351,15 @@ final class AppModel: ObservableObject {
     /// The scene went to the background or came back: `app_background` and
     /// `app_foreground` through the audio policy (Android's `AppLifecycleHooks`).
     func scenePhaseChanged(_ newPhase: ScenePhase) {
+        if newPhase != .active {
+            // Leaving the screen: a swipe-away or the system ending the app may follow.
+            let kept = saveLastSong()
+            if newPhase == .background, AppEnvironment.startScreen == "draft" {
+                Diagnostics.shared.writeJSON(ToolScreenReport(name: "draft-kept", ok: kept, route: String(describing: ui.route),
+                                                              detail: "\(editor.model.text.count) characters"),
+                                             name: "draft-kept.json")
+            }
+        }
         guard let audio else { return }
         switch newPhase {
         case .background:
@@ -1237,12 +1445,18 @@ struct LaunchReport: Codable {
     var launching = false
     /// The session's empty untitled song came while the launch state hid it.
     var hidUntitled = false
+    /// What the launch reopened (``LaunchSong/kind``); nil when it doesn't
+    /// keep the last song (CI's hooks).
+    var lastSong: String?
+    var modified = false
 
     @MainActor init(timings: LaunchTimings, snapshot: SessionSnapshot, launching: Bool = false,
-                    hidUntitled: Bool = false) {
+                    hidUntitled: Bool = false, lastSong: String? = nil) {
         self.timings = timings
         self.launching = launching
         self.hidUntitled = hidUntitled
+        self.lastSong = lastSong
+        modified = snapshot.document?.isModified ?? false
         document = snapshot.document?.displayName
         status = snapshot.status?.text
         textLength = snapshot.text.count

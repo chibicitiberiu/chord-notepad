@@ -359,11 +359,13 @@ extension MainUiState {
     }
 
     /// A session output arrived: the identifier's field and pick follow it,
-    /// and the speed slider lets go once the session has its value.
+    /// the speed slider lets go once the session has its value, and an
+    /// error ends a launch state still waiting for its song.
     public mutating func received(_ output: SessionOutput) {
         switch output {
         case .identifierState(let state): tools.identifier.onState(state)
         case .toolbarState(let state): tools.speedSlider.sessionChanged(state.multiplierPct)
+        case .userError: errorArrived()
         default: break
         }
     }

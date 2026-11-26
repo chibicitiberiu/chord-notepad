@@ -14,7 +14,9 @@
 # up, the phone on its side typing (the guide's screenshots), three of an
 # audio export ("Preparing export…", the export picker after it, the status
 # after a simulated save; export.json checked) and one of the picker after a
-# PDF export (pdf.json checked, the PDF in the Diagnostics folder).
+# PDF export (pdf.json checked, the PDF in the Diagnostics folder), and the
+# relaunch check: a song typed, the app ended in the background, the song
+# back unsaved at the next launch.
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
 #
@@ -24,7 +26,7 @@
 # <label>-find.png, <label>-settings.png, <label>-voicings.png, <label>-about.png,
 # <label>-families.png, <label>-guide.png, <label>-hint.png, <label>-keyboard.png,
 # <label>-landscape.png, <label>-export-preparing.png, <label>-export.png,
-# <label>-export-saved.png, <label>-pdf.png, the app's
+# <label>-export-saved.png, <label>-pdf.png, <label>-relaunch.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -62,15 +64,19 @@ wait_for() {
 
 status=0
 start=$(date -u +%Y-%m-%dT%H:%M:%S)
-# The first launch after the install, as a person's: the session opens the
-# Quick Start tour over the song (app_started, "Show at startup" on), and the
-# app writes startup.json once the tour is on screen.
+# The first launch after the install, as a person's: no last song yet, so
+# the quick-start song opens, and the session opens the Quick Start tour over
+# it (app_started, "Show at startup" on); the app writes startup.json once
+# the tour is on screen.
 xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID"
 if wait_for "$DIAG/startup.json" 240; then
     cat "$DIAG/startup.json"
     sleep 2
     python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/startup.json" \
         || { echo "The tour didn't open at the first launch" >&2; status=1; }
+    python3 -c 'import json, sys; d = json.load(open(sys.argv[1])).get("detail", "")
+sys.exit(0 if "launch quickStart" in d and "document 01_quick_start.txt" in d else 1)' "$DIAG/startup.json" \
+        || { echo "The first launch didn't open the quick-start song" >&2; status=1; }
 else
     status=1
 fi
@@ -241,6 +247,39 @@ for attempt in 1 2; do
 done
 [ "$pdf" -eq 0 ] || status=1
 xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-pdf.png"
+
+# A relaunch reopens the last song with its unsaved text (docs/IOS.md, "The
+# last song"): -CNScreen draft types a new song in Edit and leaves it
+# unsaved (draft.json); the Settings app then sends ours to the background,
+# where it writes the last song (draft-kept.json); the app is ended there, as
+# iOS or a swipe would, and -CNScreen restored checks the song came back
+# untitled, unsaved, typed, in Edit (restored.json). The hooks before these
+# never keep the last song, so their screenshots always show the quick-start song.
+# ok <name>: the Diagnostics file <name>.json says ok.
+ok() {
+    python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/$1.json"
+}
+rm -f "$DIAG/draft.json" "$DIAG/draft-kept.json" "$DIAG/restored.json"
+relaunched=1
+xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen draft
+if wait_for "$DIAG/draft.json" 150; then
+    cat "$DIAG/draft.json"
+    sleep 1
+    xcrun simctl launch "$UDID" com.apple.Preferences >/dev/null || true
+    if wait_for "$DIAG/draft-kept.json" 60; then
+        cat "$DIAG/draft-kept.json"
+        xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
+        sleep 1
+        xcrun simctl launch "$UDID" "$BUNDLE_ID" -CNScreen restored
+        if wait_for "$DIAG/restored.json" 150; then
+            cat "$DIAG/restored.json"
+            sleep 2
+            if ok draft && ok draft-kept && ok restored; then relaunched=0; fi
+        fi
+    fi
+fi
+[ "$relaunched" -eq 0 ] || { echo "A relaunch didn't reopen the last song" >&2; status=1; }
+xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-relaunch.png"
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" || true
 
 rm -rf "$OUT/$LABEL-diagnostics"

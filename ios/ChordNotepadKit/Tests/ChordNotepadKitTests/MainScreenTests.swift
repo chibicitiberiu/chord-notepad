@@ -405,6 +405,57 @@ final class MainScreenTests: XCTestCase {
         XCTAssertFalse(failed.launching, "a failed start or a missing song ends it too")
     }
 
+    func testTheLaunchStateLastsUntilTheLastSongArrivesInItsTab() {
+        // An untitled draft: the replay's empty untitled song (unmodified) isn't it.
+        var untitled = MainUiState()
+        untitled.launchBegan()
+        untitled.modes.expectRestore(documentId: nil, modified: true, mode: .play)
+        untitled.documentChanged(doc(nil))
+        XCTAssertTrue(untitled.launching)
+        untitled.documentChanged(doc(nil, modified: true))
+        XCTAssertFalse(untitled.launching)
+        XCTAssertEqual(untitled.mode, .play, "the tab it was left in, not Edit for an untitled song")
+        XCTAssertEqual(untitled.modes.opened, 1)
+
+        // A saved song left in Edit opens in Edit, not in Play as an open does.
+        var saved = MainUiState()
+        saved.launchBegan()
+        saved.modes.expectRestore(documentId: "bookmark:A", modified: false, mode: .edit)
+        saved.documentChanged(doc(nil))
+        saved.documentChanged(doc("bookmark:A"))
+        XCTAssertFalse(saved.launching)
+        XCTAssertEqual(saved.mode, .edit)
+        // Later opens follow the usual rule again.
+        saved.modes.expectOpen()
+        saved.documentChanged(doc("bookmark:B"))
+        XCTAssertEqual(saved.mode, .play)
+
+        // With no start-up replay, the restored song is still the one counted.
+        var first = MainUiState()
+        first.launchBegan()
+        first.modes.expectRestore(documentId: "bookmark:A", modified: true, mode: .edit)
+        first.documentChanged(doc("bookmark:A", modified: true))
+        XCTAssertFalse(first.launching)
+        XCTAssertEqual(first.mode, .edit)
+
+        // The last song's file is gone: the open's error ends it over the empty song.
+        var failed = MainUiState()
+        failed.launchBegan()
+        failed.modes.expectRestore(documentId: "bookmark:A", modified: false, mode: .play)
+        failed.documentChanged(doc(nil))
+        failed.received(.userError(UserError(message: "Failed to open file: Song.txt (Downloads)\nFile not found",
+                                             title: "")))
+        XCTAssertFalse(failed.launching)
+        XCTAssertFalse(failed.modes.expectingOpen)
+        XCTAssertEqual(failed.mode, .edit, "the empty song")
+
+        // An error once the screen is up changes nothing.
+        var running = MainUiState()
+        running.modes.expectOpen()
+        running.received(.userError(UserError(message: "Broken", title: "")))
+        XCTAssertTrue(running.modes.expectingOpen)
+    }
+
     func testANoticeShowsInEitherModeButNotOverAnError() {
         var bars = Snackbars()
         bars.notice("Pause to change the voicing")
