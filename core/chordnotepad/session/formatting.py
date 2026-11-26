@@ -489,6 +489,16 @@ def capo_scope_text(has_selection: bool) -> str:
     return "Applies to the whole song: inserted at the top of the song, replacing a capo there."
 
 
+def capo_shapes_text(shapes: Sequence[str]) -> str:
+    """A Suggest Capo row's shapes, ``G D Em C``. A cut-off list's "…" is
+    bound to the last shape with a no-break space, so a list that wraps never
+    leaves it alone on the next line."""
+    text = " ".join(shapes)
+    if len(shapes) > 1 and shapes[-1] == "\u2026":
+        text = text[:-2] + "\u00a0\u2026"
+    return text
+
+
 def capo_row_label(capo: int, shapes: Sequence[str], ease: str) -> str:
     """A Suggest Capo row in words: ``Capo 3 · G D Em C · Easier``, or
     ``No capo · Bb F Gm Eb`` for capo 0."""

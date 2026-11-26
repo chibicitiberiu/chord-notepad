@@ -3398,7 +3398,7 @@ class AppSession:
             dialog.rows = tuple(
                 CapoRow(capo=choice.capo,
                         label=formatting.capo_row_label(choice.capo, choice.shapes, choice.ease),
-                        shapes=" ".join(choice.shapes), ease=choice.ease,
+                        shapes=formatting.capo_shapes_text(choice.shapes), ease=choice.ease,
                         recommended=choice.recommended, current=choice.capo == current)
                 for choice in outcome.value)
         self._publish_capo_advice()

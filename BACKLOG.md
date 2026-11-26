@@ -19,7 +19,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - Every launch reopens the last song, with its unsaved changes, whether iOS killed the app or the user swiped it away. Quick Start opens only on the first launch and from the menu (Tibi, 2026-11-26; Android restores only after process death).
   - 14: Transpose (and its Undo) scrolls the editor to the song's end instead of staying put.
   - 15: a status outlives its undo ("Transposed whole song by +2 semitones" after Undo).
-  - 18: Suggest Capo on the iPad: a wrapped chord list leaves "…" alone on the next line.
 - iOS look: a full pass from Material to iOS-native (Tibi, 2026-11-26: "too material-y"). SF Symbols, iOS navigation bars (Back, Done), Settings and the tools as grouped lists, real sheets and system alerts, iOS text fields and buttons, the system accent colour, segmented controls for Edit/Play and the chord sheet's views. The layout and behaviour stay as they are. It also fixes issues 16–17: at the largest text sizes the outlined fields overprint their labels, and the ≡ menu truncates its entries and cuts off Diagnostics. docs/IOS.md "The main screen" calls the Material icons deliberate; that changes with this pass.
 - Consider `groups` in `.github/dependabot.yml` for one weekly PR (the bumps in a3c910b signed fine on v0.5.1).
 - Cache the Ubuntu source packages the release's third-party source bundle downloads: "Build source bundles" takes 50-75 minutes of every release and nightly.

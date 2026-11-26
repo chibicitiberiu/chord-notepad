@@ -522,6 +522,18 @@ def test_the_rows_name_the_shapes_in_the_songs_notation():
     assert rows[4].shapes == "Sol Re Mim Do"
 
 
+def test_a_cut_off_shapes_list_keeps_its_ellipsis_on_the_last_shape():
+    # iOS issue 18: a list that wrapped left "…" alone on the next line.
+    env = Env("C D E F G A B Cm Dm Em Fm Gm Am Bm")
+    rows = _open(env).rows
+    assert rows
+    for row in rows:
+        assert row.shapes.endswith(" …") and " …" not in row.shapes, row.shapes
+        assert row.shapes.count(" ") == 1
+    assert formatting.capo_shapes_text(("G", "D")) == "G D"
+    assert formatting.capo_shapes_text(("G", "D", "…")) == "G D …"
+
+
 def test_the_voicings_are_the_fretboard_ones_with_the_active_one_chosen():
     env = Env("C", voicing="guitar:drop_d")
     env.session.capo_advice_open(None)
