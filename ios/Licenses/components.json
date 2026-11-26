@@ -313,34 +313,6 @@
       "note": "The clef, note head and accidental images in the chord sheet's staff view are rendered from the Bravura music font (SMuFL)."
     },
     {
-      "id": "material-design-icons-mdi",
-      "name": "Material Design Icons",
-      "group": "data",
-      "version": "7.4.47",
-      "license": "Apache-2.0",
-      "copyright": "Pictogrammers and contributors",
-      "url": "https://pictogrammers.com/library/mdi/",
-      "sourceUrl": "https://github.com/Templarian/MaterialDesign-SVG",
-      "texts": [
-        "mdi-Pictogrammers-Free-License",
-        "Apache-2.0"
-      ],
-      "note": "The app bar, player, menu and sheet icons (Android's, from the @mdi/svg package; the icons are Apache-2.0)."
-    },
-    {
-      "id": "material-icons-google",
-      "name": "Material Icons",
-      "group": "data",
-      "license": "Apache-2.0",
-      "copyright": "Google LLC",
-      "url": "https://fonts.google.com/icons",
-      "sourceUrl": "https://github.com/google/material-design-icons",
-      "texts": [
-        "Apache-2.0"
-      ],
-      "note": "The Settings screen's icons: add, remove, delete, rename, error, the row arrows, copy and close."
-    },
-    {
       "id": "sphinx",
       "name": "Sphinx",
       "group": "guide",

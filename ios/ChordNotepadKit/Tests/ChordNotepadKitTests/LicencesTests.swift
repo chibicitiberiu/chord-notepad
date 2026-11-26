@@ -51,7 +51,7 @@ final class LicencesTests: XCTestCase {
         let ids = Set(components.map(\.id))
         let expected = ["chord-notepad", "chord-notepad-logo", "cpython", "openssl", "libffi", "xz", "bzip2",
                         "libmpdec", "zstd", "expat", "fluidsynth", "gcem", "pychord", "music21", "mido",
-                        "generaluser-gs", "bravura", "material-design-icons-mdi", "material-icons-google",
+                        "generaluser-gs", "bravura",
                         "chord-notepad-guide", "sphinx", "sphinx-rtd-theme", "jquery", "snowball-stemmers",
                         "pygments", "font-awesome", "lato", "roboto-slab"]
         XCTAssertEqual(expected.filter { !ids.contains($0) }, [])

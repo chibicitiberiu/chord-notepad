@@ -86,7 +86,7 @@ ios/
                                 EditorScript (CI)
     ChordSheet/                 the chord sheet: CGSheetCanvas, ChordSheetSource, ChordSheetPane
     Catalog/PreviewCatalog.swift  the screens drawn from Fixtures, and the PNG renderer
-    Assets.xcassets             the app icon (ios/tools/make_app_icon.py), Icons/ (ios/tools/mdi_assets.py)
+    Assets.xcassets             the app icon (ios/tools/make_app_icon.py), Icons/ (ios/tools/icon_assets.py)
     PrivacyInfo.xcprivacy       the app's privacy manifest
   ChordNotepadTests/            XCTest hosted in the app: the session, the catalog
   ChordNotepadKit/              SwiftPM package, no UIKit or SwiftUI
@@ -133,8 +133,7 @@ ios/
     install_python.sh           the app's "Install Python" build phase
     export_glyphs.sh            the "Chord sheet glyphs" build phase
     make_app_icon.py            renders the icon from resources/chord-notepad-icon.svg
-    mdi_assets.py               Android's Material Design Icons as SVG image sets (and the Settings
-                                and About icons from their Kotlin paths)
+    icon_assets.py              Chord Notepad's own icons (capo, transpose, time signature) as SVG image sets
     copy_licences.py            the "Licences" build phase: the list and its texts into the app
     build_help.sh               the user guide's iOS edition (sphinx -t ios), for the "User guide" phase
     help_images.py, help_shots.json   the guide's iOS screenshots from CI's artifacts
@@ -581,9 +580,10 @@ last button shows and hides it. It is a port of Android's `ui/chordsheet/`.
   `Session.chordSheetBuffer` on the bridge thread) or a fixture's recorded
   buffers (the catalog); `ChordSheetPane` has the split, the header and the
   strip.
-- **Why a `Canvas` and not a UIView:** ImageRenderer draws SwiftUI only, so a
-  `Canvas` (whose `withCGContext` hands the CoreGraphics canvas its context)
-  is the same view live and in the catalog. A transparent `UIScrollView`
+- **Why a `Canvas` and not a UIView:** the catalog drew with ImageRenderer,
+  which draws SwiftUI only, when the strip was written; a `Canvas` (whose
+  `withCGContext` hands the CoreGraphics canvas its context) is the same
+  view live and in the catalog. A transparent `UIScrollView`
   sits over it in the live app only: it gives the strip iOS's scrolling
   (momentum, bounce), and its offset is the strip's scroll; it also takes the
   tap (`audition` for the slot under it) and the pinch.
@@ -808,7 +808,7 @@ The third slice: the app's frame, a port of Android's `ui/main/`
     target). Chord Notepad's own drawings stay for a capo, transposing and
     a time signature, which no symbol shows (`ic_capo`, `ic_transpose`,
     `ic_time_signature`, template images from Android's drawables through
-    `ios/tools/mdi_assets.py`).
+    `ios/tools/icon_assets.py`).
   - The system accent colour (blue) and the system's dynamic colours
     (`Screens/Theme.swift`: backgrounds, label greys, separators, red), so
     dark mode and Increase Contrast are the system's. The kit's
@@ -1416,8 +1416,8 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   (its `VERSIONS` file) and Expat; FluidSynth 2.6.1 (LGPL-2.1, a separate
   dynamic framework, unmodified, its source and the build script named) and
   GCE-Math; the Python packages at `android/requirements.txt`'s pins without
-  chardet; GeneralUser GS, Bravura, Material Design Icons and Google's
-  Material Icons (the Settings icons). SQLite and zlib are the system's.
+  chardet; GeneralUser GS and Bravura. The icons are SF Symbols (the
+  system's) and Chord Notepad's own. SQLite and zlib are the system's.
   The user guide and Android's guide group (Sphinx, its theme, jQuery, the
   Snowball stemmers, Pygments, Font Awesome, Lato and Roboto Slab), word for
   word, since the same pinned stack builds both. The "Licences"
@@ -1528,12 +1528,13 @@ The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
   `SessionSnapshot` keeps `QuickStartContent` and `StartupState`
   (`startupDismissed()` forgets it at once, as Android's repository does).
   `MainRoute` gains `.userGuide` and `.quickStart`, both full pages.
-- **In the app**: `Screens/UserGuideView.swift` (`UserGuideScreen` with
-  Android's bar, `GuideWebView`, `HelpSchemeHandler`),
-  `Screens/QuickStartView.swift` (the tour as Android draws it: ✕ and the
-  title, the page's title, paragraphs and snippets in the editor's colours
-  and monospace, the divider, the "Show at
-  startup" checkbox in Material's shape, Previous, "1 of 7", Next or Done) and
+- **In the app**: `Screens/UserGuideView.swift` (`UserGuideScreen` in a
+  navigation bar with Done, `GuideWebView`, `HelpSchemeHandler`),
+  `Screens/QuickStartView.swift` (the tour as Android lays it out, in iOS's
+  controls: a navigation bar with ✕ and the title, the page's title,
+  paragraphs and snippets in the editor's colours and monospace, the "Show
+  at startup" switch, Previous, "1 of 7", Next or Done as the system's
+  buttons) and
   `App/PdfPainter.swift` (`UIKitPdfCanvas`: the pages collected, then
   `UIGraphicsPDFRenderer`; text drawn with Core Text on the layout's
   baselines in Menlo; `PdfReport`, what an exported PDF holds read back with
@@ -1597,8 +1598,8 @@ Deliberate differences from Android:
   its setting is on (Android: a restore after process death shows nothing).
 - Export PDF's pages are set in Menlo (Android: the system monospace, Droid
   Sans Mono); both are 0.6 em wide, as the layout counts.
-- The tour's checkbox and its buttons are drawn in Material's shape, as
-  Settings' switches are.
+- The tour's "Show at startup" is a switch (Android: a checkbox), as
+  Settings' is.
 
 What CI doesn't test: a person reading the guide (scrolling, its search, the
 theme's menu, a link to a web site opening Safari, the edge swipe back,
@@ -1625,8 +1626,8 @@ or the schema changed: the session already had `replace_match`,
   not the session's one undo step, not refused while a song plays, no
   "Replaced 3 matches", and its whole-word and case rules are UIKit's, not
   `text_ops`'. The catalog couldn't draw it either. The bar is a SwiftUI
-  row under the text, where the desktop has it, drawn in the app's colours
-  like the sheets and dialogs.
+  row under the text, where the desktop has it, its fields drawn as iOS's
+  search fields (the magnifier, a rounded fill).
 - **Matching in Swift, exactly as the core.** The bar finds as you type, on
   the main actor, so it can't ask Python; and the session's `replace_match`
   checks the span again with `text_ops.find_all` and leaves one it doesn't
@@ -1851,9 +1852,10 @@ session's `pause`, `app_background` and `app_foreground` are all it takes.
   dialogs' pickers say their field and value. `AccessibilityTests` hosts
   every catalog screen in a window and walks its accessibility elements as
   VoiceOver does: a button without a label, or any element whose label is
-  an image's name (`mdi_menu`, `chevron.right`), fails, and the main
-  screens' known buttons must carry Android's words. Dynamic Type is the
-  catalog's `accessibility2` images.
+  an image's name (`chevron.right`, `ic_capo`), fails, and the main
+  screens' known buttons must carry Android's words (Edit and Play are the
+  segmented control's segments). Dynamic Type is the catalog's
+  Accessibility Extra Large images.
 - **Play's text for VoiceOver.** In Play the frozen text view is a
   container of `PlayTextElement`s (`Editor/PlayText.swift`), built from the
   kit's `playAccessibilityItems`: each chord its own button (its label the
@@ -1902,11 +1904,11 @@ the widths), the keyboard over a split window, VoiceOver itself.
 `PreviewCatalog.screens` lists every screen with the fixtures it is shown
 with and the windows it is drawn in; adding a screen is one line there.
 `#Preview`s use the same `PreviewCatalog.scene("<scene>")`. `CatalogTests`
-renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
+renders each entry in a window at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, and the iPad on its side in Split View
 (about a third, 375×820, and a half, 585×820), light and dark, default and
-`accessibility2` text: 580 PNGs.
+Accessibility Extra Large (`accessibility3`) text: 580 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1917,7 +1919,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `rename` | `scarborough_edit`; `errors` for the refused rename with Save as… | iPhone, iPad |
 | `discard` | `discard_question` in Edit: the unsaved-changes question | iPhone, iPad |
 | `export`, `export_edit` | `export_done`: "Exported MIDI: … (iCloud Drive)" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
-| `export_preparing` | `export_done` with "Preparing export…" over it: an audio export at 42 % (the spinner drawn, since ImageRenderer can't draw a ProgressView; a solid colour for the material) | iPhone, iPad |
+| `export_preparing` | `export_done` with "Preparing export…" over it: an audio export at 42 % (a solid colour for the alert's material) | iPhone, iPad |
 | `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
 | `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
@@ -1940,13 +1942,24 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `find`, `find_play`, `find_replaced` | `scarborough_edit` with the find bar and its Replace row (Am, match case and whole words, the second of the matches selected, Em to replace with); `scarborough_piano_roll` in Play finding "parsley" (no Replace row; beside the chord sheet on the phone on its side); `find_replaced` after Replace all, its status as a snackbar | iPhone, iPad; iPhone, iPad, iPhone on its side; iPhone, iPad |
 | `split_play`, `split_edit`, `split_settings`, `split_identify` | `scarborough_piano_roll` in Play (the sheet below the text), `scarborough_edit`, `settings_open` (one pane), `identifier_cmaj7` (full screen): the iPad's Split View windows, laid out as a phone's | the iPad's third and half |
 
-The chord sheet's strip draws there too: it is a SwiftUI `Canvas`, and only
-its scroll view (live only) is UIKit. ImageRenderer can't draw a
-`ScrollView`, a `TextField`, a sheet or an alert (or other UIKit-backed
-views), so a screen takes `scrolls: false` in the catalog and draws plain
-SwiftUI: the menu doesn't scroll, the rename field is drawn as text, and
-what is presented as a sheet live (Diagnostics, the player's lists) is drawn
-on its own. The editor's UITextView is one of those: the catalog draws
+**How it renders.** Each entry is hosted in a window of the test app's
+scene (`CatalogRenderer.render`), off the screen, with the device's size
+classes, the scheme and the text size as trait overrides and no safe area
+(negative additional insets), and captured as the render server draws it
+(`drawHierarchy`), for a window larger than the simulator's screen too. So
+the system's controls draw as they do live: navigation bars, inset grouped
+lists, switches, segmented controls, sliders, steppers, text fields, menus'
+buttons and the materials. Run 45755411533's probe compared the two ways:
+drawing the window's layers instead leaves out the switches' knobs, the
+segmented control's selection, the slider's thumb, the bars' glass buttons
+and the materials. ImageRenderer, before, drew SwiftUI only.
+
+What the catalog can't do is present: a screen takes `scrolls: false` and
+draws what the live screen presents in its place: a sheet in
+`CatalogSheetFrame` (from the bottom at its height on a phone, a centred
+form sheet in a regular-width window), a system alert as `AlertCard`, the
+Add voicing menu as a picture of one. It doesn't scroll or focus a field.
+The editor's UITextView is the one UIKit view drawn differently: the catalog draws
 `EditorPreview`, the same `EditorModel` (folded from the scene's outputs)
 laid out and drawn by TextKit 1 into a `Canvas` the way the live view lays
 it out (the same storage attributes from `styleRuns`, container width, chord
@@ -1999,8 +2012,8 @@ synthetic bundle.
 `core/`, `packaging/ios/`, the schema, the Python pins, the SoundFont, the
 glyph export script, Android's chord sheet and voicing form fixtures, the
 help screenshots' songs the scenes use (the kit's tests read them), the
-examples, Android's icons the asset catalog copies (the drawables and
-`SettingsIcons.kt`), the licence texts, the user guide (`help/`, its Sphinx
+examples, Chord Notepad's own icons the asset catalog copies (three
+drawables), the licence texts, the user guide (`help/`, its Sphinx
 pins in `android/docs-requirements.txt`, Android's licence list the iOS
 guide's entries must match) and `VERSION`, and by hand (workflow_dispatch). Each push gets its own run; a
 newer one doesn't cancel an older one.

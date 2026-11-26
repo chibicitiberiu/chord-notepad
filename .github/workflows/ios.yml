@@ -24,19 +24,17 @@ on:
       - 'android/tools/export_clef_glyphs.py'
       - 'android/app/src/test/resources/chord_sheet/**'
       # The voicing form's fixtures (the kit's Settings tests), the licence
-      # texts the app copies, the Settings icons' source (ios/tools/mdi_assets.py),
-      # Android's FOSS support link the kit checks About against, the version.
+      # texts the app copies, Android's FOSS support link the kit checks About
+      # against, the version.
       - 'android/app/src/test/resources/voicing_form/**'
       - 'resources/licenses/texts/**'
-      - 'android/app/src/main/kotlin/com/tibich/chordnotepad/ui/settings/SettingsIcons.kt'
       - 'VERSION'
       - 'resources/soundfont/**'
       # The quick-start song, the kit's scenes and the menu's Examples.
       - 'examples/*.txt'
       - 'android/tools/help_shot_songs/scarborough_fair.txt'
       - 'android/tools/help_shot_songs/amazing_grace*.txt'
-      - 'android/app/src/main/res/drawable/mdi_*.xml'
-      # Chord Notepad's own icons the iOS asset catalog copies (ios/tools/mdi_assets.py).
+      # Chord Notepad's own icons the iOS asset catalog copies (ios/tools/icon_assets.py).
       - 'android/app/src/main/res/drawable/ic_capo.xml'
       - 'android/app/src/main/res/drawable/ic_time_signature.xml'
       - 'android/app/src/main/res/drawable/ic_transpose.xml'

@@ -262,7 +262,7 @@ final class AccessibilityTests: XCTestCase {
     }
 
     func testImageNamesAreToldFromWords() {
-        for name in ["mdi_menu", "chevron.right", "arrow.uturn.backward", "settings_close", "ic_capo"] {
+        for name in ["line.3.horizontal", "chevron.right", "arrow.uturn.backward", "xmark", "ic_capo"] {
             XCTAssertTrue(Self.looksLikeAnImageName(name), name)
         }
         for label in ["Save", "Open the menu", "Voicing: Piano", "Zoom in", "Aa", "W", "Bar 5/56", "C", "song.txt",
