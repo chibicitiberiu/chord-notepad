@@ -78,6 +78,9 @@ final class SessionTests: XCTestCase {
 
         // The bundled song has a store id, so it opens in Play, as a saved song does on Android.
         XCTAssertEqual(model.ui.mode, .play)
+        // The start's "Ready", shown in Edit before the song came, went when the song opened in Play.
+        try await Task.sleep(for: .milliseconds(300))
+        XCTAssertNotEqual(model.snackbars.shown?.error, false, "a status from Edit over Play: \(String(describing: model.snackbars.shown))")
         model.selectMode(.edit)
         try await checkTheEditor(model)
         try await checkPlayMode(model)

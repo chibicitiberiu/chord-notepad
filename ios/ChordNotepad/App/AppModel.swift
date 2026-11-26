@@ -38,6 +38,9 @@ final class AppModel: ObservableObject {
         didSet {
             // A full page (Quick Start, Settings…) covers the screen: a status snackbar goes.
             if ui.route.isFullPage && !oldValue.route.isFullPage { snackbars.pageOpened() }
+            // Any change of tab, the user's or an open's (the launch's song opens in Play),
+            // puts a status from Edit away, as Android's StatusSnackbars does on a mode change.
+            if ui.mode != oldValue.mode { snackbars.modeChanged(ui.mode) }
         }
     }
     /// The snackbar on screen.
@@ -850,7 +853,7 @@ final class AppModel: ObservableObject {
             try? await Task.sleep(for: .milliseconds(150))
             guard let self else { return }
             self.snackbars.update(self.snapshot, mode: self.ui.mode, now: ContinuousClock.now.seconds,
-                                  page: self.ui.route.isFullPage)
+                                  page: self.ui.route.isFullPage || self.ui.launching)
             self.timeSnackbar()
         }
     }

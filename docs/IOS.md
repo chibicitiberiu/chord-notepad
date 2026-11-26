@@ -836,7 +836,11 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   is up is passed over (`Snackbars.pageOpened`, `update(page:)`), as
   Android's pages replace `SongScreen` and its snackbar host. Errors and a
   greyed control's reason still show over a page (Android's errors are
-  dialogs over its pages).
+  dialogs over its pages). Any change of tab puts a status from Edit away,
+  the user's or an open's (the launch's song opens in Play), as Android's
+  `StatusSnackbars` does on a mode change; before, the start's "Ready"
+  stayed over Play's player for its 4 s (CI's export-preparing shot showed
+  it behind the export's status). No status shows during the launch state.
 - **Launch state:** from `launch()` until the song the app opens at launch
   arrives (`MainUiState.launching`: `launchBegan`, then `documentChanged`
   once `ModeController.opened` counts it), the screen is the app's
