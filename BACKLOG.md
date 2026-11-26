@@ -17,7 +17,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 
 - iOS, from the first session on a real Mac (2026-11-26, Xcode 27.2, iOS 27.2 simulators; the issue list is `session-2026-11-26/` on Tibi's share, in `chord-notepad-mac-2026-11-26.zip`, issues.md). Issues 2–9 and the export flow are being worked on. Still to do:
   - Every launch reopens the last song, with its unsaved changes, whether iOS killed the app or the user swiped it away. Quick Start opens only on the first launch and from the menu (Tibi, 2026-11-26; Android restores only after process death).
-  - 13: Playback settings' "Set by {bpm: 120} in the song · Edit": a real tap on Edit does nothing. CI only calls the handler.
   - 14: Transpose (and its Undo) scrolls the editor to the song's end instead of staying put.
   - 15: a status outlives its undo ("Transposed whole song by +2 semitones" after Undo).
   - 18: Suggest Capo on the iPad: a wrapped chord list leaves "…" alone on the next line.

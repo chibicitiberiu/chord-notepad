@@ -565,6 +565,8 @@ struct SongDefaultsSheet: View {
     }
 
     /// "Set by `{bpm: 90}` in the song · Edit", under a row a directive sets.
+    /// Edit is a button of its own, at least 44 pt tall: a link inside the
+    /// text was a target a few points high that a real tap missed (S0 issue 13).
     private func setBy(_ row: SongDefaultRow) -> some View {
         var text = AttributedString("\(SongDefaultsTexts.setBy) ")
         var code = AttributedString(row.code)
@@ -572,27 +574,30 @@ struct SongDefaultsSheet: View {
         code.font = .caption2.monospaced()
         text += code
         text += AttributedString(" \(SongDefaultsTexts.inSong)")
-        if let offset = row.directiveOffset {
-            text += AttributedString(" · ")
-            var edit = AttributedString(SongDefaultsTexts.edit)
-            edit.foregroundColor = colors.primary.swiftUI
-            edit.font = .caption2.weight(.medium)
-            edit.link = URL(string: "chordnotepad-edit:\(offset)")
-            text += edit
-        }
-        return Text(text)
-            .font(.caption2)
-            .foregroundColor(colors.muted.swiftUI)
-            .tint(colors.primary.swiftUI)
-            .padding(.leading, 36)
-            .padding(.bottom, 8)
-            .environment(\.openURL, OpenURLAction { url in
-                if let offset = Int(url.absoluteString.replacingOccurrences(of: "chordnotepad-edit:", with: "")) {
-                    event(.editDirective(offset))
+        if row.directiveOffset != nil { text += AttributedString(" ·") }
+        return HStack(alignment: .center, spacing: 0) {
+            Text(text)
+                .font(.caption2)
+                .foregroundColor(colors.muted.swiftUI)
+                .fixedSize(horizontal: false, vertical: true)
+                .accessibilityIdentifier("song-defaults-set-by-\(row.kind.rawValue)")
+            if let offset = row.directiveOffset {
+                Button { event(.editDirective(offset)) } label: {
+                    Text(SongDefaultsTexts.edit)
+                        .font(.caption2.weight(.medium))
+                        .foregroundColor(colors.primary.swiftUI)
+                        .padding(.leading, 4)
+                        .padding(.trailing, 12)
+                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
                 }
-                return .handled
-            })
-            .accessibilityIdentifier("song-defaults-set-by-\(row.kind.rawValue)")
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("song-defaults-edit-\(row.kind.rawValue)")
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.leading, 36)
+        .padding(.bottom, row.directiveOffset == nil ? 8 : 0)
     }
 }
 

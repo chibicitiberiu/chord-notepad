@@ -1130,8 +1130,9 @@ nothing in the core or the schema changed.
   and stay open (Done closes); Instrument opens a family's programs, ← goes
   back. Speed sends each new 5 % stop while the finger moves; Manual… checks
   12.5–400 before OK. Playback settings shows a value a directive sets as
-  "Set by `{bpm: 90}` in the song · Edit" (Edit goes to Edit mode with the
-  caret on the directive); the others are dropdowns (the tempo a typed
+  "Set by `{bpm: 90}` in the song · Edit" (Edit, a button at least 44 pt
+  each way, goes to Edit mode with the caret on the directive; a link inside
+  the text was too small to hit); the others are dropdowns (the tempo a typed
   dialog) for this song only; Write into song puts the missing directives at
   the top; while a song plays a tap says why not. Insert asks the session for
   the kind's dialog at the caret; the dialog sends its fields to

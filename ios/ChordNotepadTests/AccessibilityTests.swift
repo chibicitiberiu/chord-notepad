@@ -20,6 +20,8 @@ final class AccessibilityTests: XCTestCase {
         let traits: UIAccessibilityTraits
         let frame: CGRect
         let kind: String
+        /// The element itself, to activate it.
+        let object: NSObject
     }
 
     /// SwiftUI builds its accessibility tree only for an assistive technology
@@ -70,7 +72,7 @@ final class AccessibilityTests: XCTestCase {
             if object.isAccessibilityElement {
                 found.append(Element(label: object.accessibilityLabel ?? "", identifier: identifier(of: object),
                                      traits: object.accessibilityTraits, frame: object.accessibilityFrame,
-                                     kind: String(describing: type(of: object))))
+                                     kind: String(describing: type(of: object)), object: object))
                 return
             }
             if let children = object.accessibilityElements, !children.isEmpty {
@@ -178,6 +180,40 @@ final class AccessibilityTests: XCTestCase {
         expect("edit", "ribbon-find", AccessibilityLabels.find)
         expect("find", "find-close", AccessibilityLabels.close)
         expect("find", "find-next", AccessibilityLabels.nextMatch)
+    }
+
+    /// Playback settings' Edit under a value a directive sets (S0 issue 13:
+    /// a real tap on the link inside the text did nothing): a button of its
+    /// own, at least 44 pt each way, that goes to the directive.
+    func testPlaybackSettingsEditIsAButtonThatGoesToTheDirective() async throws {
+        let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
+        let state = try XCTUnwrap(PreviewCatalog.scene("player_sheets").snapshot.songDefaults)
+        let offset = try XCTUnwrap(state.tempo.directiveOffset, "the fixture's tempo is {bpm: 90}")
+        final class Events { var sent: [SheetEvent] = [] }
+        let events = Events()
+        let window = UIWindow(windowScene: scene)
+        window.frame = CGRect(x: 0, y: 0, width: 402, height: 874)
+        let sheet = SongDefaultsSheet(state: state, keys: [], colors: .light, directive: .purple) { events.sent.append($0) }
+        let host = UIHostingController(rootView: sheet)
+        window.rootViewController = host
+        window.isHidden = false
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        host.view.setNeedsLayout()
+        host.view.layoutIfNeeded()
+        // SwiftUI builds its accessibility nodes after the first frames.
+        try await Task.sleep(for: .milliseconds(150))
+        let elements = Self.elements(under: window)
+        let edit = try XCTUnwrap(elements.first { $0.identifier == "song-defaults-edit-tempo" },
+                                 "\(elements.map(\.identifier))")
+        XCTAssertEqual(edit.label, SongDefaultsTexts.edit)
+        XCTAssertTrue(edit.traits.contains(.button))
+        XCTAssertGreaterThanOrEqual(edit.frame.height, 44, "a comfortable target: \(edit.frame)")
+        XCTAssertGreaterThanOrEqual(edit.frame.width, 44, "a comfortable target: \(edit.frame)")
+        XCTAssertTrue(edit.object.accessibilityActivate())
+        XCTAssertEqual(events.sent, [.editDirective(offset)])
     }
 
     func testImageNamesAreToldFromWords() {
