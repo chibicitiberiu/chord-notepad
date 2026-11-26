@@ -28,6 +28,7 @@ from chordnotepad.chord_sheet.renderer_interface import (
     NOTE_INK,
     SheetContext,
     VOICE_COLORS,
+    label_ems,
 )
 from chordnotepad.chord_sheet import clef_assets as ca
 from chordnotepad.chord_sheet import staff_card as sc
@@ -171,6 +172,7 @@ def ink_ledgers(ops) -> List[LineOp]:
 
 
 C_MAJOR = ChordNotes(notes=['C', 'E', 'G'], bass_note='C', root='C')
+G_MAJOR = ChordNotes(notes=['G', 'B', 'D'], bass_note='G', root='G')
 
 
 # --------------------------------------------------------------------------
@@ -816,6 +818,26 @@ class TestLegend:
         assert [o.s for o in legend] == ['Soprano', 'Alto', 'Tenor', 'Bass']
         assert [o.fill for o in legend] == [VOICE_COLORS[i] for i in (3, 2, 1, 0)]
         assert [o.y for o in legend] == sorted(o.y for o in legend)
+
+    @pytest.mark.parametrize("height", [130.0, 190.0, 400.0])
+    def test_the_first_chord_starts_clear_of_the_legend(self, height):
+        # iOS issue 12: "Soprano 1" ran over the playhead (the first slot's
+        # left edge) and into the first chord's name ("Soprano 1G").
+        labels = ['Alto', 'Soprano 2', 'Soprano 1']
+        chord = make_chord("G", midi_notes=[62, 67, 71], chord_notes=G_MAJOR,
+                           voice_notes=[62, 67, 71])
+        song = make_song(chord, voice_staves=['treble'] * 3, voice_labels=labels)
+        layout, ops = paint(song, height=height)
+        legend = [o for o in ops.ops if isinstance(o, TextOp) and "legend" in o.tags]
+        right = max(o.x + label_ems(o.s) * o.size * 4.0 / 3.0 for o in legend)
+        first = layout.slots[0]
+        assert right < first.x
+        name = next(o for o in ops.ops if isinstance(o, TextOp) and o.s == "G")
+        assert right < name.x - label_ems("G") * name.size * 4.0 / 3.0 / 2.0
+        # Without a legend the first slot starts where it always did.
+        plain, _ = paint(make_song(make_chord("G", midi_notes=[62, 67, 71], chord_notes=G_MAJOR)),
+                         height=height)
+        assert plain.slots[0].x < first.x
 
     def test_no_legend_without_voice_labels(self):
         song = make_song(make_chord("C", midi_notes=[60, 64, 67], chord_notes=C_MAJOR))

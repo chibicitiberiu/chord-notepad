@@ -61,7 +61,9 @@ Engraving detail:
   notehead/accidental by ``VOICE_COLORS[voice_index]``; piano chords
   (``hand_split``) tint the left hand and right hand by ``HAND_COLORS``;
   everything else uses ``NOTE_INK``. A legend (when ``voice_labels`` is set) is
-  drawn at the far left, top voice first (Soprano above Bass).
+  drawn at the content's far left, top voice first (Soprano above Bass); the
+  first slot starts after it, so it never runs into the first chord's name or
+  the playhead.
 - **Ledger lines** are added above/below each staff as needed; **seconds**
   (two notes a diatonic step apart on one staff) offset the upper notehead one
   notehead-width to the right, alternating in a stacked run.
@@ -622,13 +624,29 @@ def _final_bar_width(geom: "_Geometry", repeat: bool = False) -> float:
     return geom.thin_bar_w + _BAR_SEP * geom.staff_space + geom.thick_bar_w
 
 
-def _content_x0(s: float) -> float:
+def _legend_size(s: float) -> int:
+    """The voice legend's text size in pt for a staff space of ``s`` px."""
+    return max(6, int(round(0.85 * s)))
+
+
+def _legend_width(labels: List[str], s: float) -> float:
+    """Room the voice legend takes at the content's start: its widest label
+    (estimated) and a staff space's clearance, or 0 without a legend."""
+    if not labels:
+        return 0.0
+    widest = max(_label_ems(label) for label in labels)
+    return 1.0 + widest * _legend_size(s) * _PT_TO_PX + s
+
+
+def _content_x0(s: float, labels: Optional[List[str]] = None) -> float:
     """Left x where the first scrolling-content slot begins.
 
     The clef and initial key signature now live in the frozen gutter, so the
-    content only reserves a small lead after its connecting barline.
+    content only reserves a small lead after its connecting barline, and the
+    voice legend's width when there is one: the first slot (its chord name,
+    the playhead at its left edge) starts clear of the legend.
     """
-    return STRIP_MARGIN + _SIG_NOTES_GAP * s
+    return STRIP_MARGIN + _legend_width(labels or [], s) + _SIG_NOTES_GAP * s
 
 
 def _upper_clef_kind(song: RenderedSong) -> str:
@@ -689,7 +707,7 @@ class StaffCardRenderer(StripRenderer):
         song = ctx.song
         geom = _geometry(height, ctx.zoom)
         s = geom.staff_space
-        x = _content_x0(s)
+        x = _content_x0(s, song.voice_labels)
         signs = _repeat_signs(song)
 
         prev_fifths = _key_fifths(song.chords[0].key) if song.chords else None
@@ -966,7 +984,7 @@ class StaffCardRenderer(StripRenderer):
         ``labels`` are stored low voice first; the legend lists them high to
         low (Soprano, Alto, Tenor, Bass), as the voices sit on the staff."""
         s = geom.staff_space
-        size = max(6, int(round(0.85 * s)))
+        size = _legend_size(s)
         line_h = size + 2.0
         y = geom.y_symbol
         top_first = list(enumerate(labels))[::-1]

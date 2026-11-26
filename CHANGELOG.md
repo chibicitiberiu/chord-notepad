@@ -12,4 +12,5 @@ moved to CHANGELOG_HISTORY.md and this file is reset.
 - Android: in Identify Chord, a double tap on a result no longer inserts it. A tap picks the chord and plays it; Insert puts the picked one in your song. A tap also plays at once now, without waiting to see whether a second tap follows.
 - Android: Quick Start's examples fit on a narrow phone. A long chord line used to run past the box's right edge (it only scrolled sideways); the example's text now shrinks a little so the whole line shows, and chords still sit over their lyrics.
 - Undo right after New no longer fills the new, untitled song with the previous song's text. New now starts an empty undo history, as Open does (desktop and Android).
+- Chord sheet, Staff view with an ensemble voicing: the voice legend ("Soprano / Alto / ...") no longer runs into the first chord's name and the playhead; the first chord starts after it (desktop and Android).
 - The app talks to FluidSynth through its own small binding instead of the pyFluidSynth package; nothing changes in how it sounds.
