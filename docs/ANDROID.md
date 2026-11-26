@@ -340,7 +340,7 @@ Types Kotlin decodes (`BridgeCodec.serializers`):
 
 | Kind | Types |
 |---|---|
-| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState`; Suggest Capo: `CapoAdviceState` |
+| States | `DocumentState`, `EditorState`, `HighlightState`, `PlaybackState`, `ToolbarState`, `StatusState`, `VoicingMenuState`, `InstrumentMenuState`, `RecentDocumentsState`, `ChordSheetState`; M5: `IdentifierState`, `SettingsState`, `VoicingEditorState`; Edit/Play: `SongDefaultsState`; startup: `StartupState`; Suggest Capo: `CapoAdviceState`; iOS only (decoded, never sent here): `ExportState` |
 | Events | `TextEdited`, `UserError`, `AudioUnavailable`, `UnexpectedError`, `CloseApproved`; M5 replies: `VoicingEditorSchema`, `QuickStartContent`, `DirectiveCheck`; Edit/Play: `RenameFailed`; editor: `DirectiveHint` (reply to `request_directive_hint`) |
 | Requests | `ConfirmDiscardRequest`, `PickDocumentRequest`, `InsertDirectiveRequest`; Export PDF: `PaintPdfRequest` (with the values `PdfLayout`, `PdfPage`, `PdfLine`, `PdfRun`) |
 

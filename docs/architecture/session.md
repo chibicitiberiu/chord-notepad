@@ -226,6 +226,7 @@ ToolbarState(notation, bpm, bpm_display, bpm_editable, multiplier_pct, key, key_
              beats, unit, metronome, play_action,                       # play|pause|resume
              bpm_set_by, time_set_by, key_set_by)                       # "{bpm: 90}" or None
 StatusState(text)
+ExportState(document_id, kind, progress, written)                      # iOS only: the export being prepared or saved
 VoicingMenuState(selected, groups)
 InstrumentMenuState(current, families)                                  # InstrumentFamily(name, is_current, items)
 RecentDocumentsState(items)
@@ -313,6 +314,7 @@ class AppSession:
     def save(self) -> None;  def save_as(self, name: str | None = None) -> None
     def rename_document(self, name: str) -> None
     def export_midi(self) -> None;  def export_audio(self) -> None
+    def export_finished(self, document_id: str, saved: bool, location: str | None) -> None   # iOS
     def request_close(self) -> None
     def respond(self, request_id: int, value: object) -> None
     def apply_settings(self, changes: SettingsChanges | SettingsValues) -> None
@@ -691,6 +693,20 @@ may be using.
   file", plus the left-file note on Android). `page` is `a4` or `letter`,
   from the front end's locale (`print_layout.page_for_territory`). No
   no-chords check: lyrics export, and an empty song is one page with its header.
+- Where the user picks the place after the file is written (iOS,
+  `SAVES_EXPORT_AFTER_WRITE`), the three exports are kept by store id in
+  `_exports` from the pick until the app's `export_finished(document_id,
+  saved, location)` or a failure, and the newest is published as
+  `ExportState` (kind, the audio progress, `written`). A written file says
+  nothing yet (the status stays "Exporting …"); `export_finished` saved says
+  "Exported MIDI: <location>" with the place the app's export picker saved
+  to (the file's name without one), not saved goes back to the status at
+  rest and cancels a job still running (`Job.cancel`: the audio render stops
+  at its next block, its outcome is dropped, `_audio_job` is cleared here).
+  Unknown and repeated ids are ignored; a save reported before the write's
+  own outcome arrives (the audio job's, the PDF's answer) stays, and that
+  outcome then says nothing. Elsewhere nothing is kept or published, and the
+  command does nothing.
 - `PlaybackService.stop_playback` doesn't join the render thread (it waited
   up to 2 s). `_start_lock` orders the render thread's "check cancel → wire
   the player → `player.start_playback()`" against stop's "cancel and take the

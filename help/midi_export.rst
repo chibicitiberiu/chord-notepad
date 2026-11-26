@@ -44,14 +44,14 @@ Exporting MIDI
    .. only:: ios
 
       1. Tap **☰** at the top left and choose **Export MIDI…**.
-      2. Chord Notepad renders the song and writes the file. The status says
-         "Exporting MIDI: …" while it works and "MIDI ready to save: …" when the file
-         is ready: on the player's status line in the Play tab, or at the bottom of the
-         screen in the Edit tab.
+      2. "Preparing export…" shows while Chord Notepad renders the song and makes
+         the file. **Cancel** stops it.
       3. iOS's save sheet opens with the song's name and ``.mid`` (for a song you
          haven't saved yet, its first line of lyrics, or ``Untitled.mid`` without
          lyrics). Choose a folder in Files, iCloud Drive or another provider, change
-         the name in the **Save as** field if you like, and confirm. If you cancel the
+         the name in the **Save as** field if you like, and confirm. The status then
+         says "Exported MIDI: …" with the folder: on the player's status line in the
+         Play tab, or at the bottom of the screen in the Edit tab. If you cancel the
          sheet, nothing is saved.
 
 .. platform-figure:: drawer
@@ -259,13 +259,12 @@ audio editor can open.
    .. only:: ios
 
       1. Tap **☰** at the top left and choose **Export audio…**.
-      2. Chord Notepad plays the song into the file, faster than real time. The
-         status counts up while it works ("Exporting audio… 40%") and says
-         "Audio ready to save: …" when the file is ready: on the player's status line in
-         the Play tab, or at the bottom of the screen in the Edit tab.
+      2. Chord Notepad plays the song into the file, faster than real time.
+         "Preparing export…" counts up while it works (40%). **Cancel** stops it.
       3. iOS's save sheet opens with the song's name and ``.wav``, picked the same
          way as for MIDI. Choose a folder, change the name in the **Save as** field if
-         you like, and confirm. If you cancel the sheet, nothing is saved.
+         you like, and confirm. The status then says "Exported audio: …" with the
+         folder. If you cancel the sheet, nothing is saved.
 
 There is no dialog with options. The file sounds like Play does at the moment
 you choose the file name:
@@ -357,9 +356,9 @@ along.
       2. iOS's save sheet opens with the song's name and ``.pdf``, picked the same
          way as for MIDI. Choose a folder, change the name in the **Save as** field if
          you like, and confirm.
-      3. The status says "PDF ready to save: …" when the file is ready: on the player's
-         status line in the Play tab, or at the bottom of the screen in the Edit tab.
-         If you cancel the save sheet, nothing is saved.
+      3. The status says "Exported PDF: …" with the folder: on the player's status
+         line in the Play tab, or at the bottom of the screen in the Edit tab. If you
+         cancel the save sheet, nothing is saved.
 
 What the pages look like:
 

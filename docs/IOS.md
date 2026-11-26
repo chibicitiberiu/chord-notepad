@@ -366,7 +366,8 @@ quick-start song after `convert_notation european`), then the file scenes:
 `files_recent` (three songs opened from the store, the recent list with them
 and the song saved earlier), `export_done` (the lullaby's copy, saved with
 Save As and reopened from Recent so the scene carries its text, exported as
-MIDI: "MIDI ready to save: Lullaby (2).mid") and `discard_question` (a session edit,
+MIDI and saved, `export_finished` with a place: "Exported MIDI: Lullaby
+(2).mid (iCloud Drive)") and `discard_question` (a session edit,
 then New: the scene ends on `ConfirmDiscardRequest`), then the sheets' and
 tools' scenes on Amazing Grace, as Android's help screenshots show it
 (`android/tools/help_shots.json`, the songs in `android/tools/help_shot_songs/`):
@@ -939,16 +940,39 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
   the user chooses; the moved file is adopted, the request answered, and the
   session writes the song into it. A failed write leaves the empty file
   there.
-- **Exports** (`PICKER_CREATES_FILE` is false for iOS): the request is
-  answered at once with a store file (`app:exports/...`), the session renders
-  and writes it through the store, and the store's `onExportWritten` (after
-  `writeBytes` for MIDI, `copyFromFile` for audio) has the app offer it with
-  `forExporting:asCopy: true`. The export picker rather than the share sheet:
-  Android's exports are saved to a place the user picks, and the share sheet
-  would put AirDrop and Messages before "Save to Files". The status says
-  "MIDI ready to save: song.mid" (the core's iOS wording; "Audio ready to
-  save", "PDF ready to save"), since the user picks the place after it, and
-  a cancelled picker drops the file without a word.
+- **Exports** (`PICKER_CREATES_FILE` is false for iOS,
+  `SAVES_EXPORT_AFTER_WRITE` true): the request is answered at once with a
+  store file (`app:exports/...`), and the session renders and writes it
+  through the store. Meanwhile "Preparing export…" is up
+  (`ExportProgressDialog`, drawn as iOS draws an alert: the system material,
+  a system spinner, the audio export's percentage, Cancel), from the
+  session's `ExportState` (the export's store id, its kind, the audio
+  progress, whether the file is written). The store's `onExportWritten`
+  (after `writeBytes` for MIDI and PDF, `copyFromFile` for audio) has the
+  app open the export picker (`forExporting:asCopy: true`), one at a time;
+  the dialog stays until the picker's presentation finished, since the
+  picker took about 12 s to appear on an 8 GB Mac's simulator. The export
+  picker rather than the share sheet: Android's exports are saved to a
+  place the user picks, and the share sheet would put AirDrop and Messages
+  before "Save to Files". When the picker closes the app tells the session
+  `export_finished {document_id, saved, location}`: saved, the status says
+  the desktop's "Exported MIDI: song.mid (iCloud Drive)" ("Exported audio",
+  "Exported PDF"), the place read from the picker's URL as the store names
+  places (`FileDocumentStore.savedLocation`); not saved, nothing is said and
+  the status goes back to rest. The store's file is deleted either way.
+  Cancel on the dialog sends `export_finished` (not saved) at once: the
+  session cancels a render still running (the job's cancel, the same one
+  the shutdown uses, so a long audio render stops at its next block and
+  another audio export may start), a file written all the same is deleted
+  when it arrives, and a picker already opening is closed as soon as it is
+  up. The session keeps pending exports by store id, so the wording knows
+  the kind; an unknown or repeated id is ignored, and a save that arrives
+  before the write's own outcome (the audio job's, the PDF's answer) stays.
+  A failed export is the same error as before: the state empties and the
+  dialog goes. While an export runs, its statuses aren't snackbars in Edit,
+  nor is the status at rest after a cancel; "Exported …" is. The kit's
+  `ExportHandoff` keeps the app's side (tested on Linux); Android and the
+  desktop never publish the state or send the command.
 - **Export PDF** is an export like these with one step more: the core
   doesn't make the PDF, it sends `PaintPdfRequest` with the pages laid out
   (`PdfLayout`); the app paints them and writes the file through the store,
@@ -994,30 +1018,39 @@ Deliberate differences from Android:
   45411606228); that typing a new name there keeps the extension is a device
   item below. A rename afterwards (tap the title) works either way.
 - Exports go through the export picker after the file is written, so a
-  failed export leaves nothing behind, and the status line names the export
-  before it is saved.
+  failed export leaves nothing behind. "Preparing export…" with Cancel is
+  up while the file is made (Android shows only the status line), and the
+  status names the place only after the save.
 - Errors are snackbars, as in the main-screen slice (Android: dialogs).
 - Example copies, the recent list and the bookmarks live in Application
   Support: not in Files, not removed by anything but the app.
 
 What CI checks: `SessionTests` drives the real store on files in the app's
 Documents with a stand-in for the pickers (Open, Save, Save As, Export
-MIDI, Recent after a second store reads the lists, a song from Files
-renamed, an example, a song that has gone, New's question). Audio export
-needs the real player's SoundFont, which the test's FakePlayer hasn't (the
-core refuses before asking for a file), so `-CNScreen export` runs it in the
-launched app: `export.json` must report a WAV of more than 10 KB that the
-store wrote from the export's worker, and `<device>-export.png` shows the
-export picker that follows.
+MIDI saved with its place in the status, then its picker cancelled with
+nothing said, then "Preparing export…" cancelled while the picker is slow
+to come up: closed as it appears, the file deleted; Recent after a second
+store reads the lists, a song from Files renamed, an example, a song that
+has gone, New's question). Audio export needs the real player's SoundFont,
+which the test's FakePlayer hasn't (the core refuses before asking for a
+file), so `-CNScreen export` runs it in the launched app, in step with
+`ci_screenshots.sh` through files in the Diagnostics folder: the dialog up
+(`<device>-export-preparing.png`), the export picker after the store's
+write (`<device>-export.png`), then a save made as the picker's Save would
+(the file copied into the app's Documents, the picker closed with that URL)
+and the status that follows (`<device>-export-saved.png`). `export.json`
+must report all of it: the dialog seen, a WAV of more than 10 KB, the
+picker up with the dialog gone, "Exported audio: …".
 
 What CI doesn't test (see the device checklist below):
 `UIDocumentPickerViewController` driven by a person (Open, the Save As
-move, choosing where the export goes) and the security scope of a URL from it or from Files, a file
+move, choosing where the export goes, its Cancel) and the security scope of a URL from it or from Files, a file
 outside the container (iCloud Drive, On My iPhone, a third-party provider),
+the place a real save names (iCloud Drive, a provider's folder),
 a bookmark resolved after a reboot or an app update, an iCloud file that
 isn't downloaded, renaming a picked file, a song opened from the Files app
-or another app's "Open in…" (`onOpenURL` is called directly), an export
-whose picker is cancelled, and the live dialogs.
+or another app's "Open in…" (`onOpenURL` is called directly), and the live
+dialogs (Cancel on "Preparing export…" is tested through the model, not a tap).
 
 ### The player's sheets and the ribbon's tools
 
@@ -1303,8 +1336,8 @@ The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
   the region (`Locale.current.region`, as Android's locale country). The
   pick request is answered with an export file of the store's, the session
   lays the song out, and the app paints it and writes it through the store,
-  whose write offers it with the export picker, as for MIDI and audio
-  ("Files"). Menlo's advance is 0.602 em where the layout counts 0.6; every
+  whose write offers it with the export picker after "Preparing export…",
+  as for MIDI and audio ("Files"). Menlo's advance is 0.602 em where the layout counts 0.6; every
   word is a run of its own at its column, so the difference never adds up
   across a line (CI checks the advance).
 - **Live check:** `SessionTests` exports the quick-start song as a PDF
@@ -1588,13 +1621,10 @@ session's `pause`, `app_background` and `app_foreground` are all it takes.
   an image's name (`mdi_menu`, `chevron.right`), fails, and the main
   screens' known buttons must carry Android's words. Dynamic Type is the
   catalog's `accessibility2` images.
-- **The export status on iOS** is "MIDI ready to save: song.mid" (audio and
-  PDF the same), not "Exported MIDI: …": the export picker opens after the
-  file is written, so the file isn't saved anywhere yet, and a cancelled
-  picker saves nothing. The core picks it by platform
-  (`formatting._EXPORTED`, `pick`); the desktop's and Android's texts are
-  unchanged (`test_session_platform_texts.py`). The guide's iOS edition says
-  so.
+- **The export status on iOS** is the desktop's "Exported MIDI: song.mid
+  (iCloud Drive)" (audio and PDF the same), said only once the export
+  picker saved the file, with the place picked; a cancelled picker says
+  nothing ("Files", Exports). The guide's iOS edition says so.
 
 Deliberate differences from Android:
 
@@ -1605,7 +1635,6 @@ Deliberate differences from Android:
   stops an iOS app's output, Android's stays open.
 - The settings are saved at each interruption too (part of `app_background`).
 - A media services reset has no Android counterpart.
-- The export status says "ready to save" (above).
 
 What CI tests: `SessionTests` (`AudioSessionTests.swift`) holds a song
 playing with the FakePlayer (`CN_TEST_FAKE_PLAYER=hold`) and posts the
@@ -1632,7 +1661,7 @@ renders each entry with `ImageRenderer` at iPhone 17 (402×874 pt, @3x) and
 iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 1180×820) where the layout differs, and the iPad on its side in Split View
 (about a third, 375×820, and a half, 585×820), light and dark, default and
-`accessibility2` text: 572 PNGs.
+`accessibility2` text: 580 PNGs.
 
 | Screen | Scenes | Windows |
 |---|---|---|
@@ -1642,7 +1671,8 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `menu` | `scarborough_edit`; `files_recent` (the recent songs) | iPhone, iPad |
 | `rename` | `scarborough_edit`; `errors` for the refused rename with Save as… | iPhone, iPad |
 | `discard` | `discard_question` in Edit: the unsaved-changes question | iPhone, iPad |
-| `export`, `export_edit` | `export_done`: "MIDI ready to save: …" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
+| `export`, `export_edit` | `export_done`: "Exported MIDI: … (iCloud Drive)" in Play's status line; in Edit as a snackbar | iPhone, iPad; iPhone |
+| `export_preparing` | `export_done` with "Preparing export…" over it: an audio export at 42 % (the spinner drawn, since ImageRenderer can't draw a ProgressView; a solid colour for the material) | iPhone, iPad |
 | `open_error` | `errors` in Play with the open failure as a snackbar | iPhone, iPad |
 | `examples` | the Examples sheet, from the bundle's `examples/` | iPhone |
 | `diagnostics` | a sample self-test report | iPhone, iPad |
@@ -1795,8 +1825,10 @@ Artifacts of each run:
   says each got there), `<iphone|ipad>-settings.png`,
   `-voicings.png` and `-about.png` (Settings › General, Settings › Voicings
   with the standard guitar's form, About),
-  `<iphone|ipad>-export.png` (the export picker
-  over the song after an audio export), `<iphone|ipad>-pdf.png` (the export
+  `<iphone|ipad>-export-preparing.png` ("Preparing export…" over the song
+  during an audio export), `<iphone|ipad>-export.png` (the export picker
+  after it), `<iphone|ipad>-export-saved.png` (the status "Exported audio:
+  01_quick_start.wav (Chord Notepad)" after a simulated save), `<iphone|ipad>-pdf.png` (the export
   picker after a PDF export; `pdf.json` has its pages, a line of the song
   found in its text and the font's advance, and `export.pdf` is the file),
   `-guide.png` (☰ › User guide's first page), `-families.png` (the
@@ -2168,8 +2200,13 @@ gives each issue an expected result. Exit status 0 is ready. By hand:
      then opened from Recent online and in flight mode: it downloads, or
      the "not downloaded yet" message after 20 s.
   5. Rename (tap the title) a picked song: renamed, or the Save As offer.
-  6. Export MIDI and audio: the export picker after the render, the file
-     plays in Files; cancel the picker once.
+  6. Export MIDI and audio: "Preparing export…" (the percentage counting
+     for audio, VoiceOver reads it), the export picker after it with the
+     name in its "Save as" field, the file plays in Files, the status names
+     the folder picked ("Exported audio: x.wav (iCloud Drive)", a provider's
+     folder); cancel the picker once (nothing said); Cancel on the dialog
+     during a long audio export (no picker, Export audio works again at
+     once).
   7. In Files, long-press a `.txt` › Share or Open in › Chord Notepad, with
      the app running and with it closed; a `.txt` from Mail's attachments.
   8. Delete a recent song in Files, then open it from Recent: "File not
