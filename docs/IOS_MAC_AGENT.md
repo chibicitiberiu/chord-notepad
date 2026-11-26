@@ -145,7 +145,7 @@ network.
 
 ## Phase 2: the app in the Simulator, with Tibi (the rest of the time)
 
-Open Simulator.app (`open -a Simulator`). Tibi uses the app, and you drive
+Open the simulator window: Simulator.app up to Xcode 26 (`open -a Simulator`), Xcode 27's Device Hub (`open /Applications/Xcode.app/Contents/Applications/DeviceHub.app`). On an 8 GB Mac the first boot is slow for about 20 minutes while the simulator's own daemons settle. Tibi uses the app, and you drive
 `simctl`, take the screenshots and keep the issue list. The Mac's speakers
 play the simulator's sound, so audio can be checked here too.
 
