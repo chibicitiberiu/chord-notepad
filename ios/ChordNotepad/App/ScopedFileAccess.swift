@@ -20,6 +20,8 @@ struct ScopedFileAccess: DocumentFileAccess {
 
     func makeBookmark(for url: URL) throws -> Data {
         try scoped(url) { () throws -> Data in
+            let started = Date()
+            defer { Self.logIfSlow("Bookmarking \(url.lastPathComponent)", since: started) }
             do {
                 // `.withSecurityScope` is macOS only; on iOS the bookmark of a
                 // security-scoped URL carries its scope.
@@ -52,6 +54,8 @@ struct ScopedFileAccess: DocumentFileAccess {
 
     func facts(_ url: URL) -> FileFacts? {
         scoped(url) { () -> FileFacts? in
+            let started = Date()
+            defer { Self.logIfSlow("Reading the facts of \(url.lastPathComponent)", since: started) }
             let reachable = (try? url.checkResourceIsReachable()) == true
             guard reachable || FileManager.default.fileExists(atPath: url.path) else { return nil }
             let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .fileSizeKey, .nameKey])
@@ -113,6 +117,15 @@ struct ScopedFileAccess: DocumentFileAccess {
         switch FileAccessError.from(error) {
         case .permissionDenied: return .unsupported
         case let other: return other
+        }
+    }
+
+    /// A call that took over a second (CI's simulators: an Open's file I/O
+    /// took 33.6 s and 46 s in runs 45745383987 and 45739838967).
+    private static func logIfSlow(_ what: String, since started: Date) {
+        let seconds = Date().timeIntervalSince(started)
+        if seconds > 1 {
+            Log.store.info("\(what, privacy: .public) took \(seconds, format: .fixed(precision: 1), privacy: .public) s")
         }
     }
 

@@ -159,7 +159,10 @@ final class SessionTests: XCTestCase {
         if case .confirmDiscard? = model.snapshot.request {
             model.answerDiscard(.discard)
         }
-        let opened = await model.waitFor(timeout: .seconds(30)) {
+        // The picked file's bookmark and facts are system calls that took 33.6 s and 46 s on
+        // CI's simulators (runs 45745383987, 45739838967; the store's log says which), so
+        // every step that adopts a file waits up to 120 s.
+        let opened = await model.waitFor(timeout: .seconds(120)) {
             $0.document?.displayName == "Morning.txt" && $0.text.contains("Morning has broken")
         }
         XCTAssertTrue(opened, "document \(String(describing: model.snapshot.document)); messages \(model.snapshot.messages)")
@@ -182,7 +185,7 @@ final class SessionTests: XCTestCase {
         let copy = folder.appendingPathComponent("Morning copy.txt")
         picker.moveTarget = copy
         model.choose(.saveAs)
-        let savedAs = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == "Morning copy.txt" }
+        let savedAs = await model.waitFor(timeout: .seconds(120)) { $0.document?.displayName == "Morning copy.txt" }
         XCTAssertTrue(savedAs, "\(String(describing: model.snapshot.document)); \(model.snapshot.messages)")
         XCTAssertEqual(picker.calls.last, "move Morning.txt")
         XCTAssertEqual(try String(contentsOf: copy, encoding: .utf8), "{key: C}\n" + morningText)
@@ -267,7 +270,7 @@ final class SessionTests: XCTestCase {
         let evening = folder.appendingPathComponent("Evening.txt")
         try Data("{key: Am}\nAm       Dm       E7\nEvening falls\n".utf8).write(to: evening)
         model.openURL(evening)
-        let fromFiles = await model.waitFor(timeout: .seconds(30)) { $0.document?.displayName == "Evening.txt" }
+        let fromFiles = await model.waitFor(timeout: .seconds(120)) { $0.document?.displayName == "Evening.txt" }
         XCTAssertTrue(fromFiles, "\(String(describing: model.snapshot.document)); \(model.snapshot.messages)")
         let eveningId = model.snapshot.document?.documentId
         model.rename("Evening song")
