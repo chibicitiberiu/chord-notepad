@@ -26,7 +26,8 @@ Replace, the font settings, a pinch on the text, the keyboard shortcuts and
 the side column's width kept ("Find, the font, the pinch and the keys"), and the
 platform glue: interruptions, route changes and the background pausing as on
 Android, iPad multitasking widths, VoiceOver labels and the iOS export
-status ("Audio, multitasking and accessibility"). Ready and waiting for the
+status ("Audio, multitasking and accessibility"). Every launch reopens the
+last song with its unsaved changes ("The last song"). Ready and waiting for the
 Apple Developer account (2026-11-25): the release lanes in `ios.yml`
 (TestFlight, a development IPA; "Release lanes"), the notarized DMG in
 `build.yml` (`docs/RELEASE.md`), and the session tools in `ios/tools/`
@@ -498,7 +499,8 @@ ChordNotepad.app/
   `python/app` and `python/app_packages` in front of `sys.path`, and
   `CHORD_NOTEPAD_LIBFLUIDSYNTH=<app>/Frameworks/FluidSynth.framework/FluidSynth`;
   then the session with `files_dir` = Application Support and the bundled
-  SoundFont. The app opens the quick-start song as a draft (store id
+  SoundFont. The app then reopens the last song ("The last song"); at the
+  first launch that is the quick-start song, opened as a draft (store id
   `bundle:01_quick_start.txt`), so it starts in Play, as a saved song does.
 - **Kit headers on iOS:** `Package.swift` gives `CNBridge` `-F
   ios/build/Frameworks/Python.xcframework/ios-arm64` for iOS (both slices
@@ -853,8 +855,9 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   once `ModeController.opened` counts it), the screen is the app's
   background and a spinner: no title, tabs or editor. The session's start-up
   replay reports an empty untitled song first, which on a slow start read as
-  a lost song (S0 issue 4). A failed start, a missing bundled song or 60 s
-  without the song end it too. `launch.json` says whether it was still up
+  a lost song (S0 issue 4). A failed start, a missing bundled song, an
+  error while it waits (the last song's open failed: `errorArrived`), an
+  empty last song or 60 s without the song end it too ("The last song"). `launch.json` says whether it was still up
   (`launching`, which CI's main launch checks is false) and whether it hid
   the untitled song (`hidUntitled`). Off in the catalog and under XCTest.
 - **Large text:** the bar is a fixed 48 pt; its title is body text, which
@@ -874,7 +877,9 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   (CI's first launch after the install checks that already), and `families`, `hint`, `keyboard` and
   `landscape` set up the guide's live screenshots ("The user guide, Quick
   Start and Export PDF"). `-CNScreen find` opens the find bar ("Find, the font,
-  the pinch and the keys").
+  the pinch and the keys"). `-CNScreen draft` and `restored` are the relaunch
+  check ("The last song"). Every hook but those two opens the quick-start
+  song and never reads or writes the last song.
 
 Deliberate differences from Android:
 
@@ -936,7 +941,7 @@ id stays the same as long as the document does:
 
 | Id | What | Store |
 |---|---|---|
-| `bundle:<file>` | a song the app ships (the quick-start song at launch) | read only: Save runs Save As (`restore_draft` with `read_only`), rename is refused |
+| `bundle:<file>` | a song the app ships (the quick-start song at the first launch) | read only: Save runs Save As (`restore_draft` with `read_only`), rename is refused |
 | `app:examples/<file>` | a copy Examples made | Application Support/examples, always writable, in Recent until deleted, not in Files |
 | `app:exports/<uuid>/<file>` | an export waiting for the export picker | Application Support/exports, deleted after the picker, all of them at launch |
 | `bookmark:<uuid>` | a song the user picked (Open, Save As) or opened from Files | its bookmark in `bookmarks.json` |
@@ -1028,8 +1033,8 @@ shipped song and the copies are "x.txt (Examples)", an export its name.
   as an Alternate handler (never the default for `.txt`), and
   `LSSupportsOpeningDocumentsInPlace` opens it in place: `onOpenURL` gets a
   security-scoped URL, which is adopted and opened like a picked one. A URL
-  that arrives before the session runs waits for it, after the quick-start
-  song. `.cho` and `.chordpro` files aren't plain text to iOS, so they open
+  that arrives before the session runs waits for it and wins over the last
+  song, which then opens only if it has unsaved words ("The last song"). `.cho` and `.chordpro` files aren't plain text to iOS, so they open
   through Open only.
 - **iCloud and providers:** a read of a cloud file whose content isn't on the
   device asks for it and waits up to 20 s, then says "File not downloaded
@@ -1087,6 +1092,121 @@ a bookmark resolved after a reboot or an app update, an iCloud file that
 isn't downloaded, renaming a picked file, a song opened from the Files app
 or another app's "Open in…" (`onOpenURL` is called directly), and the live
 dialogs (Cancel on "Preparing export…" is tested through the model, not a tap).
+
+### The last song
+
+Every launch reopens the song that was open last, with its unsaved
+changes, whether iOS ended the app in the background, the user swiped it
+away, or it crashed (Tibi, 2026-11-26). Quick Start's song opens only at
+the first launch, and from ☰ › Quick start as before. Android's
+`DraftHook` (`lifecycle/DraftRestore.kt`) is the model, but Android
+restores only after process death; this is a deliberate difference.
+
+- **In the kit** (`Lifecycle/LastSong.swift`, tested on Linux in
+  `LastSongTests`): `LastSong` (the text, the store id, its name and
+  location, the modified flag, `DocumentState.readOnly` and the tab),
+  `LastSongPolicy.launchSong` (what a launch opens), `LastSongPolicy.restore`
+  (the `restore_draft` for a draft, once its document is resolved),
+  `LastSongFile` (the JSON file). `ModeController.expectRestore` and
+  `MainUiState.errorArrived` end the launch state (`MainScreenTests`).
+- **In the app:** `AppModel.openLastSong`, `restoreLastDraft`,
+  `saveLastSong` and the hooks below. The core is unchanged: `restore_draft`
+  and `open_document {ref, read_only}` do the restore.
+
+**What is kept, and when.** The song on screen: the editor's text (the
+session's copy lacks typing not sent yet, and such typing counts as a
+change), the session's `DocumentState` (id, name, location, modified,
+read only) and the tab. It is written to `Application Support/last_song.json`
+(not in Files, not cleared by the system) when the scene goes inactive or
+to the background, and 2 s after the last change to the text, the document
+or the tab, so a crash loses at most that. Nothing is written while the
+launch state shows, or before the launch's song has been sent: the start-up
+replay's empty song would otherwise replace the one about to come back.
+There is no size limit (Android's 100,000 characters come from the saved
+state's binder transaction).
+
+**What a launch opens** (`LastSongPolicy.launchSong`):
+
+| Last song | Opens |
+|---|---|
+| No file (the first launch) | the quick-start song, read only, in Play (`bundle:01_quick_start.txt`, as before) |
+| A file that can't be read | the empty song: the app ran before, so not Quick Start |
+| Untitled and empty (New, nothing typed) | the empty song |
+| Untitled with text | the text as an unsaved draft (`restore_draft`, no document, modified) |
+| Saved, no changes | the document read again through the store (`open_document {ref, read_only}`), so changes made elsewhere show |
+| The quick-start song, no changes | the quick-start song, as at the first launch |
+| Changes (a saved song, an example copy, the quick-start song) | the text as a draft of its document (`restore_draft {document, modified: true, read_only}`): an example copy stays an example copy, the quick-start song stays read only (Save runs Save As) |
+
+- **A document that is gone.** A draft's document is resolved off the main
+  actor first (`FileDocumentStore.refFor`: a bookmark once took a minute to
+  fail in CI). If the store can't reach it (deleted, a bookmark that no
+  longer resolves), the text is kept as unsaved changes of a new song, as
+  Android's `DraftPolicy.restore` does, and an error snackbar says "Couldn't
+  find song.txt (Downloads): its unsaved changes are open as a new song."
+  (Android says nothing.) A saved song without changes is opened as a recent
+  song is: if the file is gone or an iCloud file can't be downloaded in 20 s,
+  the open's usual error ("Failed to open file: … File not found") shows
+  over the empty song, and a bookmark that doesn't resolve leaves Recent.
+  The user's words are never dropped: only an unchanged song can fail to
+  come back, and its text is in its file.
+- **The tab.** The song lands in the tab it was left in, Play or Edit
+  (`ModeController.expectRestore`), where an open would always go to Play.
+  The quick-start song opens in Play.
+- **The launch state** ends when the restored song's document state
+  arrives (the one with the expected id and modified flag, so the start-up
+  replay's empty untitled song doesn't count, while an untitled draft
+  does), when the session reports an error while it waits (the open
+  failed: the empty song with the error), at once for the empty song, and
+  after 60 s at most, as before. `launch.json` names what the launch
+  reopened (`lastSong`: `quickStart`, `empty`, `open` or `draft`) and has
+  the modified flag; it is now written for an untitled draft too.
+- **Songs from Files.** A song opened from Files at launch wins, as it won
+  over the quick-start song: when the last song has no unsaved words, it
+  isn't opened at all and the launch state waits for the song from Files
+  (a failure ends it with the error). When it has unsaved words, they come
+  back first and the song from Files opens once the launch state is over,
+  so the unsaved-changes question shows over them, on screen. URLs that
+  arrive while the last song is being put back wait for it.
+- **Quick Start's tour** is unchanged: the session shows it at a direct
+  launch while "Show quick start at startup" is on ("The user guide, Quick
+  Start and Export PDF"), over whichever song opened. The first launch
+  shows the quick-start song with the tour over it, as before.
+- **CI's hooks** (`-CNScreen …`) and XCTest's session neither read nor
+  write the last song: they always open the quick-start song, so their
+  screenshots and checks don't depend on the launches before them. Only
+  the relaunch check's two hooks keep it (`AppModel.keepsLastSong`).
+
+Deliberate differences from Android:
+
+- Every launch reopens the last song (Android: only after process death; a
+  launch from the launcher after a swipe-away or a reboot opens a new
+  song). It is kept in a file, not the activity's saved state, so it
+  survives a swipe-away and a crash.
+- A saved song without changes is read again from its file (Android
+  restores the draft's text without reading it).
+- A draft whose document is gone says so in a snackbar (Android drops the
+  document silently).
+- The song comes back in the tab it was left in.
+
+What CI checks: the kit's tests (every row of the table, the gone
+document, the file; the launch state for an untitled draft, a saved song
+in Edit, a failed open). `ci_screenshots.sh`'s first launch after the
+install must report the quick-start song and the tour (`startup.json`).
+Its relaunch check, after the other hooks: `-CNScreen draft` waits for the
+launch's song, makes a new song, types two lines in Edit and leaves them
+unsaved (`draft.json`); the script launches the Settings app, which sends
+ours to the background, where the last song is written
+(`draft-kept.json`); it ends the app there, as iOS or a swipe would, and
+`-CNScreen restored` checks the next launch brought the song back: a draft,
+untitled, modified, the typed text, in Edit (`restored.json`,
+`<device>-relaunch.png`).
+
+What CI doesn't test (device checklist below): a swipe-away from the app
+switcher, iOS ending the app under memory pressure, a crash, a reboot, a
+restored bookmark song outside the container (iCloud Drive, a provider), an
+iCloud song that isn't downloaded at launch, a last song whose file was
+deleted in Files, a song opened from Files with the app closed over a last
+song with unsaved words.
 
 ### The player's sheets and the ribbon's tools
 
@@ -1362,8 +1482,8 @@ The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
   white flash. The guide's licences are Android's guide group, word for word
   (`ios/Licenses/components.json`). The iOS edition itself is described in
   `docs/HELP_AUTHORING.md`.
-- **Quick Start at startup**: `app_started` goes out once the quick-start
-  song is open, with `can_ask_for_support` false (no purchase on iOS) and
+- **Quick Start at startup**: `app_started` goes out once the session
+  runs and the launch's song was asked for, with `can_ask_for_support` false (no purchase on iOS) and
   the launch kind: `document` when songs from Files were waiting for the
   session, `restore` for CI's `-CNScreen` launches, otherwise `direct`. The
   session then shows the tour when Settings' "Show quick start at startup"
@@ -1398,8 +1518,10 @@ Deliberate differences from Android:
   `WebViewAssetLoader`), and other loads are blocked by a content rule list.
 - A launch by a song from Files counts as a document launch only when the
   song arrives before the session runs (iOS hands the URL over after the
-  launch; Android knows it from the launch intent). A relaunch after iOS
-  ended the app is a direct launch (there is no state restoration).
+  launch; Android knows it from the launch intent). Any other launch of a
+  person's is a direct one, including the one after iOS ended the app,
+  which reopens the last song ("The last song"); the tour opens over it while
+  its setting is on (Android: a restore after process death shows nothing).
 - Export PDF's pages are set in Menlo (Android: the system monospace, Droid
   Sans Mono); both are 0.6 em wide, as the layout counts.
 - The tour's checkbox and its buttons are drawn in Material's shape, as
@@ -1860,7 +1982,8 @@ Artifacts of each run:
 - `ios-catalog`: the catalog PNGs,
   `<screen>-<scene>-<iphone|ipad>-<light|dark>-<default|large>.png`.
 - `ios-screenshots`: `<iphone|ipad>-quickstart.png` (the first launch after
-  the install: the tour over the song, `startup.json` says it opened),
+  the install: the tour over the quick-start song, `startup.json` says it
+  opened and which song),
   `<iphone|ipad>-main.png` (the quick-start song in
   Play, as it opens), `<iphone|ipad>-menu.png` (`-CNScreen menu`),
   `<iphone|ipad>-selftest.png` (Diagnostics),
@@ -1882,6 +2005,10 @@ Artifacts of each run:
   01_quick_start.wav (Chord Notepad)" after a simulated save), `<iphone|ipad>-pdf.png` (the export
   picker after a PDF export; `pdf.json` has its pages, a line of the song
   found in its text and the font's advance, and `export.pdf` is the file),
+  `<iphone|ipad>-relaunch.png` (the relaunch check's song back unsaved in
+  Edit after the app was ended in the background; `draft.json`,
+  `draft-kept.json` and `restored.json` say each step passed, "The last
+  song"),
   `-guide.png` (☰ › User guide's first page), `-families.png` (the
   Instrument sheet's families, Grand Piano the current one), `-hint.png` (a
   red `{bpm: 500}` explained in Play), `-keyboard.png` (a new song with
@@ -2351,6 +2478,26 @@ gives each issue an expected result. Exit status 0 is ready. By hand:
      and there's no iPad to borrow: the catalog's `split_*` images and
      `MultitaskingTests` stand in; check on an iPad if one turns up (the
      keyboard over a split window, a resized Stage Manager window).
+
+  Standing items for the last song (docs "The last song", what CI doesn't
+  test):
+  1. Type into a saved song in iCloud Drive without saving, then swipe the
+     app away and reopen it: the song with the changes and its •, in the
+     tab it was left in; Save writes it in place. The same after a reboot,
+     and after opening many big apps until iOS ends Chord Notepad in the
+     background.
+  2. A saved song without changes, changed in another app (or on a Mac
+     through iCloud Drive), then Chord Notepad reopened: the new text.
+  3. A song with unsaved changes deleted in Files, then the app reopened:
+     the words as a new song and the "Couldn't find …" snackbar. Without
+     changes: "Failed to open file: … File not found" over an empty song.
+  4. "Remove Download" on a saved song in iCloud Drive, flight mode on,
+     reopen: the download wait, then the error after 20 s.
+  5. With unsaved changes left, open a `.txt` from Files with the app
+     closed: the changes come back, then the unsaved-changes question for
+     the song from Files.
+  6. A new song typed and the app swiped away within 2 s: the scene's
+     inactive and background saves keep it.
 - [ ] the checklist printed, screen recording on
 - [ ] where the artifacts go
 - [ ] which fallback agenda applies
