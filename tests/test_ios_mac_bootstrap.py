@@ -11,6 +11,7 @@ the idempotent steps.
 
 import hashlib
 import os
+import shlex
 import shutil
 import stat
 import subprocess
@@ -46,8 +47,8 @@ def mac(tmp_path):
                         'echo "/dev/disk3s1 500000000 1 ${DF_FREE_KB:-104857600} 50% /"')
     stub(bin_dir, "xcrun", f'''
 if [ "$1" = git ]; then shift; exec git "$@"; fi
-if [ "$1" = python3 ]; then shift; exec {sys.executable} "$@"; fi
-if [ "$*" = "--find python3" ]; then echo {sys.executable}; exit 0; fi
+if [ "$1" = python3 ]; then shift; exec {shlex.quote(sys.executable)} "$@"; fi
+if [ "$*" = "--find python3" ]; then echo {shlex.quote(sys.executable)}; exit 0; fi
 echo "xcrun $*" >> {log}
 case "$*" in
   "--sdk iphonesimulator --show-sdk-version") echo 26.5 ;;

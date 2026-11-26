@@ -20,7 +20,6 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - 14: Transpose (and its Undo) scrolls the editor to the song's end instead of staying put.
   - 15: a status outlives its undo ("Transposed whole song by +2 semitones" after Undo).
   - 18: Suggest Capo on the iPad: a wrapped chord list leaves "…" alone on the next line.
-  - `tests/test_ios_mac_bootstrap.py`: 2 tests fail on a real Mac with "no python3 for the build phases" (the test's fake `xcrun` and macOS's PATH); they pass on Linux and CI.
 - iOS look: a full pass from Material to iOS-native (Tibi, 2026-11-26: "too material-y"). SF Symbols, iOS navigation bars (Back, Done), Settings and the tools as grouped lists, real sheets and system alerts, iOS text fields and buttons, the system accent colour, segmented controls for Edit/Play and the chord sheet's views. The layout and behaviour stay as they are. It also fixes issues 16–17: at the largest text sizes the outlined fields overprint their labels, and the ≡ menu truncates its entries and cuts off Diagnostics. docs/IOS.md "The main screen" calls the Material icons deliberate; that changes with this pass.
 - Consider `groups` in `.github/dependabot.yml` for one weekly PR (the bumps in a3c910b signed fine on v0.5.1).
 - Cache the Ubuntu source packages the release's third-party source bundle downloads: "Build source bundles" takes 50-75 minutes of every release and nightly.
