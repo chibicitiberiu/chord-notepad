@@ -52,6 +52,10 @@ public struct EditorEffects: Sendable {
     public var playingMoved = false
     /// The find bar selected a match: bring it into view.
     public var findMoved = false
+    /// The whole song was rewritten in place (Transpose, Convert, Suggest
+    /// Capo's Apply, or the undo or redo of one): the view stays where it is
+    /// rather than scroll to the caret (S0 issue 14).
+    public var keepScroll = false
     /// The find bar's wrap-around notice appeared: clear it after
     /// ``TextFind/noticeSeconds`` (``FindAction/clearNotice``).
     public var findNotice = false
@@ -66,6 +70,7 @@ public struct EditorEffects: Sendable {
         documentOpened = documentOpened || other.documentOpened
         playingMoved = playingMoved || other.playingMoved
         findMoved = findMoved || other.findMoved
+        keepScroll = keepScroll || other.keepScroll
         findNotice = findNotice || other.findNotice
     }
 
@@ -212,10 +217,15 @@ public struct EditorModel: Sendable {
         let edit = edited.utf16(in: text)
         let before = selection
         let old = UTF16Text.substring(text, UTF16Range(edit.start, edit.end))
+        let wholeText = Self.isWholeText(UTF16Range(edit.start, edit.end), of: text)
         spans = spans.shifted(by: TextChange(start: edit.start, oldEnd: edit.end,
                                              newEnd: edit.start + edit.replacement.utf16.count))
         text = UTF16Text.replacing(text, UTF16Range(edit.start, edit.end), with: edit.replacement)
-        selection = edit.selection.clamped(to: text.utf16.count)
+        // Another document starts at its start, as on the Qt desktop: the
+        // session's cursor after the text is Tk's unseen insert mark, and a
+        // caret there took the next Transpose (which keeps the caret's line)
+        // and its Undo to the song's end (S0 issue 14).
+        selection = edited.undo == .reset ? UTF16Range(caret: 0) : edit.selection.clamped(to: text.utf16.count)
         if !unsent {
             syncedText = text
             identity = TextIdentity(clientToken: 0, revision: edited.textRevision)
@@ -228,6 +238,7 @@ public struct EditorModel: Sendable {
         case .group, .plain:
             history.recordStep([EditHistory.Replacement(start: edit.start, old: old, new: edit.replacement)],
                                before: before, after: selection)
+            effects.keepScroll = wholeText
         }
         effects.viewEdits.append(ViewEdit(range: UTF16Range(edit.start, edit.end), replacement: edit.replacement))
         effects.selection = selection
@@ -398,12 +409,19 @@ public struct EditorModel: Sendable {
     private mutating func replace(_ range: UTF16Range, with replacement: String) -> EditorEffects {
         var effects = EditorEffects()
         let r = range.clamped(to: text.utf16.count)
+        effects.keepScroll = Self.isWholeText(r, of: text)
         spans = spans.shifted(by: TextChange(start: r.start, oldEnd: r.end, newEnd: r.start + replacement.utf16.count))
         text = UTF16Text.replacing(text, r, with: replacement)
         findTextChanged()
         effects.viewEdits.append(ViewEdit(range: r, replacement: replacement))
         effects.restyle = true
         return effects
+    }
+
+    /// Whether `range` is all of a non-empty `text` (a rewrite in place).
+    private static func isWholeText(_ range: UTF16Range, of text: String) -> Bool {
+        let length = text.utf16.count
+        return length > 0 && range.start == 0 && range.end == length
     }
 
     /// Select UTF-16 `range` (the find bar's match, a caret it puts back):

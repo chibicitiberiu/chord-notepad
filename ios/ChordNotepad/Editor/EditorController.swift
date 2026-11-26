@@ -313,6 +313,9 @@ final class EditorController: ObservableObject {
         guard let view = textView else { return }
         applying = true
         defer { applying = false }
+        // A rewrite of the whole song in place (Transpose, its Undo): the
+        // view stays where it was, wherever the caret is (S0 issue 14).
+        let kept = effects.keepScroll && !effects.documentOpened ? view.contentOffset : nil
         if !effects.viewEdits.isEmpty {
             let storage = view.textStorage
             storage.beginEditing()
@@ -335,6 +338,13 @@ final class EditorController: ObservableObject {
         }
         if effects.documentOpened {
             view.scrollToStart()
+        } else if let kept {
+            view.keepOffset(kept)
+            // UIKit may still bring the new selection into view on its next pass.
+            DispatchQueue.main.async { [weak view] in
+                guard let view, !view.isTracking, !view.isDecelerating else { return }
+                view.keepOffset(kept)
+            }
         } else if effects.findMoved, let selection = effects.selection {
             // A match the find bar selected (the text may not have the keys): into view on both axes.
             view.follow(selection)

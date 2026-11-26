@@ -151,5 +151,25 @@ extension IntegrationTests {
         try await log.wait("the edit ended") {
             (try? log.decodeLatest(VoicingEditorState.self, "VoicingEditorState"))?.active == false
         }
+
+        // -- New: an empty song with nothing to undo (S0 issue 11: Undo brought the old text back) --
+        _ = try fold(since: edits)
+        XCTAssertTrue(editor.canUndo, "the replacements are undoable")
+        edits = log.count
+        session.submit(.newDocument())
+        try await log.wait("New's unsaved-changes question") {
+            !log.events(since: edits, type: "ConfirmDiscardRequest").isEmpty
+        }
+        let question = try log.decode(ConfirmDiscardRequest.self,
+                                      log.events(since: edits, type: "ConfirmDiscardRequest").last)
+        session.submit(.respondToConfirmDiscardRequest(requestId: question.requestId, value: .discard))
+        let cleared = try await waitForEdit(log, since: edits) { $0.replacement.isEmpty }
+        XCTAssertEqual(cleared.undo, .reset)
+        await log.waitQuiet()
+        _ = try fold(since: edits)
+        XCTAssertEqual(editor.text, "")
+        XCTAssertFalse(editor.canUndo, "nothing of Scarborough Fair to undo")
+        XCTAssertTrue(editor.undo().viewEdits.isEmpty)
+        XCTAssertEqual(editor.text, "")
     }
 }

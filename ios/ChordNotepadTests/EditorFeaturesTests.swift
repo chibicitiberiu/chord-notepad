@@ -197,6 +197,41 @@ extension SessionTests {
         XCTAssertNil(view.playElements, "Edit has the text view's own accessibility")
         XCTAssertNil(view.accessibilityElements as? [PlayTextElement])
 
+        // -- Transpose and its Undo leave the view where it was (S0 issue 14: it jumped to the end) --
+        let verse = "G        D        Em       C\nla la la la la la la la la la\n"
+        let long = "{key: G}\n" + String(repeating: verse, count: 40)
+        session.submit(.restoreDraft(document: nil, modified: true, readOnly: false, text: long))
+        ok = await model.waitFor(timeout: .seconds(30)) { _ in editor.model.text == long }
+        XCTAssertTrue(ok, "the long song in the editor")
+        await settle()
+        let top = view.contentOffset.y
+        XCTAssertGreaterThan(view.contentSize.height, view.bounds.height * 3, "a song taller than the view")
+        XCTAssertEqual(editor.model.selection, UTF16Range(caret: 0), "an opened song's caret at its start")
+        /// Transpose the whole song up two semitones from the ribbon, then Undo; `y` stays all along.
+        func transposeAndUndo(keeping y: CGFloat, _ what: String) async {
+            let revision = model.snapshot.textRevision
+            model.sheet(.ribbon(.transpose))
+            model.sheet(.transposeUp)
+            model.sheet(.transposeUp)
+            model.sheet(.transposeOK)
+            var done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
+            XCTAssertTrue(done && editor.model.text.hasPrefix("{key: A}\nA "), "\(what): transposed")
+            await settle()
+            XCTAssertEqual(view.contentOffset.y, y, accuracy: 1, "\(what): after Transpose")
+            editor.perform(.undo)
+            done = await model.waitFor(timeout: .seconds(10)) { _ in editor.model.text == long }
+            XCTAssertTrue(done, "\(what): undone")
+            await settle()
+            XCTAssertEqual(view.contentOffset.y, y, accuracy: 1, "\(what): after Undo")
+        }
+        // As reported: the song just opened, its top on screen, nothing tapped.
+        await transposeAndUndo(keeping: top, "at the top")
+        // Scrolled down past the caret (still at the start): the view stays there too.
+        let middle = top + view.bounds.height * 1.5
+        view.setContentOffset(CGPoint(x: view.contentOffset.x, y: middle), animated: false)
+        await settle()
+        await transposeAndUndo(keeping: middle, "scrolled down")
+
         // -- the side column's width, kept in UserDefaults across launches --------------------
         let key = UiPreferences.sideFractionKey
         let saved = UserDefaults.standard.object(forKey: key)

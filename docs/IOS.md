@@ -639,7 +639,13 @@ Android's `ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
     (`TextEdited.utf16(in:)`, with the selection its `anchor` and `cursor`
     make), folded into the history by their `undo`, never sent back; while
     an input method composes (marked text) they wait for the composition to
-    end;
+    end. A `reset` (another document) puts the caret at the text's start, as
+    the Qt desktop does: the session's cursor after the text is Tk's unseen
+    insert mark, and a caret there sent the next Transpose (which keeps the
+    caret's line) and its Undo to the song's end (S0 issue 14). An edit that
+    rewrites the whole text in place (Transpose, Convert, Suggest Capo's
+    Apply), and the undo or redo of one, sets `keepScroll`: the view stays
+    where it was instead of scrolling to the caret;
   - a `HighlightState` is painted only for the text it was computed for
     (Android's `TextIdentity`: the client token, or a session edit's
     revision); until then the old spans move with each edit the way Tk tags

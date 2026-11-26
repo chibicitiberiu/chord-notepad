@@ -129,11 +129,33 @@ final class EditorModelTests: XCTestCase {
         receive(edited(5, 0, 3, "Em", .reset, cursor: 2))
         XCTAssertEqual(model.text, "Em")
         XCTAssertFalse(model.canUndo)
+        // Another document starts at its start, as on the Qt desktop (the
+        // session's cursor after the text took Transpose to the end, S0 issue 14).
+        XCTAssertEqual(model.selection, UTF16Range(caret: 0))
         // A document was opened (the view starts it unscrolled); other edits don't count.
         XCTAssertEqual(model.documentsOpened, 1)
         receive(edited(6, 0, 2, "G", .plain, cursor: 3))
         receive(edited(7, 0, 1, "A", .group, cursor: 4))
         XCTAssertEqual(model.documentsOpened, 1)
+    }
+
+    func testARewriteOfTheWholeSongAndItsUndoKeepTheScroll() {
+        let song = "{key: G}\nG D Em C\nla la\nG D\n"
+        receive(edited(1, 0, 0, song, .reset, cursor: song.unicodeScalars.count))
+        type(song, caret: 9)  // the caret on the chord line, the view wherever the user scrolled
+        // Transpose: the session rewrites the whole text, the caret kept on its line.
+        let transposed = "{key: A}\nA E F#m D\nla la\nA E\n"
+        let edit = take(model.receive(edited(2, 0, song.unicodeScalars.count, transposed, .group, cursor: 9)))
+        XCTAssertTrue(edit.keepScroll, "the view stays where it was")
+        XCTAssertEqual(model.selection, UTF16Range(caret: 9))
+        let undone = take(model.perform(.undo))
+        XCTAssertEqual(model.text, song)
+        XCTAssertTrue(undone.keepScroll, "so does its Undo")
+        XCTAssertTrue(take(model.perform(.redo)).keepScroll)
+        // An edit of part of the song (an insert at the caret) shows the caret as before.
+        let insert = take(model.receive(edited(3, 9, 9, "{capo: 2} ", .group, cursor: 19)))
+        XCTAssertFalse(insert.keepScroll)
+        XCTAssertFalse(take(model.perform(.undo)).keepScroll)
     }
 
     func testAPlainInsertPutsTheCursorAfterIt() {

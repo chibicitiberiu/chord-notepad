@@ -312,6 +312,18 @@ final class EditorTextView: UITextView {
             + "\(host?.contentSize.width ?? 0) pt, wrap \(wordWrap), TextKit 2 \(textLayoutManager != nil)"
     }
 
+    /// Back to `offset` (where the view was before the whole song was
+    /// rewritten), within the new text's height.
+    func keepOffset(_ offset: CGPoint) {
+        layoutIfNeeded()
+        let inset = adjustedContentInset
+        let maxY = max(-inset.top, contentSize.height + inset.bottom - bounds.height)
+        let y = min(max(offset.y, -inset.top), maxY)
+        if abs(contentOffset.y - y) > 0.5 {
+            setContentOffset(CGPoint(x: contentOffset.x, y: y), animated: false)
+        }
+    }
+
     /// Back to the top left (a document was opened).
     func scrollToStart() {
         setContentOffset(CGPoint(x: -adjustedContentInset.left, y: -adjustedContentInset.top), animated: false)
