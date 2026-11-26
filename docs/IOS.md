@@ -615,8 +615,13 @@ Deliberate differences from Android:
   ⏮ the follower would still see the paused chord, and the strip stayed near
   it (the core and `PlayheadFollower` give the right chord for that sequence). `SessionTests` hosts the strip,
   plays it chord by chord, then ⏮, and checks the scroll view is back at 0.
-- A tap on an unavailable view shows the core's reason in a capsule over the
-  strip for 2.5 s (Android: a Toast).
+- The views are the system's segmented control (the iOS look): one the
+  voicing can't draw (Fret cards and Tab for a piano) looks like the others,
+  where Android greys its tab, since a segmented control can't grey one
+  segment and still take its tap. Choosing it keeps the view and shows the
+  core's reason in a capsule over the strip for 2.5 s (Android: a Toast);
+  VoiceOver reads the reason as the segment's hint. Tibi to say whether the
+  missing grey matters.
 - The header is a fixed 32 pt, so its labels follow Dynamic Type up to
   `xLarge` only; the strip's own text ignores the text size (its geometry
   comes from the renderers), as on Android.
@@ -789,7 +794,7 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   marker's shape), `Snackbars` (what shows, and for how long), `AppMenu`
   (the ☰ menu's entries) and `MainUiState` (the tab, what is open over the
   screen, the keyboard's height, the rename dialog's refusal), and
-  `AppColors` (Android's). `SessionSnapshot` keeps the toolbar, the song
+  `AppColors` (iOS's system colours as values). `SessionSnapshot` keeps the toolbar, the song
   defaults, the voicing and instrument menus, the recent songs, the
   settings, the directive hint and a refused rename (no longer a message).
 - **In the app** (`Screens/`): `MainScreen` draws the whole screen from a
@@ -1363,7 +1368,13 @@ test sends the same events the gestures send),
 the keyboard over the Insert dialogs and the identifier's field, the live
 sound of the identifier's notes (the session test has the FakePlayer;
 `-CNScreen identify` plays them in the simulator), VoiceOver, rotation with a
-sheet open.
+sheet open. The live presentations of Voicing, Playback settings, Transpose,
+Manual… and the tempo have no `-CNScreen` hook (the catalog draws them in
+`CatalogSheetFrame`), and neither have the system alerts (a refused rename,
+Settings' three questions) or the unsaved-changes question; a swipe down's
+way out is the session test's events, not a swipe. Every image is from the
+iOS 26.5 simulator, so the looks before iOS 26 (alerts' hairline buttons,
+the older bars) are seen on a device only.
 
 ### Settings, About and Licences
 
@@ -1435,9 +1446,10 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   in range (else its range shows in red and the text is staged in Python
   for next time). Every voicing command is followed by `commit_settings`;
   the core writes each voicing's valid fields and returns the rest as
-  `problems` (a value it can't build is never saved). ← goes up a page, then
-  leaves (`cancel_settings_edit`), asking first while something is wrong
-  (Discard, or Edit to go to the first). Values kept from last time come
+  `problems` (a value it can't build is never saved). Back goes up a page,
+  Done leaves (`cancel_settings_edit`), asking first while something is
+  wrong (Discard, or Edit to go to the first; the system's alert, which has
+  no tap outside to put it away, where Android's dialog had). Values kept from last time come
   back with the restored banner. A built-in is read-only (`select_builtin`)
   with Copy to a new voicing. Edit voicings… in the Voicing sheet opens
   Settings › Voicings. About shows the version, build type, build number
@@ -1585,9 +1597,9 @@ The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
 
 Deliberate differences from Android:
 
-- The guide's ← leaves it, as Android's bar button does; a swipe from the
-  left edge goes back through its pages (Android's system Back). There is no
-  back button for the pages themselves.
+- The guide's Done leaves it, as Android's ← does; a swipe from the left
+  edge goes back through its pages (Android's system Back). There is no back
+  button for the pages themselves.
 - The guide is served under `cnhelp://guide/` (Android: an https origin of
   `WebViewAssetLoader`), and other loads are blocked by a content rule list.
 - A launch by a song from Files counts as a document launch only when the
@@ -2481,7 +2493,7 @@ gives each issue an expected result. Exit status 0 is ready. By hand:
      of range), word wrap, notation, default key and recent files; each shows
      in the editor or the menus. Playback: tempo, time signature, clicked
      chords.
-  2. A wrong number, then ←: the question; Edit puts the cursor in the field.
+  2. A wrong number, then Done: the question; Edit puts the cursor in the field.
      Quit the app with a wrong number, reopen Settings: the restored banner.
   3. Voicings on a phone upright and on its side, and on an iPad both ways:
      Add voicing's menu, rename, type a tuning that isn't a note (red, the
@@ -2498,7 +2510,7 @@ gives each issue an expected result. Exit status 0 is ready. By hand:
      closed: no tour.
   2. ☰ › User guide: scroll, the theme's menu, the search, a link inside the
      guide, a link to a web site (Safari opens), the edge swipe back through
-     the pages, ← back to the song; the same in dark mode, and switch the
+     the pages, Done back to the song; the same in dark mode, and switch the
      system's look while the guide is open.
   3. ☰ › Export PDF… on a long song: the export picker, save to Files and to
      iCloud Drive, open the PDF in Files and print it; cancel the picker once.
