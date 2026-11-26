@@ -201,12 +201,54 @@ final class SessionTests: XCTestCase {
             XCTAssertEqual(file.lastPathComponent, "Morning copy.mid")
             XCTAssertEqual(try Data(contentsOf: file).prefix(4), Data("MThd".utf8))
         }
-        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text == "MIDI ready to save: Morning copy.mid" }
+        // Saved: the desktop's words, with the place the picker saved it in.
+        let status = await model.waitFor(timeout: .seconds(10)) {
+            $0.status?.text == "Exported MIDI: Morning copy.mid (exports)"
+        }
         XCTAssertTrue(status, "\(String(describing: model.snapshot.status))")
-        let leftover = (try? FileManager.default.contentsOfDirectory(
-            atPath: AppPaths.filesDir.appendingPathComponent("exports").path)) ?? []
+        XCTAssertNil(model.snapshot.export?.documentId)
+        XCTAssertNil(model.exportDialog)
+        let exportsDir = AppPaths.filesDir.appendingPathComponent("exports")
+        let leftover = (try? FileManager.default.contentsOfDirectory(atPath: exportsDir.path)) ?? []
         XCTAssertEqual(leftover, [], "the store's export file goes once the picker is done")
         XCTAssertEqual(model.snapshot.document?.documentId, copyId, "an export doesn't change the open document")
+
+        // The picker cancelled: nothing is said, the status is back at rest.
+        picker.exportFolder = nil
+        let messages = model.snapshot.messageCount
+        model.choose(.exportMidi)
+        let cancelled = await model.waitFor(timeout: .seconds(60)) { snapshot in
+            snapshot.export?.documentId == nil && snapshot.status?.text.hasPrefix("Export") == false
+        }
+        XCTAssertTrue(cancelled, "\(String(describing: model.snapshot.status)); \(picker.calls)")
+        XCTAssertEqual(picker.calls.last, "export Morning copy.mid")
+        XCTAssertEqual(model.snapshot.messageCount, messages)
+
+        // "Preparing export…" cancelled while the picker is slow to come up:
+        // no save, the picker closed as it appears, the file gone, nothing said.
+        picker.exportFolder = exports
+        picker.holdExport = true
+        model.choose(.exportMidi)
+        let preparing = await model.waitForModel(timeout: .seconds(60)) { $0.exportDialog != nil }
+        XCTAssertTrue(preparing, "\(String(describing: model.snapshot.export))")
+        XCTAssertEqual(model.exportDialog?.kind, "midi")
+        // Written, and the picker asked for (the third export's).
+        let asked = await model.waitForModel(timeout: .seconds(60)) { _ in
+            picker.calls.filter { $0 == "export Morning copy.mid" }.count == 3
+        }
+        XCTAssertTrue(asked, "\(picker.calls)")
+        XCTAssertNotNil(model.exportDialog, "up until the picker is")
+        model.cancelExport()
+        XCTAssertNil(model.exportDialog)
+        picker.showHeldExport()
+        XCTAssertEqual(picker.calls.suffix(2), ["export Morning copy.mid", "close export"])
+        let quiet = await model.waitFor(timeout: .seconds(10)) { snapshot in
+            snapshot.export?.documentId == nil && snapshot.status?.text.hasPrefix("Export") == false
+        }
+        XCTAssertTrue(quiet, "\(String(describing: model.snapshot.status))")
+        XCTAssertEqual(model.snapshot.messageCount, messages)
+        XCTAssertEqual((try? FileManager.default.contentsOfDirectory(atPath: exportsDir.path)) ?? [], [])
+        picker.holdExport = false
         // Audio needs the real player's SoundFont, which the FakePlayer has not:
         // `-CNScreen export` checks it in the live app (ci_screenshots.sh).
 
@@ -726,7 +768,9 @@ extension SessionTests {
         let report = PdfReport.of(file, song: model.editor.model.text)
         XCTAssertTrue(report.ok, report.problem ?? "")
         XCTAssertGreaterThan(report.pages, 0)
-        let status = await model.waitFor(timeout: .seconds(10)) { $0.status?.text.hasPrefix("PDF ready to save: ") == true }
+        let status = await model.waitFor(timeout: .seconds(10)) {
+            $0.status?.text == "Exported PDF: 01_quick_start.pdf (session-test-pdf)"
+        }
         XCTAssertTrue(status, model.snapshot.status?.text ?? "")
         XCTAssertNil(model.snapshot.request, "the paint request answered")
         let attachment = XCTAttachment(contentsOfFile: file)
@@ -866,17 +910,57 @@ final class StandInPicker: DocumentPicking {
         }
     }
 
-    func pickToExport(_ file: URL, done: @escaping (URL?) -> Void) {
+    /// Held: the export picker is "opening" until ``showHeldExport()`` (a
+    /// slow picker; the test cancels "Preparing export…" meanwhile).
+    var holdExport = false
+    private var held: (file: URL, presented: () -> Void, done: (URL?) -> Void)?
+    private var exportDone: ((URL?) -> Void)?
+
+    func pickToExport(_ file: URL, presented: @escaping () -> Void, done: @escaping (URL?) -> Void) {
         calls.append("export " + file.lastPathComponent)
-        guard let folder = exportFolder else { return done(nil) }
+        if holdExport {
+            held = (file, presented, done)
+            return
+        }
+        answerExport(file, presented: presented, done: done)
+    }
+
+    /// The held picker comes up (and answers as ``exportFolder`` says).
+    func showHeldExport() {
+        guard let held else { return }
+        self.held = nil
+        answerExport(held.file, presented: held.presented, done: held.done)
+    }
+
+    func closeExport() {
+        calls.append("close export")
+        exportDone?(nil)
+        exportDone = nil
+    }
+
+    private func answerExport(_ file: URL, presented: @escaping () -> Void, done: @escaping (URL?) -> Void) {
+        exportDone = done
+        presented()
+        // Closed as it came up (a cancelled export): answered already.
+        guard exportDone != nil else { return }
+        guard let folder = exportFolder else {
+            DispatchQueue.main.async { self.finishExport(nil) }
+            return
+        }
         let target = folder.appendingPathComponent(file.lastPathComponent)
         do {
             try? FileManager.default.removeItem(at: target)
             try FileManager.default.copyItem(at: file, to: target)
             exported = target
-            DispatchQueue.main.async { done(target) }
+            DispatchQueue.main.async { self.finishExport(target) }
         } catch {
-            done(nil)
+            finishExport(nil)
         }
+    }
+
+    private func finishExport(_ url: URL?) {
+        guard let done = exportDone else { return }
+        exportDone = nil
+        done(url)
     }
 }

@@ -258,6 +258,125 @@ struct RenameFailedDialog: View {
     }
 }
 
+/// "Preparing export…" while an export renders and is written, until the
+/// export picker is up (docs/IOS.md "Files", Exports): drawn as iOS draws an
+/// alert, not as the app's Material cards. A system spinner, the audio
+/// export's percentage, Cancel; system fonts, the system material and tint.
+struct ExportProgressDialog: View {
+    let dialog: ExportDialog
+    /// False in the catalog: ImageRenderer can't draw a ProgressView or a
+    /// material, so a drawn spinner and the material's light or dark colour.
+    var live = true
+    var cancel: () -> Void = {}
+
+    @Environment(\.colorScheme) private var scheme
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.2).ignoresSafeArea()
+            VStack(spacing: 0) {
+                VStack(spacing: 14) {
+                    Text(ExportDialog.title)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                    spinner
+                    if let percent = dialog.percent {
+                        Text(percent)
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 16)
+                .padding(.top, 20)
+                .padding(.bottom, Self.glassAlert ? 16 : 18)
+                cancelButton
+            }
+            .frame(width: Self.glassAlert ? 300 : 270)
+            .background(background)
+            .clipShape(RoundedRectangle(cornerRadius: Self.glassAlert ? 34 : 14, style: .continuous))
+            .accessibilityElement(children: .contain)
+            .accessibilityIdentifier("export-dialog")
+        }
+    }
+
+    /// iOS 26's alerts: larger corners, a capsule button inside the card;
+    /// before it, a full-width text button under a hairline.
+    private static var glassAlert: Bool {
+        if #available(iOS 26, *) { return true }
+        return false
+    }
+
+    @ViewBuilder
+    private var cancelButton: some View {
+        if Self.glassAlert {
+            Button(role: .cancel, action: cancel) {
+                Text(ExportDialog.cancel)
+                    .font(.body.weight(.medium))
+                    .frame(maxWidth: .infinity, minHeight: 34)
+            }
+            .buttonStyle(.bordered)
+            .buttonBorderShape(.capsule)
+            .controlSize(.large)
+            .tint(Color.primary)
+            .padding(.horizontal, 16)
+            .padding(.bottom, 16)
+            .accessibilityIdentifier("export-cancel")
+        } else {
+            Divider()
+            Button(role: .cancel, action: cancel) {
+                Text(ExportDialog.cancel)
+                    .font(.body)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("export-cancel")
+        }
+    }
+
+    @ViewBuilder
+    private var spinner: some View {
+        if live {
+            ProgressView()
+                .progressViewStyle(.circular)
+                .controlSize(.large)
+        } else {
+            DrawnSpinner()
+                .frame(width: 37, height: 37)
+                .accessibilityHidden(true)
+        }
+    }
+
+    @ViewBuilder
+    private var background: some View {
+        if live {
+            Rectangle().fill(.regularMaterial)
+        } else {
+            // The material over a dimmed screen, as UIKit's alert shows it.
+            Color(white: scheme == .dark ? 0.17 : 0.95)
+        }
+    }
+}
+
+/// UIActivityIndicatorView's large spinner, drawn (the catalog's stand-in).
+private struct DrawnSpinner: View {
+    var body: some View {
+        GeometryReader { box in
+            let side = min(box.size.width, box.size.height)
+            ZStack {
+                ForEach(0..<8, id: \.self) { index in
+                    Capsule()
+                        .fill(Color.secondary.opacity(0.25 + 0.75 * Double(index) / 7))
+                        .frame(width: side * 0.09, height: side * 0.28)
+                        .offset(y: -side * 0.32)
+                        .rotationEffect(.degrees(Double(index) * 45))
+                }
+            }
+            .frame(width: side, height: side)
+        }
+    }
+}
+
 /// The unsaved-changes question (Android's `ConfirmDiscardDialog`, the
 /// desktop's "Unsaved Changes"): Don't save, Cancel, Save. The buttons stack
 /// when they don't fit on one line (large text), as Android's flow row wraps.

@@ -63,9 +63,16 @@ enum PreviewCatalog {
         CatalogScreen("discard", fixtures: ["discard_question"]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit))
         },
-        // An export done: its status in Play's status line; in Edit, as a snackbar.
+        // An export saved: its status in Play's status line; in Edit, as a snackbar.
         CatalogScreen("export", fixtures: ["export_done"]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .play))
+        },
+        // "Preparing export…" over the song: an audio export at 42 % (a MIDI or
+        // PDF export has no percentage), drawn as iOS draws an alert.
+        CatalogScreen("export_preparing", fixtures: ["export_done"]) { scene, _ in
+            PreviewCatalog.mainScreen(scene, MainUiState(mode: .play),
+                                      exportDialog: ExportDialog(documentId: "app:exports/1/Lullaby (2).wav",
+                                                                 kind: "audio", progress: 0.42))
         },
         CatalogScreen("export_edit", fixtures: ["export_done"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
             PreviewCatalog.mainScreen(scene, MainUiState(mode: .edit),
@@ -331,9 +338,10 @@ enum PreviewCatalog {
 
     /// The main screen of a scene in `ui`'s mode, with what is open over it.
     static func mainScreen(_ scene: CatalogScene, _ ui: MainUiState, renameName: String = "",
-                           snackbar: Snackbar? = nil) -> MainScreen {
+                           snackbar: Snackbar? = nil, exportDialog: ExportDialog? = nil) -> MainScreen {
         MainScreen(snapshot: scene.snapshot, editorModel: scene.editor, ui: ui, scrolls: false,
-                   chordSheet: scene.chordSheet, snackbar: snackbar, renameName: .constant(renameName))
+                   chordSheet: scene.chordSheet, snackbar: snackbar, renameName: .constant(renameName),
+                   exportDialog: exportDialog)
     }
 
     /// A recorded scene, or nil (logged) when it's missing.

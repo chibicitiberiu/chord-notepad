@@ -11,8 +11,9 @@
 # the find bar with its Replace row, Settings › General, Settings › Voicings
 # with a built-in's form, About, the Instrument sheet's families, the user
 # guide, a directive's explanation in Play, a new song typed with the keyboard
-# up, the phone on its side typing (the guide's screenshots), one of the
-# export picker after an audio export (export.json checked) and one after a
+# up, the phone on its side typing (the guide's screenshots), three of an
+# audio export ("Preparing export…", the export picker after it, the status
+# after a simulated save; export.json checked) and one of the picker after a
 # PDF export (pdf.json checked, the PDF in the Diagnostics folder).
 #
 #   ios/tools/ci_screenshots.sh <udid> <label> <ChordNotepad.app> <out-dir>
@@ -22,7 +23,8 @@
 # <label>-instrument.png, <label>-insert.png, <label>-capo.png, <label>-identify.png,
 # <label>-find.png, <label>-settings.png, <label>-voicings.png, <label>-about.png,
 # <label>-families.png, <label>-guide.png, <label>-hint.png, <label>-keyboard.png,
-# <label>-landscape.png, <label>-export.png, <label>-pdf.png, the app's
+# <label>-landscape.png, <label>-export-preparing.png, <label>-export.png,
+# <label>-export-saved.png, <label>-pdf.png, the app's
 # Diagnostics folder as <label>-diagnostics/ and the unified log of the
 # app's subsystem as <label>-app.log. The live audio result is in
 # <label>-diagnostics/selftest.json; ci_live_audio.py reads it.
@@ -178,16 +180,32 @@ for tool in speed instrument insert capo identify find settings voicings about f
     xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-$tool.png"
 done
 
-# Export audio with the real player's SoundFont: the app writes export.json
-# when the store has the WAV (or why it has none), then opens the export
-# picker over the song. Same retry as the chord sheet.
-rm -f "$DIAG/export.json"
+# Export audio with the real player's SoundFont, in step with the app
+# (AppModel.runExportCheck): "Preparing export…" up (export-dialog.json),
+# its screenshot, then export-go; the export picker up (export-picker.json),
+# its screenshot, then export-save; the app saves the file as Save would and
+# writes export.json (the WAV, the dialog, the picker, the "Exported audio: …"
+# status), shown in the last screenshot. Same retry as the chord sheet.
 exported=1
 for attempt in 1 2; do
+    rm -f "$DIAG/export.json" "$DIAG/export-dialog.json" "$DIAG/export-picker.json" \
+        "$DIAG/export-go" "$DIAG/export-save"
     xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen export
-    if wait_for "$DIAG/export.json" 300; then
-        cat "$DIAG/export.json"
+    if wait_for "$DIAG/export-dialog.json" 150; then
+        cat "$DIAG/export-dialog.json"
+        sleep 0.5
+        xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export-preparing.png"
+    fi
+    touch "$DIAG/export-go"
+    if wait_for "$DIAG/export-picker.json" 300; then
         sleep 4
+        xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export.png"
+    fi
+    touch "$DIAG/export-save"
+    if wait_for "$DIAG/export.json" 120; then
+        cat "$DIAG/export.json"
+        sleep 2
+        xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export-saved.png"
         if python3 -c 'import json, sys; sys.exit(0 if json.load(open(sys.argv[1]))["ok"] else 1)' "$DIAG/export.json"; then
             exported=0
         else
@@ -198,7 +216,6 @@ for attempt in 1 2; do
     echo "Attempt $attempt: no audio export" >&2
 done
 [ "$exported" -eq 0 ] || status=1
-xcrun simctl io "$UDID" screenshot "$OUT/$LABEL-export.png"
 
 # Export PDF: the app paints the session's pages and writes pdf.json (PDFKit's
 # page count, a line of the song in its text, the font's advance) and

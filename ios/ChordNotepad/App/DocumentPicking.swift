@@ -15,7 +15,11 @@ protocol DocumentPicking: AnyObject {
     /// name) where the user picks; the file where it went, or nil.
     func pickToMove(_ file: URL, done: @escaping (URL?) -> Void)
     /// An export: copy `file` where the user picks; where it went, or nil.
-    func pickToExport(_ file: URL, done: @escaping (URL?) -> Void)
+    /// `presented` once the picker is on screen ("Preparing export…" stays
+    /// until then: the picker took 12 s to appear on a slow Mac's simulator).
+    func pickToExport(_ file: URL, presented: @escaping () -> Void, done: @escaping (URL?) -> Void)
+    /// Close the export picker on screen without saving (its `done` gets nil).
+    func closeExport()
 }
 
 /// ``DocumentPicking`` with UIDocumentPickerViewController, presented over
@@ -23,6 +27,8 @@ protocol DocumentPicking: AnyObject {
 @MainActor
 final class SystemDocumentPicker: NSObject, DocumentPicking, UIDocumentPickerDelegate {
     private var done: ((URL?) -> Void)?
+    /// The export picker on screen, and the file it offers.
+    private var exporting: (picker: UIDocumentPickerViewController, file: URL)?
 
     func pickToOpen(contentTypes: [UTType], done: @escaping (URL?) -> Void) {
         let picker = UIDocumentPickerViewController(forOpeningContentTypes: contentTypes, asCopy: false)
@@ -34,11 +40,39 @@ final class SystemDocumentPicker: NSObject, DocumentPicking, UIDocumentPickerDel
         present(UIDocumentPickerViewController(forExporting: [file], asCopy: false), done: done)
     }
 
-    func pickToExport(_ file: URL, done: @escaping (URL?) -> Void) {
-        present(UIDocumentPickerViewController(forExporting: [file], asCopy: true), done: done)
+    func pickToExport(_ file: URL, presented: @escaping () -> Void, done: @escaping (URL?) -> Void) {
+        let picker = UIDocumentPickerViewController(forExporting: [file], asCopy: true)
+        present(picker, done: done) { [weak self] in
+            self?.exporting = (picker, file)
+            presented()
+        }
     }
 
-    private func present(_ picker: UIDocumentPickerViewController, done: @escaping (URL?) -> Void) {
+    func closeExport() {
+        guard let shown = exporting else { return }
+        shown.picker.dismiss(animated: true)
+        finish(nil)
+    }
+
+    /// `-CNScreen export` (CI): save the offered file into `folder` as the
+    /// user would with Save, and close the picker; false when none is up.
+    func simulateExportSave(into folder: URL) -> Bool {
+        guard let shown = exporting else { return false }
+        let target = folder.appendingPathComponent(shown.file.lastPathComponent)
+        do {
+            try? FileManager.default.removeItem(at: target)
+            try FileManager.default.copyItem(at: shown.file, to: target)
+        } catch {
+            Log.store.error("Simulated export save: \(error.localizedDescription, privacy: .public)")
+            return false
+        }
+        shown.picker.dismiss(animated: true)
+        finish(target)
+        return true
+    }
+
+    private func present(_ picker: UIDocumentPickerViewController, done: @escaping (URL?) -> Void,
+                         presented: (() -> Void)? = nil) {
         // One picker at a time: one still open (it shouldn't be) is answered as cancelled.
         finish(nil)
         guard let top = Self.topViewController() else {
@@ -49,7 +83,11 @@ final class SystemDocumentPicker: NSObject, DocumentPicking, UIDocumentPickerDel
         self.done = done
         picker.delegate = self
         picker.modalPresentationStyle = .formSheet
-        top.present(picker, animated: true)
+        top.present(picker, animated: true) {
+            // Already answered (closed before it was up): nothing is on screen for it.
+            guard self.done != nil else { return }
+            presented?()
+        }
     }
 
     func documentPicker(_ controller: UIDocumentPickerViewController, didPickDocumentsAt urls: [URL]) {
@@ -61,6 +99,7 @@ final class SystemDocumentPicker: NSObject, DocumentPicking, UIDocumentPickerDel
     }
 
     private func finish(_ url: URL?) {
+        exporting = nil
         guard let done else { return }
         self.done = nil
         done(url)

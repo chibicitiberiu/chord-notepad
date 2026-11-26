@@ -25,6 +25,8 @@ struct MainActions {
     var find: (FindAction) -> Void = { _ in }
     /// The landscape column's handle was let go at this share (kept across launches).
     var sideFraction: (Double) -> Void = { _ in }
+    /// Cancel on "Preparing export…".
+    var cancelExport: () -> Void = {}
 }
 
 /// The main screen (Android's `SongScreen.kt`): the app bar with its Edit /
@@ -61,6 +63,8 @@ struct MainScreen: View {
     var page: AnyView?
     /// The landscape chord sheet column's share of the width, as last kept.
     var sideFraction = MainMetrics.sideFractionDefault
+    /// "Preparing export…", over everything while an export is prepared.
+    var exportDialog: ExportDialog?
 
     @Environment(\.colorScheme) private var scheme
     @Environment(\.dynamicTypeSize) private var textSize
@@ -115,6 +119,11 @@ struct MainScreen: View {
                 // Over a sheet, so a greyed control's reason shows (Android: a Toast); under the
                 // identifier, which covers the screen as Android's dialog does.
                 if ui.route != .identify { snackbarView(layout) }
+            }
+            .overlay {
+                if let exportDialog {
+                    ExportProgressDialog(dialog: exportDialog, live: scrolls) { actions?.cancelExport() }
+                }
             }
         }
         .background(colors.surface.swiftUI)

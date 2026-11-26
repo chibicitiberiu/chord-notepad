@@ -72,11 +72,13 @@ final class AppModel: ObservableObject {
     private var requests: RequestController?
     /// Files opened from Files or another app before the session ran.
     private var waitingURLs: [URL] = []
-    /// Exports written and waiting for the export picker, oldest first.
-    private var exportsToOffer: [(id: String, file: URL)] = []
-    private var offeringExport = false
+    /// Exports written and waiting for the export picker, the one it shows,
+    /// and the ones the session was told about (docs/IOS.md "Files", Exports).
+    @Published private(set) var exportHandoff = ExportHandoff()
     /// `-CNScreen export` waits for its export (``runExportCheck()``).
     private var exportCheck = false
+    /// What `-CNScreen export` saw of "Preparing export…" and the picker.
+    private var exportSeen = ExportSeen()
     /// `-CNScreen pdf` waits for its PDF (``runPdfCheck()``).
     private var pdfCheck = false
     /// Songs from Files were waiting when the session started (a document launch).
@@ -693,16 +695,32 @@ final class AppModel: ObservableObject {
         }
     }
 
-    /// The store wrote an export's file: offer it with the export picker, one at a time.
+    /// "Preparing export…" now: from the picked file until the export picker
+    /// is up, unless cancelled; nil while no export is prepared or it failed.
+    var exportDialog: ExportDialog? { exportHandoff.dialog(snapshot.export) }
+
+    /// Cancel on "Preparing export…": the session stops a render still
+    /// running and says nothing (`export_finished`, not saved); a file that
+    /// is written all the same is deleted when it arrives, and a picker
+    /// already opening for it is closed once up.
+    func cancelExport() {
+        guard let dialog = exportDialog else { return }
+        let effect = exportHandoff.cancel(dialog.documentId)
+        Log.store.info("Export cancelled while prepared")
+        session?.submit(.exportFinished(documentId: dialog.documentId, location: nil, saved: false))
+        if let file = effect.discard { store?.discardExport(file.id) }
+        if effect.closePicker { picker.closeExport() }
+    }
+
+    /// The store wrote an export's file: offer it with the export picker, one
+    /// at a time ("Preparing export…" stays up until the picker is).
     private func exportWritten(id: String, file: URL) {
         if exportCheck {
             // `-CNScreen export`: what the store got, before the picker opens over it.
             let data = (try? Data(contentsOf: file)) ?? Data()
-            let riff = data.prefix(4) == Data("RIFF".utf8)
-            Diagnostics.shared.writeJSON(ExportReport(file: file.lastPathComponent, bytes: data.count, riff: riff,
-                                                      ok: riff && data.count > 10_000, problem: nil),
-                                         name: "export.json")
-            exportCheck = false
+            exportSeen.file = file.lastPathComponent
+            exportSeen.bytes = data.count
+            exportSeen.riff = data.prefix(4) == Data("RIFF".utf8)
         }
         if pdfCheck, file.pathExtension == "pdf" {
             // `-CNScreen pdf`: the file the store got, read back with PDFKit.
@@ -710,21 +728,67 @@ final class AppModel: ObservableObject {
             try? Diagnostics.shared.copy(file, name: "export.pdf")
             pdfCheck = false
         }
-        exportsToOffer.append((id, file))
+        guard exportHandoff.written(ExportFile(id: id, file: file)) else {
+            // Cancelled while it was prepared: no picker.
+            Log.store.info("A cancelled export's file arrived: deleted")
+            store?.discardExport(id)
+            return
+        }
         offerNextExport()
     }
 
     private func offerNextExport() {
-        guard !offeringExport, let next = exportsToOffer.first else { return }
-        offeringExport = true
-        picker.pickToExport(next.file) { [weak self] saved in
+        guard let next = exportHandoff.nextOffer() else { return }
+        guard exportCheck else { return presentExport(next) }
+        // `-CNScreen export`: "Preparing export…" stays until ci_screenshots.sh took it.
+        Task { [weak self] in
+            _ = await Self.waitForFile(AppPaths.sharedDiagnostics.appendingPathComponent("export-go"),
+                                       timeout: .seconds(60))
+            self?.presentExport(next)
+        }
+    }
+
+    private func presentExport(_ next: ExportFile) {
+        picker.pickToExport(next.file, presented: { [weak self] in
+            guard let self else { return }
+            if self.exportCheck { self.exportSeen.pickerShown = true }
+            if self.exportHandoff.pickerPresented(next.id) {
+                // Cancelled while it opened.
+                self.picker.closeExport()
+            }
+        }, done: { [weak self] saved in
             guard let self else { return }
             Log.store.info("Export \(next.file.lastPathComponent, privacy: .public): \(saved == nil ? "not saved" : "saved", privacy: .public)")
+            if self.exportHandoff.pickerDone(next.id) {
+                self.reportExport(next.id, savedTo: saved)
+            }
             self.store?.discardExport(next.id)
-            self.exportsToOffer.removeFirst()
-            self.offeringExport = false
             self.offerNextExport()
+        })
+    }
+
+    /// Tell the session how the export picker went: saved (where, as the
+    /// store names places; provider I/O, so off the main actor) or not.
+    private func reportExport(_ id: String, savedTo url: URL?) {
+        guard let session else { return }
+        guard let url, let store else {
+            session.submit(.exportFinished(documentId: id, location: nil, saved: false))
+            return
         }
+        Task.detached {
+            let location = store.savedLocation(url)
+            session.submit(.exportFinished(documentId: id, location: location, saved: true))
+        }
+    }
+
+    /// Wait until `file` exists (a CI script's signal), or `timeout` passes.
+    private static func waitForFile(_ file: URL, timeout: Duration) async -> Bool {
+        let deadline = ContinuousClock.now + timeout
+        while ContinuousClock.now < deadline {
+            if FileManager.default.fileExists(atPath: file.path) { return true }
+            try? await Task.sleep(for: .milliseconds(200))
+        }
+        return FileManager.default.fileExists(atPath: file.path)
     }
 
     /// An error of the app's own, as a snackbar.
@@ -801,23 +865,41 @@ final class AppModel: ObservableObject {
 
     /// `-CNScreen export` (CI): once the song is on screen, export it as audio
     /// with the real player's SoundFont (the session test's FakePlayer has
-    /// none, so the core refuses there). `Diagnostics/export.json` says what
-    /// the store got, written before the export picker opens; the screenshot
-    /// then shows the picker.
+    /// none, so the core refuses there), in step with ci_screenshots.sh:
+    /// "Preparing export…" up, `Diagnostics/export-dialog.json` (the script's
+    /// screenshot, then its `export-go`); the store's WAV, the export picker
+    /// up, `export-picker.json` (screenshot, then `export-save`); a save as
+    /// the user's Save would make it (into the app's Documents), the
+    /// session's "Exported audio: …", `export.json` with all of it.
     func runExportCheck() async {
         _ = await waitFor(timeout: .seconds(120)) { $0.highlight?.spans.isEmpty == false }
         let before = snapshot.messageCount
         exportCheck = true
+        exportSeen = ExportSeen()
         choose(.exportAudio)
-        _ = await waitFor(timeout: .seconds(120)) { snapshot in
-            !self.exportCheck || snapshot.messageCount > before
+        let failed = { (model: AppModel) in model.snapshot.messageCount > before }
+        if await waitForModel(timeout: .seconds(120), { $0.exportDialog != nil || failed($0) }),
+           let dialog = exportDialog {
+            exportSeen.dialog = true
+            exportSeen.percent = dialog.percent
+            Diagnostics.shared.writeJSON(ExportDialogReport(title: ExportDialog.title, percent: dialog.percent),
+                                         name: "export-dialog.json")
         }
-        if exportCheck {
-            exportCheck = false
-            let problem = snapshot.messageCount > before ? snapshot.messages.last : "no export after 120 s"
-            Diagnostics.shared.writeJSON(ExportReport(file: nil, bytes: 0, riff: false, ok: false, problem: problem),
-                                         name: "export.json")
+        // The picker after the write and the script's go (offerNextExport).
+        _ = await waitForModel(timeout: .seconds(180)) { $0.exportSeen.pickerShown || failed($0) }
+        if exportSeen.pickerShown {
+            exportSeen.dialogClosed = exportDialog == nil
+            Diagnostics.shared.writeJSON(ExportDialogReport(title: "picker", percent: nil), name: "export-picker.json")
+            _ = await Self.waitForFile(AppPaths.sharedDiagnostics.appendingPathComponent("export-save"),
+                                       timeout: .seconds(60))
+            if (picker as? SystemDocumentPicker)?.simulateExportSave(into: AppPaths.documents) == true {
+                _ = await waitFor(timeout: .seconds(30)) { $0.status?.text.hasPrefix("Exported audio: ") == true }
+            }
+            exportSeen.status = snapshot.status?.text
         }
+        exportCheck = false
+        let problem = failed(self) ? snapshot.messages.last : nil
+        Diagnostics.shared.writeJSON(ExportReport(seen: exportSeen, problem: problem), name: "export.json")
     }
 
     /// `-CNScreen speed|instrument|insert|capo|identify|settings|voicings|about`
@@ -1070,14 +1152,42 @@ struct ToolScreenReport: Codable {
     var detail: String?
 }
 
-/// `Diagnostics/export.json` (`-CNScreen export`): the audio export the store
-/// wrote, or why there was none.
-struct ExportReport: Codable {
+/// What `-CNScreen export` saw along the way.
+struct ExportSeen: Codable, Equatable {
+    /// "Preparing export…" was up, with this percentage.
+    var dialog = false
+    var percent: String?
+    /// The store's file.
     var file: String?
-    var bytes: Int
-    var riff: Bool
+    var bytes = 0
+    var riff = false
+    /// The export picker came up, and the dialog was gone by then.
+    var pickerShown = false
+    var dialogClosed = false
+    /// The status after the simulated save.
+    var status: String?
+}
+
+/// `Diagnostics/export-dialog.json` and `export-picker.json` (`-CNScreen export`):
+/// the moments ci_screenshots.sh takes its screenshots at.
+struct ExportDialogReport: Codable {
+    var title: String
+    var percent: String?
+}
+
+/// `Diagnostics/export.json` (`-CNScreen export`): the audio export from
+/// "Preparing export…" to the saved status, or why it stopped.
+struct ExportReport: Codable {
+    var seen: ExportSeen
     var ok: Bool
     var problem: String?
+
+    init(seen: ExportSeen, problem: String?) {
+        self.seen = seen
+        self.problem = problem
+        ok = problem == nil && seen.dialog && seen.riff && seen.bytes > 10_000 && seen.pickerShown
+            && seen.dialogClosed && seen.status?.hasPrefix("Exported audio: ") == true
+    }
 }
 
 /// `Diagnostics/launch.json`: written once the first song is on screen (CI
