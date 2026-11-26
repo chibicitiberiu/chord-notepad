@@ -157,7 +157,8 @@ struct MainScreen: View {
         .sheet(item: sheetBinding) { shown in
             sheetView(shown)
                 .overlay(alignment: .bottom) {
-                    if let snackbar {
+                    // The identifier repeats the status in its own line; errors show over it.
+                    if let snackbar, shown != .identify || snackbar.error {
                         SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
                             .transition(.move(edge: .bottom).combined(with: .opacity))
                     }
@@ -427,7 +428,7 @@ struct MainScreen: View {
 
         var height: SheetHeight {
             switch self {
-            case .identify: return .large
+            case .identify, .capo: return .large
             default: return .medium
             }
         }

@@ -272,7 +272,7 @@ struct InsertDirectiveDialog: View {
     private func textField(_ label: String, _ text: String, keyboard: UIKeyboardType,
                            change: @escaping (String) -> DirectiveForm) -> some View {
         LabeledContent(label) {
-            TextField(label, text: Binding(get: { text }, set: { event(.directiveChanged(change($0))) }))
+            TextField("", text: Binding(get: { text }, set: { event(.directiveChanged(change($0))) }))
                 .multilineTextAlignment(.trailing)
                 .keyboardType(keyboard)
                 .textInputAutocapitalization(.never)
