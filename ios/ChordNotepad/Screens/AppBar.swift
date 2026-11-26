@@ -1,42 +1,6 @@
 import ChordNotepadKit
 import SwiftUI
 
-/// One of Android's Material Design Icons from the asset catalog
-/// (ios/tools/mdi_assets.py), tinted; `sf.` names an SF Symbol instead.
-struct MdiIcon: View {
-    let name: String
-    let tint: Color
-    var size: CGFloat = 24
-    /// A wider drawing's width (Transpose's is 32 × 24); nil: square.
-    var width: CGFloat?
-
-    init(_ name: String, tint: Color, size: CGFloat = 24, width: CGFloat? = nil) {
-        self.name = name
-        self.tint = tint
-        self.size = size
-        self.width = width
-    }
-
-    var body: some View {
-        Group {
-            if name.hasPrefix("sf.") {
-                Image(systemName: String(name.dropFirst(3)))
-                    .resizable()
-                    .scaledToFit()
-                    .padding(size * 0.08)
-            } else {
-                Image(name)
-                    .renderingMode(.template)
-                    .resizable()
-                    .scaledToFit()
-            }
-        }
-        .foregroundStyle(tint)
-        .frame(width: width ?? size, height: size)
-        .accessibilityHidden(true)
-    }
-}
-
 /// What the app bar's buttons do; nil in the catalog (inert).
 struct AppBarActions {
     var menu: () -> Void
@@ -45,16 +9,17 @@ struct AppBarActions {
     var save: () -> Void
 }
 
-/// The 48 pt app bar (Android's `AppBar.kt`): ☰, the song's title (• while
-/// modified; tap to rename), the Edit / Play tabs and Save. `trailing` fills
-/// the rest of the line (phone landscape Edit: the Edit ribbon, with the title
-/// kept to `titleMaxWidth`).
+/// The 48 pt app bar, drawn as iOS draws a navigation bar: ☰ and Save as
+/// symbols in the accent colour, the song's title (• while modified; tap to
+/// rename) and the Edit / Play segmented control. `trailing` fills the rest
+/// of the line (phone landscape Edit: the Edit ribbon, with the title kept to
+/// `titleMaxWidth`). Its layout is Android's `AppBar.kt`.
 struct AppBar<Trailing: View>: View {
     let title: String
     let modified: Bool
     let mode: AppMode
     let colors: AppColors
-    /// The tabs' captions (not on a phone at the accessibility text sizes).
+    /// The segments' words (a phone at the accessibility text sizes shows the icons).
     var tabLabels = true
     var titleMaxWidth: CGFloat?
     var actions: AppBarActions?
@@ -62,42 +27,42 @@ struct AppBar<Trailing: View>: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            BarIconButton(icon: "mdi_menu", label: AccessibilityLabels.menu, tint: colors.muted.swiftUI) { actions?.menu() }
+            BarIconButton(symbol: AppSymbols.menu, label: AccessibilityLabels.menu) { actions?.menu() }
                 .accessibilityIdentifier("menu")
             titleButton
                 .frame(maxWidth: titleMaxWidth ?? .infinity, alignment: .leading)
                 .layoutPriority(1)
-            ModeTabs(mode: mode, colors: colors, labels: tabLabels) { actions?.mode($0) }
+            ModeTabs(mode: mode, labels: tabLabels) { actions?.mode($0) }
                 .layoutPriority(2)
-            BarIconButton(icon: "mdi_content_save", label: AccessibilityLabels.save,
-                          tint: AppColors.saveTint.withAlpha(modified ? 1 : AppColors.disabledAlpha).swiftUI,
-                          enabled: modified) { actions?.save() }
-                .layoutPriority(2)
-                .accessibilityIdentifier("save")
+            BarIconButton(symbol: AppSymbols.save, label: AccessibilityLabels.save, enabled: modified) {
+                actions?.save()
+            }
+            .layoutPriority(2)
+            .accessibilityIdentifier("save")
             trailing()
         }
-        .padding(.leading, 2)
+        .padding(.horizontal, 4)
         .frame(height: MainMetrics.barHeight)
-        .background(colors.surface.swiftUI)
+        .background(colors.background)
     }
 
-    /// The name, cut short with …, and a primary • while there are unsaved changes.
+    /// The name, cut short with …, and an accent • while there are unsaved changes.
     private var titleButton: some View {
         Button {
             actions?.rename()
         } label: {
-            (Text(title).foregroundColor(colors.text.swiftUI)
-             + Text(modified ? " •" : "").foregroundColor(colors.primary.swiftUI))
-                .font(.body.weight(.medium))
+            (Text(title).foregroundColor(colors.label)
+             + Text(modified ? " •" : "").foregroundColor(colors.accent))
+                .font(.headline)
                 .lineLimit(1)
                 .truncationMode(.tail)
-                .padding(.leading, 2)
+                .padding(.leading, 4)
                 .padding(.trailing, 6)
                 .padding(.vertical, 8)
-                .contentShape(RoundedRectangle(cornerRadius: 8))
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .padding(.trailing, 4)
+        .padding(.trailing, 6)
         .accessibilityLabel(modified ? "\(title), not saved" : title)
         .accessibilityHint(AccessibilityLabels.rename)
         .accessibilityIdentifier("title")
@@ -112,70 +77,50 @@ extension AppBar where Trailing == EmptyView {
     }
 }
 
-/// Edit / Play: tabs with an underline under the open one.
+/// Edit / Play: the system's segmented control (icons only when `labels` is off).
 struct ModeTabs: View {
     let mode: AppMode
-    let colors: AppColors
     var labels = true
     let select: (AppMode) -> Void
 
     var body: some View {
-        HStack(spacing: 0) {
-            tab(.edit, icon: "mdi_pencil", label: AccessibilityLabels.edit)
-            tab(.play, icon: "mdi_play_circle", label: AccessibilityLabels.play)
+        Picker(AccessibilityLabels.edit, selection: Binding(get: { mode }, set: { if $0 != mode { select($0) } })) {
+            segment(AccessibilityLabels.edit, AppSymbols.edit).tag(AppMode.edit)
+            segment(AccessibilityLabels.play, AppSymbols.play).tag(AppMode.play)
         }
-        .frame(maxHeight: .infinity)
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .fixedSize()
+        .padding(.horizontal, 6)
+        .accessibilityIdentifier("mode")
     }
 
-    private func tab(_ target: AppMode, icon: String, label: String) -> some View {
-        let selected = mode == target
-        let color = (selected ? colors.primary : colors.muted).swiftUI
-        return Button {
-            select(target)
-        } label: {
-            HStack(spacing: 4) {
-                MdiIcon(icon, tint: color, size: 19)
-                if labels {
-                    Text(label)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(color)
-                        .lineLimit(1)
-                        .fixedSize()
-                }
-            }
-            .padding(.horizontal, labels ? 12 : 10)
-            .frame(maxHeight: .infinity)
-            .overlay(alignment: .bottom) {
-                if selected {
-                    UnevenRoundedRectangle(topLeadingRadius: 3, topTrailingRadius: 3)
-                        .fill(colors.primary.swiftUI)
-                        .frame(height: 3)
-                }
-            }
-            .contentShape(Rectangle())
+    @ViewBuilder
+    private func segment(_ label: String, _ symbol: String) -> some View {
+        if labels {
+            Text(label)
+        } else {
+            Image(systemName: symbol)
+                .accessibilityLabel(label)
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(label)
-        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
-        .accessibilityIdentifier(target == .edit ? "tab-edit" : "tab-play")
     }
 }
 
-/// A round 44 pt icon button in the app bar.
+/// A 44 pt symbol button in a bar, in the accent colour (grey when off).
 struct BarIconButton: View {
-    let icon: String
+    let symbol: String
     let label: String
-    let tint: Color
     var enabled = true
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            MdiIcon(icon, tint: tint)
+            Image(systemName: symbol)
+                .font(.system(size: 19))
                 .frame(width: 44, height: 44)
-                .contentShape(Circle())
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .disabled(!enabled)
         .accessibilityLabel(label)
     }

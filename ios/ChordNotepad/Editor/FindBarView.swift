@@ -23,13 +23,13 @@ struct FindBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            colors.line.swiftUI.frame(height: 1)
+            colors.separator.frame(height: 0.5).frame(height: 1, alignment: .top)
             VStack(spacing: 4) {
                 findRow
                 if let notice = bar.notice {
                     Text(notice)
                         .font(.caption)
-                        .foregroundColor(colors.muted.swiftUI)
+                        .foregroundColor(colors.secondaryLabel)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.leading, 40)
                         .accessibilityIdentifier("find-notice")
@@ -41,7 +41,7 @@ struct FindBarView: View {
             .padding(.horizontal, 6)
             .padding(.vertical, 4)
         }
-        .background(colors.surface2.swiftUI)
+        .background(colors.bar)
         // The rows are a fixed height: their text follows the text size up to a point.
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
         .onChange(of: bar.opened, initial: true) { _, _ in
@@ -60,7 +60,7 @@ struct FindBarView: View {
             field(.find, text: bar.query, placeholder: "Find", identifier: "find-field") { act(.query($0)) }
             Text(bar.countText)
                 .font(.footnote.monospacedDigit().weight(bar.noMatch ? .semibold : .regular))
-                .foregroundColor((bar.noMatch ? colors.error : colors.muted).swiftUI)
+                .foregroundColor(bar.noMatch ? colors.red : colors.secondaryLabel)
                 .lineLimit(1)
                 .fixedSize()
                 .padding(.horizontal, 4)
@@ -126,18 +126,27 @@ struct FindBarView: View {
                     .accessibilityIdentifier(identifier)
             } else {
                 Text(text.isEmpty ? placeholder : text)
-                    .foregroundColor(text.isEmpty ? colors.muted.swiftUI : colors.text.swiftUI)
+                    .foregroundColor(text.isEmpty ? colors.tertiaryLabel : colors.label)
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
         }
         .font(.body)
-        .foregroundColor(colors.text.swiftUI)
-        .padding(.horizontal, 10)
+        .foregroundColor(colors.label)
+        // A search field's look: the magnifier, a rounded fill, no border.
+        .padding(.leading, which == .find ? 28 : 10)
+        .padding(.trailing, 8)
         .frame(maxWidth: .infinity, minHeight: 36, maxHeight: 36)
-        .background(colors.surface.swiftUI, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(RoundedRectangle(cornerRadius: 8)
-            .stroke((live && focus == which ? colors.primary : colors.line).swiftUI, lineWidth: live && focus == which ? 2 : 1))
+        .background(colors.fill, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay(alignment: .leading) {
+            if which == .find {
+                Image(systemName: AppSymbols.find)
+                    .font(.subheadline)
+                    .foregroundStyle(colors.secondaryLabel)
+                    .padding(.leading, 8)
+                    .accessibilityHidden(true)
+            }
+        }
     }
 
     private func iconButton(_ symbol: String, _ label: String, enabled: Bool, id: String,
@@ -145,12 +154,10 @@ struct FindBarView: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 16, weight: .medium))
-                .foregroundColor(colors.icon.swiftUI)
                 .frame(width: 34, height: 40)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .opacity(enabled ? 1 : AppColors.disabledAlpha)
+        .buttonStyle(.borderless)
         .disabled(!enabled)
         .accessibilityLabel(label)
         .accessibilityIdentifier(id)
@@ -160,10 +167,10 @@ struct FindBarView: View {
                         action: @escaping (Bool) -> Void) -> some View {
         Button { action(!on) } label: {
             Text(text)
-                .font(.subheadline.weight(.bold))
-                .foregroundColor((on ? colors.primary : colors.muted).swiftUI)
+                .font(.subheadline.weight(.semibold))
+                .foregroundColor(on ? .white : colors.accent)
                 .frame(width: 32, height: 30)
-                .background(on ? colors.primarySoft.swiftUI : Color.clear, in: RoundedRectangle(cornerRadius: 6))
+                .background(on ? colors.accent : Color.clear, in: RoundedRectangle(cornerRadius: 7, style: .continuous))
                 .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
@@ -175,17 +182,12 @@ struct FindBarView: View {
     private func textButton(_ label: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(colors.primary.swiftUI)
+                .font(.subheadline)
                 .lineLimit(1)
                 .fixedSize()
-                .padding(.horizontal, 10)
-                .frame(height: 34)
-                .overlay(Capsule().stroke(colors.line.swiftUI, lineWidth: 1))
-                .contentShape(Capsule())
         }
-        .buttonStyle(.plain)
-        .opacity(bar.hasMatches ? 1 : AppColors.disabledAlpha)
+        .buttonStyle(.bordered)
+        .controlSize(.small)
         .disabled(!bar.hasMatches)
         .accessibilityIdentifier(id)
     }

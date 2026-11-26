@@ -13,11 +13,14 @@ struct PlayerActions {
     var toggleSheet: () -> Void
 }
 
-/// The player at the bottom in Play mode (Android's `ui/play/Player.kt`): the
-/// song pill, then voicing · instrument · ⏮ · ▶/⏸ · metronome · speed · chord
-/// sheet, then the status line. The side icons are monochrome, softly tinted
-/// when on. There's no Stop: ⏸ keeps the playhead, ⏮ stops and goes back to
-/// the start. `compact`: the narrow landscape column, smaller buttons.
+/// The player at the bottom in Play mode, laid out as Android's
+/// `ui/play/Player.kt` and drawn as an iOS toolbar: the song pill (a pull-down
+/// style button in the accent colour), then voicing · instrument · ⏮ · ▶/⏸ ·
+/// metronome · speed · chord sheet as SF Symbols, then the status line. A
+/// button that is on (the metronome, a speed other than 100 %, the chord
+/// sheet) is tinted and filled. There's no Stop: ⏸ keeps the playhead, ⏮
+/// stops and goes back to the start. `compact`: the narrow landscape column,
+/// smaller buttons.
 struct PlayerBar: View {
     let state: PlayerState
     let colors: AppColors
@@ -28,7 +31,7 @@ struct PlayerBar: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            colors.line.swiftUI.frame(height: 1)
+            colors.separator.frame(height: 0.5).frame(height: 1, alignment: .top)
             VStack(spacing: 0) {
                 songPill
                     .frame(height: 26)
@@ -37,7 +40,7 @@ struct PlayerBar: View {
                     .frame(height: 60)
                 Text(state.status)
                     .font(.caption2)
-                    .foregroundColor(colors.muted.swiftUI)
+                    .foregroundColor(colors.secondaryLabel)
                     .lineLimit(1)
                     .truncationMode(.tail)
                     .frame(maxWidth: .infinity)
@@ -49,75 +52,78 @@ struct PlayerBar: View {
             .padding(.bottom, 3)
         }
         .frame(height: MainMetrics.playerHeight)
-        .background(colors.surface2.swiftUI)
+        .background(colors.bar.ignoresSafeArea(edges: .bottom))
         // A fixed 110 pt bar: its text follows the text size up to a point.
         .dynamicTypeSize(...DynamicTypeSize.xxLarge)
     }
 
-    /// 𝄞 100 · 3/4 · Am ⌄: muted purple text, no background; opens the song defaults.
+    /// ♩ 100 · 3/4 · Am ⌄ in the accent colour; opens Playback settings.
     private var songPill: some View {
         Button {
             actions?.songDefaults()
         } label: {
             HStack(spacing: 4) {
-                MdiIcon("mdi_music_clef_treble", tint: colors.pill.swiftUI, size: 15)
+                Image(systemName: AppSymbols.songDefaults)
+                    .font(.footnote)
                 Text(state.pill)
                     .font(.footnote.weight(.medium))
-                    .foregroundColor(colors.pill.swiftUI)
                     .lineLimit(1)
-                MdiIcon("mdi_chevron_down", tint: AppColors.offTint.swiftUI, size: 15)
+                Image(systemName: AppSymbols.chevronDown)
+                    .font(.caption2.weight(.semibold))
             }
             .padding(.horizontal, 8)
             .frame(maxHeight: .infinity)
-            .contentShape(Capsule())
+            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .accessibilityLabel(AccessibilityLabels.songDefaults(state.pill))
         .accessibilityIdentifier("player-pill")
     }
 
     private var buttons: some View {
-        let side: CGFloat = compact ? 38 : 42
-        return HStack(spacing: compact ? 0 : 6) {
-            sideButton("mdi_music", AccessibilityLabels.voicing(state.voicingLabel), on: false, size: side,
+        let side: CGFloat = compact ? 38 : 44
+        return HStack(spacing: compact ? 0 : 4) {
+            sideButton(AppSymbols.voicing, AccessibilityLabels.voicing(state.voicingLabel), on: false, size: side,
                        locked: state.voicingLockedReason, id: "player-voicing") { actions?.voicing() }
-            sideButton("mdi_guitar_acoustic", AccessibilityLabels.instrument(state.instrumentLabel), on: false, size: side,
-                       id: "player-instrument") { actions?.instrument() }
-            sideButton("mdi_skip_previous", AccessibilityLabels.rewind, on: false, size: side,
+            sideButton(AppSymbols.instrument, AccessibilityLabels.instrument(state.instrumentLabel), on: false,
+                       size: side, id: "player-instrument") { actions?.instrument() }
+            sideButton(AppSymbols.rewind, AccessibilityLabels.rewind, on: false, size: side,
                        id: "player-rewind") { actions?.rewind() }
-            playButton(size: compact ? 48 : 54)
-            sideButton("mdi_metronome", AccessibilityLabels.metronome, on: state.metronome, size: side,
-                       id: "player-metronome") { actions?.toggleMetronome() }
-            sideButton("mdi_speedometer", AccessibilityLabels.speed, on: state.speedBadge != nil, size: side, badge: state.speedBadge,
-                       id: "player-speed") { actions?.speed() }
-            sideButton("mdi_dock_bottom", state.sheetVisible ? AccessibilityLabels.hideSheet : AccessibilityLabels.showSheet,
+            playButton(size: compact ? 48 : 56)
+            sideButton(state.metronome ? AppSymbols.metronomeOn : AppSymbols.metronome, AccessibilityLabels.metronome,
+                       on: state.metronome, size: side, id: "player-metronome") { actions?.toggleMetronome() }
+            sideButton(AppSymbols.speed, AccessibilityLabels.speed, on: state.speedBadge != nil, size: side,
+                       badge: state.speedBadge, id: "player-speed") { actions?.speed() }
+            sideButton(AppSymbols.chordSheet,
+                       state.sheetVisible ? AccessibilityLabels.hideSheet : AccessibilityLabels.showSheet,
                        on: state.sheetVisible, size: side, id: "player-sheet") { actions?.toggleSheet() }
         }
         .frame(maxWidth: .infinity)
     }
 
-    private func sideButton(_ icon: String, _ label: String, on: Bool, size: CGFloat, badge: String? = nil,
+    private func sideButton(_ symbol: String, _ label: String, on: Bool, size: CGFloat, badge: String? = nil,
                             locked: String? = nil, id: String, action: @escaping () -> Void) -> some View {
-        let tint = (on ? colors.primary : colors.icon).withAlpha(locked == nil ? 1 : AppColors.disabledAlpha)
-        return Button {
+        Button {
             // A disabled button still takes a tap, to say why it's disabled.
             if let locked { explainLocked(locked) } else { action() }
         } label: {
             ZStack {
-                Circle().fill(on ? colors.primarySoft.swiftUI : Color.clear)
-                MdiIcon(icon, tint: tint.swiftUI, size: size < 40 ? 24 : 26)
+                Circle().fill(on ? colors.accent.opacity(0.15) : Color.clear)
+                Image(systemName: symbol)
+                    .font(.system(size: size < 40 ? 19 : 21))
+                    .foregroundStyle(locked != nil ? colors.tertiaryLabel : on ? colors.accent : colors.label)
             }
             .frame(width: size, height: size)
             .overlay(alignment: .topTrailing) {
                 if let badge {
                     Text(badge)
-                        .font(.system(size: 9, weight: .medium))
-                        .foregroundColor(colors.onPrimary.swiftUI)
-                        .padding(.horizontal, 3)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(colors.primary.swiftUI, in: RoundedRectangle(cornerRadius: 6))
+                        .background(colors.accent, in: Capsule())
                         .fixedSize()
-                        .offset(x: 4, y: 2)
+                        .offset(x: 6, y: 0)
                 }
             }
             .contentShape(Circle())
@@ -128,21 +134,22 @@ struct PlayerBar: View {
         .accessibilityIdentifier(id)
     }
 
-    /// The big round ▶/⏸ in the primary colour; a ring while the song renders.
+    /// The big ▶/⏸ in the accent colour; a spinner over it while the song renders.
     private func playButton(size: CGFloat) -> some View {
         Button {
             actions?.playPause()
         } label: {
             ZStack {
-                Circle()
-                    .fill(colors.primary.swiftUI)
-                    .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
-                MdiIcon(state.playing ? "mdi_pause" : "mdi_play", tint: colors.onPrimary.swiftUI, size: 34)
+                Circle().fill(colors.accent)
+                Image(systemName: state.playing ? AppSymbols.pauseFill : AppSymbols.playFill)
+                    .font(.system(size: size * 0.42))
+                    .foregroundStyle(.white)
+                    // ▶ sits a little right of the centre to look centred.
+                    .offset(x: state.playing ? 0 : size * 0.04)
+                    .opacity(state.starting ? 0 : 1)
                 if state.starting {
-                    Circle()
-                        .trim(from: 0, to: 0.7)
-                        .stroke(colors.onPrimary.swiftUI, style: StrokeStyle(lineWidth: 3, lineCap: .round))
-                        .padding(4.5)
+                    ProgressView()
+                        .tint(.white)
                 }
             }
             .frame(width: size, height: size)

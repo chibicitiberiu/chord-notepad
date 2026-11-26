@@ -148,19 +148,16 @@ struct ChordSheetPane: View {
         }
     }
 
-    /// The view tabs (a tap on an unavailable one says why) and the zoom buttons.
+    /// The views as a segmented control (choosing one the core can't show
+    /// says why and keeps the view) and the zoom buttons.
     private var header: some View {
-        HStack(spacing: 2) {
-            if interactive {
-                ScrollView(.horizontal, showsIndicators: false) { tabs }
-            } else {
-                // ImageRenderer can't draw a ScrollView (the catalog).
-                tabs.frame(maxWidth: .infinity, alignment: .leading).clipped()
-            }
+        HStack(spacing: 4) {
+            tabs
+                .frame(maxWidth: .infinity, alignment: .leading)
             // Views the core says don't zoom show no zoom buttons; pinch follows the same flag.
             if state.zoomSupported {
-                zoomButton("minus.magnifyingglass", AccessibilityLabels.zoomOut) { actions?.zoom(-1) }
-                zoomButton("plus.magnifyingglass", AccessibilityLabels.zoomIn) { actions?.zoom(1) }
+                zoomButton(AppSymbols.zoomOut, AccessibilityLabels.zoomOut) { actions?.zoom(-1) }
+                zoomButton(AppSymbols.zoomIn, AccessibilityLabels.zoomIn) { actions?.zoom(1) }
             }
         }
         .padding(.horizontal, 6)
@@ -170,42 +167,34 @@ struct ChordSheetPane: View {
     }
 
     private var tabs: some View {
-        HStack(spacing: 2) {
+        Picker("Chord sheet view", selection: Binding(get: { state.activeView }, set: { id in
+            guard id != state.activeView, let view = state.views.first(where: { $0.viewId == id }) else { return }
+            if view.available {
+                actions?.selectView(id)
+            } else if let why = state.disabledReason, !why.isEmpty {
+                withAnimation { reason = why }
+            }
+        })) {
             ForEach(state.views, id: \.viewId) { view in
-                let selected = view.viewId == state.activeView
-                Button {
-                    if view.available {
-                        actions?.selectView(view.viewId)
-                    } else if let why = state.disabledReason, !why.isEmpty {
-                        withAnimation { reason = why }
-                    }
-                } label: {
-                    Text(view.label)
-                        .font(.caption.weight(.medium))
-                        .lineLimit(1)
-                        .foregroundStyle(!view.available ? colors.muted.swiftUI.opacity(0.5)
-                                         : selected ? colors.text.swiftUI : colors.muted.swiftUI)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 4)
-                        .background(selected ? colors.surfaceHigh.swiftUI : .clear,
-                                    in: RoundedRectangle(cornerRadius: 8))
-                }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-                .accessibilityHint(view.available ? "" : (state.disabledReason ?? ""))
+                Text(view.label)
+                    .accessibilityHint(view.available ? "" : (state.disabledReason ?? ""))
+                    .tag(view.viewId)
             }
         }
+        .pickerStyle(.segmented)
+        .labelsHidden()
+        .controlSize(.small)
+        .accessibilityIdentifier("chord-sheet-views")
     }
 
     private func zoomButton(_ symbol: String, _ label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.system(size: 17))
-                .foregroundStyle(colors.primary.swiftUI)
-                .frame(width: 30, height: 30)
-                .contentShape(Circle())
+                .frame(width: 32, height: 30)
+                .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .accessibilityLabel(label)
     }
 

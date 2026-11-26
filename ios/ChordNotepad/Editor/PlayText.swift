@@ -31,8 +31,8 @@ final class MarkerScrub: UIPanGestureRecognizer {
 }
 
 /// Play mode's explanation of a long-pressed directive (Android's
-/// `DirectiveHintCard`): the reason, in the error colour when it is one, then
-/// the syntax in the monospaced font.
+/// `DirectiveHintCard`), drawn as iOS draws a popover: the reason, in red
+/// when it is an error, then the syntax in the monospaced font.
 final class HintCardView: UIView {
     private let reason = UILabel()
     private let syntax = UILabel()
@@ -40,10 +40,11 @@ final class HintCardView: UIView {
 
     init() {
         super.init(frame: .zero)
-        layer.cornerRadius = 12
-        layer.shadowOpacity = 0.2
-        layer.shadowRadius = 4
-        layer.shadowOffset = CGSize(width: 0, height: 2)
+        layer.cornerRadius = 13
+        layer.cornerCurve = .continuous
+        layer.shadowOpacity = 0.18
+        layer.shadowRadius = 12
+        layer.shadowOffset = CGSize(width: 0, height: 4)
         reason.numberOfLines = 2
         reason.font = UIFont.preferredFont(forTextStyle: .caption1)
         syntax.numberOfLines = 4
@@ -65,12 +66,12 @@ final class HintCardView: UIView {
     }
 
     func show(_ card: HintCard, colors: AppColors) {
-        backgroundColor = colors.surfaceHigh.uiColor
+        backgroundColor = .secondarySystemGroupedBackground
         reason.text = card.reason
         reason.isHidden = card.reason.isEmpty
-        reason.textColor = (card.error ? colors.error : colors.muted).uiColor
+        reason.textColor = card.error ? .systemRed : .label
         syntax.text = card.syntax
-        syntax.textColor = colors.muted.uiColor
+        syntax.textColor = .secondaryLabel
         accessibilityLabel = [card.reason, card.syntax].filter { !$0.isEmpty }.joined(separator: ". ")
         UIAccessibility.post(notification: .announcement, argument: accessibilityLabel)
     }
