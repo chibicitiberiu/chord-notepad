@@ -233,10 +233,10 @@ final class SessionTests: XCTestCase {
         XCTAssertTrue(preparing, "\(String(describing: model.snapshot.export))")
         XCTAssertEqual(model.exportDialog?.kind, "midi")
         // Written, and the picker asked for (the third export's).
-        let asked = await model.waitForModel(timeout: .seconds(60)) { _ in
+        let pickerAsked = await model.waitForModel(timeout: .seconds(60)) { _ in
             picker.calls.filter { $0 == "export Morning copy.mid" }.count == 3
         }
-        XCTAssertTrue(asked, "\(picker.calls)")
+        XCTAssertTrue(pickerAsked, "\(picker.calls)")
         XCTAssertNotNil(model.exportDialog, "up until the picker is")
         model.cancelExport()
         XCTAssertNil(model.exportDialog)
