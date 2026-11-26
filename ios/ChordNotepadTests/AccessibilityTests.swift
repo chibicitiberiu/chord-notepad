@@ -188,7 +188,7 @@ final class AccessibilityTests: XCTestCase {
     func testPlaybackSettingsEditIsAButtonThatGoesToTheDirective() async throws {
         let scene = try XCTUnwrap(UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }.first)
         let state = try XCTUnwrap(PreviewCatalog.scene("player_sheets").snapshot.songDefaults)
-        let offset = try XCTUnwrap(state.tempo.directiveOffset, "the fixture's tempo is {bpm: 90}")
+        let offset = try XCTUnwrap(state.tempo.directiveOffset, "the fixture's tempo is {bpm: 90} (the bpm row)")
         final class Events { var sent: [SheetEvent] = [] }
         let events = Events()
         let window = UIWindow(windowScene: scene)
@@ -206,7 +206,7 @@ final class AccessibilityTests: XCTestCase {
         // SwiftUI builds its accessibility nodes after the first frames.
         try await Task.sleep(for: .milliseconds(150))
         let elements = Self.elements(under: window)
-        let edit = try XCTUnwrap(elements.first { $0.identifier == "song-defaults-edit-tempo" },
+        let edit = try XCTUnwrap(elements.first { $0.identifier == "song-defaults-edit-bpm" },
                                  "\(elements.map(\.identifier))")
         XCTAssertEqual(edit.label, SongDefaultsTexts.edit)
         XCTAssertTrue(edit.traits.contains(.button))

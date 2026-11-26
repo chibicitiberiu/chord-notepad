@@ -198,8 +198,9 @@ extension SessionTests {
         XCTAssertNil(view.accessibilityElements as? [PlayTextElement])
 
         // -- Transpose and its Undo leave the view where it was (S0 issue 14: it jumped to the end) --
-        let verse = "G        D        Em       C\nla la la la la la la la la la\n"
-        let long = "{key: G}\n" + String(repeating: verse, count: 40)
+        // Lyrics without solfège ("la" would read as a European chord).
+        let verse = "G        D        Em       C\nTwinkle twinkle little star, how I wonder\n"
+        let long = "{key: G}\n" + String(repeating: verse, count: 80)
         session.submit(.restoreDraft(document: nil, modified: true, readOnly: false, text: long))
         ok = await model.waitFor(timeout: .seconds(30)) { _ in editor.model.text == long }
         XCTAssertTrue(ok, "the long song in the editor")
@@ -215,7 +216,9 @@ extension SessionTests {
             model.sheet(.transposeUp)
             model.sheet(.transposeOK)
             var done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
-            XCTAssertTrue(done && editor.model.text.hasPrefix("{key: A}\nA "), "\(what): transposed")
+            XCTAssertTrue(done && editor.model.text.hasPrefix("{key: A}\nA "),
+                          "\(what): transposed: \(editor.model.text.prefix(40).debugDescription), "
+                          + "\(String(describing: model.snapshot.status?.text)), \(editor.model.notation)")
             await settle()
             XCTAssertEqual(view.contentOffset.y, y, accuracy: 1, "\(what): after Transpose")
             editor.perform(.undo)
