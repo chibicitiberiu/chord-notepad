@@ -82,6 +82,9 @@ rm -f "$DIAG/launch.json" "$DATA/Library/Application Support/Diagnostics/launch.
 xcrun simctl launch --terminate-running-process "$UDID" "$BUNDLE_ID" -CNScreen main
 if wait_for "$DIAG/launch.json" 240; then
     cat "$DIAG/launch.json"
+    # The launch state (a spinner, not the session's empty untitled song) ends with the song.
+    python3 -c 'import json, sys; sys.exit(1 if json.load(open(sys.argv[1])).get("launching", True) else 0)' \
+        "$DIAG/launch.json" || { echo "The launch state was still up with the song open" >&2; status=1; }
     sleep 3
 else
     status=1

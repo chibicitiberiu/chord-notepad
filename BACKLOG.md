@@ -45,6 +45,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
 - Kotlin comments: the stale `TODO(step 14)` in `bridge/SessionOutput.kt:11`, the misplaced KDoc in `SessionRepository.kt` (~`:136`).
 - `{}` (empty braces) should be marked invalid, not ignored.
 - Android: the capo icon needs a better drawing.
+- Android: a neutral launch state, as iOS has (S0 issue 4, 2026-11-26). While Python starts, and until a draft restored after process death arrives (`lifecycle/DraftRestore.kt`), `SongScreen` shows the session's empty untitled song: "Chord Notepad", the "Type or paste a song here" placeholder and the Edit tab, with only a progress bar under the header. On a slow phone that reads as a lost song. iOS shows a spinner until the launch's song is open (`MainUiState.launching`).
 - Android lacks these desktop features (audit 2026-11-24; the session commands exist, Kotlin never sends them; none is documented as a deliberate difference):
   - Find and replace, find next/previous, go to line, and the same-word tint on a selected word: the desktop's `find_bar.py` / `FindBar.qml` with `replace_match` and `replace_all` (`core/chordnotepad/session/text_ops.py`); the iOS slice ports the same find bar.
   - Line editing: select, duplicate, delete and move lines, toggle comment, indent/unindent (`duplicate_lines`, `delete_lines`, `move_lines`, `toggle_comment`, `indent_lines`; desktop `qml/app/EditorPane.qml:227-267`). iOS gets some as keyboard shortcuts.

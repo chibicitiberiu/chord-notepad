@@ -378,6 +378,24 @@ final class MainScreenTests: XCTestCase {
         XCTAssertEqual(bars.shown?.text, "File not found: x", "and stays when one opens")
     }
 
+    func testTheLaunchStateLastsUntilTheLaunchSongArrives() {
+        // S0 issue 4: the session's start-up replay reports an empty untitled song first.
+        XCTAssertFalse(MainUiState().launching, "off unless a launch began (the catalog, tests)")
+        var ui = MainUiState()
+        ui.launchBegan()
+        ui.modes.expectOpen()
+        ui.documentChanged(doc(nil))
+        XCTAssertTrue(ui.launching, "the empty untitled song isn't the launch's song")
+        ui.documentChanged(doc("bundle:01_quick_start.txt"))
+        XCTAssertFalse(ui.launching)
+        XCTAssertEqual(ui.mode, .play)
+
+        var failed = MainUiState()
+        failed.launchBegan()
+        failed.launchEnded()
+        XCTAssertFalse(failed.launching, "a failed start or a missing song ends it too")
+    }
+
     func testANoticeShowsInEitherModeButNotOverAnError() {
         var bars = Snackbars()
         bars.notice("Pause to change the voicing")

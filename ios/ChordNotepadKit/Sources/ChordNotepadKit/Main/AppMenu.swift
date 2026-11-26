@@ -215,8 +215,30 @@ public struct MainUiState: Sendable, Equatable {
     public var renameInput: String?
     /// The sheets' and the tools' dialogs' fields (``handle(_:snapshot:editor:)``).
     public var tools = ToolsUiState()
+    /// The app is starting (``launchBegan()``): until the song it opens
+    /// arrives, the screen shows a neutral launch state, not the session's
+    /// empty untitled song (which, on a slow device, reads as a lost song).
+    public private(set) var launching = false
 
     public var mode: AppMode { modes.mode }
+
+    /// The app's launch began: the launch state shows until the first song opens.
+    public mutating func launchBegan() {
+        launching = true
+    }
+
+    /// The session's document changed (``ModeController/onDocument(_:)``);
+    /// the launch is over once the song asked for at launch has arrived.
+    public mutating func documentChanged(_ document: DocumentState) {
+        modes.onDocument(document)
+        if modes.opened > 0 { launching = false }
+    }
+
+    /// The launch is over without that song (start failed, nothing to open,
+    /// or it took too long): the screen shows what there is.
+    public mutating func launchEnded() {
+        launching = false
+    }
 
     public init(mode: AppMode? = nil, route: MainRoute = .none, keyboardHeight: Double = 0) {
         modes = ModeController(mode)

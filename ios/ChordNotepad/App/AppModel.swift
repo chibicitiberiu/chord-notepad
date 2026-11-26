@@ -97,6 +97,11 @@ final class AppModel: ObservableObject {
     private var startedAt = ContinuousClock.now
     private var auditionState: OSSignpostIntervalState?
 
+    /// An empty untitled song came while the launch state showed (`launch.json`).
+    private(set) var launchHidUntitled = false
+    /// How long the launch state waits for the launch's song at most (seconds).
+    static let launchStateLimit = 60
+
     /// What the status line shows while there is no session status yet.
     var phaseText: String {
         switch phase {
@@ -111,6 +116,14 @@ final class AppModel: ObservableObject {
     /// unless XCTest hosts the process (its tests start their own).
     func launch() async {
         guard !AppEnvironment.isRunningTests, phase == .idle else { return }
+        ui.launchBegan()
+        Task { [weak self] in
+            // A launch song that never comes doesn't hide the screen for good.
+            try? await Task.sleep(for: .seconds(Self.launchStateLimit))
+            guard let self, self.ui.launching else { return }
+            Log.ui.error("No song after \(Self.launchStateLimit) s: the launch state ends without it")
+            self.ui.launchEnded()
+        }
         if AppEnvironment.startScreen == "selftest" {
             ui.route = .diagnostics
         }
@@ -234,6 +247,7 @@ final class AppModel: ObservableObject {
             }
         } catch {
             Log.python.error("Start failed: \(String(describing: error), privacy: .public)")
+            ui.launchEnded()
             timings.error = String(describing: error)
             phase = .failed(String(describing: error))
             Diagnostics.shared.writeJSON(timings, name: "launch.json")
@@ -267,6 +281,7 @@ final class AppModel: ObservableObject {
         guard let session, let url = AppPaths.quickStart,
               let text = try? String(contentsOf: url, encoding: .utf8) else {
             Log.ui.error("The quick-start song is missing from the bundle")
+            ui.launchEnded()
             return
         }
         // The session's start-up replay reports an empty, untitled song first:
@@ -315,7 +330,9 @@ final class AppModel: ObservableObject {
             }
             switch output {
             case .documentState(let document):
-                ui.modes.onDocument(document)
+                // The start-up replay's empty untitled song, hidden by the launch state (launch.json).
+                if ui.launching && document.documentId == nil { launchHidUntitled = true }
+                ui.documentChanged(document)
                 if previousName != nil, document.displayName != previousName { ui.documentRenamed() }
             case .renameFailed(let event):
                 ui.renameFailed(RenameFailure(event))
@@ -343,7 +360,8 @@ final class AppModel: ObservableObject {
            snapshot.document?.documentId != nil {
             timings.firstText = elapsed()
             Log.ui.info("First text after \(self.timings.firstText ?? 0, format: .fixed(precision: 3)) s")
-            Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot), name: "launch.json")
+            Diagnostics.shared.writeJSON(LaunchReport(timings: timings, snapshot: snapshot, launching: ui.launching,
+                                                      hidUntitled: launchHidUntitled), name: "launch.json")
         }
     }
 
@@ -1205,9 +1223,16 @@ struct LaunchReport: Codable {
     var status: String?
     var textLength: Int
     var messages: [String]
+    /// The launch state still showed (it should have ended with the song).
+    var launching = false
+    /// The session's empty untitled song came while the launch state hid it.
+    var hidUntitled = false
 
-    @MainActor init(timings: LaunchTimings, snapshot: SessionSnapshot) {
+    @MainActor init(timings: LaunchTimings, snapshot: SessionSnapshot, launching: Bool = false,
+                    hidUntitled: Bool = false) {
         self.timings = timings
+        self.launching = launching
+        self.hidUntitled = hidUntitled
         document = snapshot.document?.displayName
         status = snapshot.status?.text
         textLength = snapshot.text.count

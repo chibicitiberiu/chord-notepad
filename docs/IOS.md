@@ -830,6 +830,15 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   Android's pages replace `SongScreen` and its snackbar host. Errors and a
   greyed control's reason still show over a page (Android's errors are
   dialogs over its pages).
+- **Launch state:** from `launch()` until the song the app opens at launch
+  arrives (`MainUiState.launching`: `launchBegan`, then `documentChanged`
+  once `ModeController.opened` counts it), the screen is the app's
+  background and a spinner: no title, tabs or editor. The session's start-up
+  replay reports an empty untitled song first, which on a slow start read as
+  a lost song (S0 issue 4). A failed start, a missing bundled song or 60 s
+  without the song end it too. `launch.json` says whether it was still up
+  (`launching`, which CI's main launch checks is false) and whether it hid
+  the untitled song (`hidUntitled`). Off in the catalog and under XCTest.
 - **Large text:** the bar is a fixed 48 pt; its title is body text, which
   follows Dynamic Type up to `accessibility2`, and on a phone at the
   accessibility sizes the tabs drop their captions (icons only) so the title
@@ -860,6 +869,9 @@ Deliberate differences from Android:
   iOS sheets.
 - Snackbars are drawn by the screen (no Material snackbar host); a greyed
   button's reason is a short snackbar (Android: a Toast).
+- While the app starts it shows a spinner until the launch's song is open
+  (Android shows the empty song, its title and Edit tab with a progress bar
+  under the header while Python starts; BACKLOG).
 - The screen stays awake while a song plays through the idle timer.
 - The side column's width is kept across launches in UserDefaults, as
   Android keeps it in its preferences ("Find, the font, the pinch and the

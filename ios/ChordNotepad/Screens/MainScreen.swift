@@ -81,6 +81,25 @@ struct MainScreen: View {
     }
 
     var body: some View {
+        if ui.launching && failure == nil {
+            launchView
+        } else {
+            screen
+        }
+    }
+
+    /// While the app starts (``MainUiState/launching``): no title, tabs or
+    /// empty song yet, only the app's background and a spinner, until the song
+    /// it opens is there.
+    private var launchView: some View {
+        ProgressView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .background(colors.surface.swiftUI.ignoresSafeArea())
+            .accessibilityLabel("Starting…")
+            .accessibilityIdentifier("launch-state")
+    }
+
+    private var screen: some View {
         GeometryReader { window in
             let size = window.size
             let layout = ScreenLayout.of(width: Double(size.width), height: Double(size.height), mode: ui.mode,
