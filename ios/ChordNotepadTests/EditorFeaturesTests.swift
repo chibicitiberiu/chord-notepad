@@ -194,8 +194,8 @@ extension SessionTests {
         XCTAssertTrue(ok, "the marker's chord is the selected one")
         XCTAssertFalse(elements[0].accessibilityActivate(), "text does nothing")
         model.selectMode(.edit)
-        XCTAssertNil(view.playElements)
-        XCTAssertTrue(view.isAccessibilityElement, "Edit's text view is a text element again")
+        XCTAssertNil(view.playElements, "Edit has the text view's own accessibility")
+        XCTAssertNil(view.accessibilityElements as? [PlayTextElement])
 
         // -- the side column's width, kept in UserDefaults across launches --------------------
         let key = UiPreferences.sideFractionKey
