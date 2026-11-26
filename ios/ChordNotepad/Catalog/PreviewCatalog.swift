@@ -425,7 +425,9 @@ enum CatalogRenderer {
     static var upright: [Device] { devices }
     static var all: [Device] { devices + [iphoneLandscape, ipadLandscape] }
     static let schemes: [(String, ColorScheme)] = [("light", .light), ("dark", .dark)]
-    static let textSizes: [(String, DynamicTypeSize)] = [("default", .large), ("large", .accessibility2)]
+    /// The default size, and Accessibility Extra Large (two steps short of the
+    /// largest with Larger Accessibility Sizes on).
+    static let textSizes: [(String, DynamicTypeSize)] = [("default", .large), ("large", .accessibility3)]
 
     /// How a window is captured: its layers drawn into a context (works off
     /// the screen, at any size), or the render server's snapshot of the window.
@@ -482,7 +484,7 @@ enum CatalogRenderer {
     /// window lies off the screen with no safe area, as the catalog has always
     /// drawn the screens (under the status bar's height of nothing).
     @MainActor static func render(_ view: AnyView, device: Device, scheme: ColorScheme, textSize: DynamicTypeSize,
-                                  capture: Capture = .layers) -> UIImage? {
+                                  capture: Capture = .snapshot) -> UIImage? {
         guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
             return nil
         }
