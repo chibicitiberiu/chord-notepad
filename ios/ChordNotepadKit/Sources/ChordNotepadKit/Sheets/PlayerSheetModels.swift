@@ -237,15 +237,15 @@ public enum SongDefaultsTexts {
 /// toolbar's key choices.
 public func songDefaultRows(_ state: SongDefaultsState, keys: [String]) -> [SongDefaultRow] {
     [
-        SongDefaultRow(kind: .tempo, icon: "mdi_metronome", label: "Tempo", about: SongDefaultsTexts.tempoAbout,
+        SongDefaultRow(kind: .tempo, icon: AppSymbols.tempo, label: "Tempo", about: SongDefaultsTexts.tempoAbout,
                        display: "\(state.tempo.value) bpm", value: state.tempo.value,
                        fromDirective: state.tempo.fromDirective, directiveOffset: state.tempo.directiveOffset,
                        choices: []),
-        SongDefaultRow(kind: .time, icon: "ic_time_signature", label: "Time signature",
+        SongDefaultRow(kind: .time, icon: AppSymbols.timeSignature, label: "Time signature",
                        about: SongDefaultsTexts.timeAbout, display: state.time.value, value: state.time.value,
                        fromDirective: state.time.fromDirective, directiveOffset: state.time.directiveOffset,
                        choices: timeChoices.map { "\($0.beats)/\($0.unit)" }),
-        SongDefaultRow(kind: .key, icon: "mdi_music_clef_treble", label: "Key", about: SongDefaultsTexts.keyAbout,
+        SongDefaultRow(kind: .key, icon: AppSymbols.key, label: "Key", about: SongDefaultsTexts.keyAbout,
                        display: state.key.value.isEmpty ? SongDefaultsTexts.noKey : state.key.value,
                        value: state.key.value, fromDirective: state.key.fromDirective,
                        directiveOffset: state.key.directiveOffset, choices: keys),
@@ -302,12 +302,12 @@ public struct InsertEntry: Sendable, Equatable, Hashable {
 
 /// Insert's entries, in Android's order.
 public let insertEntries: [InsertEntry] = [
-    InsertEntry(kind: .bpm, icon: "mdi_metronome", label: "Tempo", code: "{bpm}"),
-    InsertEntry(kind: .time, icon: "ic_time_signature", label: "Time signature", code: "{time}"),
-    InsertEntry(kind: .key, icon: "mdi_music_clef_treble", label: "Key", code: "{key}"),
-    InsertEntry(kind: .capo, icon: "ic_capo", label: "Capo", code: "{capo}"),
-    InsertEntry(kind: .label, icon: "mdi_label", label: "Label (section)", code: "{label}"),
-    InsertEntry(kind: .loop, icon: "mdi_repeat", label: "Loop", code: "{loop}"),
+    InsertEntry(kind: .bpm, icon: AppSymbols.tempo, label: "Tempo", code: "{bpm}"),
+    InsertEntry(kind: .time, icon: AppSymbols.timeSignature, label: "Time signature", code: "{time}"),
+    InsertEntry(kind: .key, icon: AppSymbols.key, label: "Key", code: "{key}"),
+    InsertEntry(kind: .capo, icon: AppSymbols.capo, label: "Capo", code: "{capo}"),
+    InsertEntry(kind: .label, icon: AppSymbols.label, label: "Label (section)", code: "{label}"),
+    InsertEntry(kind: .loop, icon: AppSymbols.loop, label: "Loop", code: "{loop}"),
 ]
 
 /// Android's per-function icon tints (`IconTints`), as RGBA.

@@ -9,7 +9,7 @@ import Foundation
 /// The editor's and the Edit ribbon's colours in one theme.
 public struct EditorPalette: Sendable, Equatable {
     public var dark: Bool
-    /// The text's background (Android's `surface`).
+    /// The text's background (iOS's system background).
     public var background: SheetColor
     /// Plain text (`editorText`).
     public var text: SheetColor
@@ -25,7 +25,7 @@ public struct EditorPalette: Sendable, Equatable {
     public var comment: SheetColor
     /// The sounding chord's background (Tk "yellow").
     public var playing: SheetColor
-    /// The caret and the selection's tint (the primary colour).
+    /// The caret and the selection's tint (the system blue, the app's accent).
     public var primary: SheetColor
     /// The Edit ribbon's background (`surface2`).
     public var ribbon: SheetColor
@@ -42,7 +42,7 @@ public struct EditorPalette: Sendable, Equatable {
 
     public static let light = EditorPalette(
         dark: false,
-        background: SheetColor(argb: 0xFFFB_FBFF),
+        background: SheetColor(argb: 0xFFFF_FFFF),
         text: SheetColor(argb: 0xFF00_0000),
         chord: SheetColor(argb: 0xFF00_00FF),
         chordInvalid: SheetColor(argb: 0xFFBE_BEBE),
@@ -50,17 +50,17 @@ public struct EditorPalette: Sendable, Equatable {
         directiveInvalid: SheetColor(argb: 0xFFFF_0000),
         comment: SheetColor(argb: 0xFFBE_BEBE),
         playing: SheetColor(argb: 0xFFFF_FF00),
-        primary: SheetColor(argb: 0xFF3F_51B5),
-        ribbon: SheetColor(argb: 0xFFEC_EEF5),
+        primary: SheetColor(argb: 0xFF00_7AFF),
+        ribbon: SheetColor(argb: 0xFFF9_F9F9),
         line: SheetColor(argb: 0xFFD5_D8E2),
         ribbonText: SheetColor(argb: 0xFF1A_1B20),
         muted: SheetColor(argb: 0xFF5C_5F6B),
-        primarySoft: SheetColor(argb: 0xFFDD_E1FF),
-        surfaceLow: SheetColor(argb: 0xFFF4_F5FA))
+        primarySoft: SheetColor(argb: 0xFFE0_EEFF),
+        surfaceLow: SheetColor(argb: 0xFFF2_F2F7))
 
     public static let dark = EditorPalette(
         dark: true,
-        background: SheetColor(argb: 0xFF12_1318),
+        background: SheetColor(argb: 0xFF00_0000),
         text: SheetColor(argb: 0xFFE3_E4EB),
         chord: SheetColor(argb: 0xFF8A_B4F8),
         chordInvalid: SheetColor(argb: 0xFF7F_848F),
@@ -68,13 +68,13 @@ public struct EditorPalette: Sendable, Equatable {
         directiveInvalid: SheetColor(argb: 0xFFFF_8A80),
         comment: SheetColor(argb: 0xFF7F_848F),
         playing: SheetColor(argb: 0xFF5A_4F00),
-        primary: SheetColor(argb: 0xFFB6_C3FF),
-        ribbon: SheetColor(argb: 0xFF20_2229),
+        primary: SheetColor(argb: 0xFF0A_84FF),
+        ribbon: SheetColor(argb: 0xFF16_1616),
         line: SheetColor(argb: 0xFF35_3842),
         ribbonText: SheetColor(argb: 0xFFE3_E4EB),
         muted: SheetColor(argb: 0xFFA3_A7B3),
-        primarySoft: SheetColor(argb: 0xFF2E_3A72),
-        surfaceLow: SheetColor(argb: 0xFF19_1B21))
+        primarySoft: SheetColor(argb: 0xFF0B_2A4D),
+        surfaceLow: SheetColor(argb: 0xFF1C_1C1E))
 
     public static func forScheme(dark: Bool) -> EditorPalette { dark ? .dark : .light }
 

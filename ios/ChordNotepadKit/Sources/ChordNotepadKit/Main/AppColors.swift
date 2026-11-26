@@ -1,8 +1,8 @@
 import Foundation
 
-/// The main screen's colours (Android's `AppColors` in ui/theme/AppTheme.kt
-/// and the tints of ui/icons/MdiIcon.kt), light and dark. The editor's own
-/// are ``EditorPalette``.
+/// The main screen's colours, light and dark: iOS's system colours (the
+/// accent is the system blue), for code that needs a value rather than the
+/// app's dynamic `UIColor`s. The editor's own are ``EditorPalette``.
 public struct AppColors: Sendable, Equatable {
     public var dark: Bool
     /// The app bar and the text's background.
@@ -32,48 +32,48 @@ public struct AppColors: Sendable, Equatable {
 
     public static let light = AppColors(
         dark: false,
-        surface: SheetColor(argb: 0xFFFB_FBFF),
-        surfaceLow: SheetColor(argb: 0xFFF4_F5FA),
-        surface2: SheetColor(argb: 0xFFEC_EEF5),
-        surfaceHigh: SheetColor(argb: 0xFFE2_E5EF),
-        line: SheetColor(argb: 0xFFD5_D8E2),
-        text: SheetColor(argb: 0xFF1A_1B20),
-        muted: SheetColor(argb: 0xFF5C_5F6B),
-        icon: SheetColor(argb: 0xFF45_4852),
-        primary: SheetColor(argb: 0xFF3F_51B5),
+        surface: SheetColor(argb: 0xFFFF_FFFF),
+        surfaceLow: SheetColor(argb: 0xFFF2_F2F7),
+        surface2: SheetColor(argb: 0xFFF9_F9F9),
+        surfaceHigh: SheetColor(argb: 0xFFE5_E5EA),
+        line: SheetColor(argb: 0xFFC6_C6C8),
+        text: SheetColor(argb: 0xFF00_0000),
+        muted: SheetColor(argb: 0xFF8A_8A8E),
+        icon: SheetColor(argb: 0xFF3C_3C43),
+        primary: SheetColor(argb: 0xFF00_7AFF),
         onPrimary: SheetColor(argb: 0xFFFF_FFFF),
-        primarySoft: SheetColor(argb: 0xFFDD_E1FF),
-        pill: SheetColor(argb: 0xFF6A_5A99),
-        grip: SheetColor(argb: 0xFFC3_C6D1),
-        snackBackground: SheetColor(argb: 0xFF2F_3036),
-        snackText: SheetColor(argb: 0xFFF2_F2F6),
-        error: SheetColor(argb: 0xFFBA_1A1A))
+        primarySoft: SheetColor(argb: 0xFFE0_EEFF),
+        pill: SheetColor(argb: 0xFF00_7AFF),
+        grip: SheetColor(argb: 0xFFC7_C7CC),
+        snackBackground: SheetColor(argb: 0xFF2C_2C2E),
+        snackText: SheetColor(argb: 0xFFFF_FFFF),
+        error: SheetColor(argb: 0xFFFF_3B30))
 
     public static let darkColors = AppColors(
         dark: true,
-        surface: SheetColor(argb: 0xFF12_1318),
-        surfaceLow: SheetColor(argb: 0xFF19_1B21),
-        surface2: SheetColor(argb: 0xFF20_2229),
-        surfaceHigh: SheetColor(argb: 0xFF2A_2C34),
-        line: SheetColor(argb: 0xFF35_3842),
-        text: SheetColor(argb: 0xFFE3_E4EB),
-        muted: SheetColor(argb: 0xFFA3_A7B3),
-        icon: SheetColor(argb: 0xFFC8_CBD5),
-        primary: SheetColor(argb: 0xFFB6_C3FF),
-        onPrimary: SheetColor(argb: 0xFF1B_2A6B),
-        primarySoft: SheetColor(argb: 0xFF2E_3A72),
-        pill: SheetColor(argb: 0xFFC4_B5F2),
-        grip: SheetColor(argb: 0xFF55_5A66),
-        snackBackground: SheetColor(argb: 0xFFE3_E4EB),
-        snackText: SheetColor(argb: 0xFF1A_1B20),
-        error: SheetColor(argb: 0xFFFF_B4AB))
+        surface: SheetColor(argb: 0xFF00_0000),
+        surfaceLow: SheetColor(argb: 0xFF1C_1C1E),
+        surface2: SheetColor(argb: 0xFF16_1616),
+        surfaceHigh: SheetColor(argb: 0xFF2C_2C2E),
+        line: SheetColor(argb: 0xFF38_383A),
+        text: SheetColor(argb: 0xFFFF_FFFF),
+        muted: SheetColor(argb: 0xFF8D_8D93),
+        icon: SheetColor(argb: 0xFFEB_EBF5),
+        primary: SheetColor(argb: 0xFF0A_84FF),
+        onPrimary: SheetColor(argb: 0xFFFF_FFFF),
+        primarySoft: SheetColor(argb: 0xFF0B_2A4D),
+        pill: SheetColor(argb: 0xFF0A_84FF),
+        grip: SheetColor(argb: 0xFF48_484A),
+        snackBackground: SheetColor(argb: 0xFF3A_3A3C),
+        snackText: SheetColor(argb: 0xFFFF_FFFF),
+        error: SheetColor(argb: 0xFFFF_453A))
 
     public static func forScheme(dark: Bool) -> AppColors { dark ? .darkColors : .light }
 
-    /// Android's `IconTints.Save` (the app bar's save button).
-    public static let saveTint = SheetColor(argb: 0xFF1E_88E5)
-    /// Android's `IconTints.Off` (the pill's chevron).
-    public static let offTint = SheetColor(argb: 0xFF9E_9E9E)
+    /// The app bar's save button (the system blue).
+    public static let saveTint = SheetColor(argb: 0xFF00_7AFF)
+    /// The pill's chevron (the system grey).
+    public static let offTint = SheetColor(argb: 0xFF8E_8E93)
     /// A disabled icon's opacity.
     public static let disabledAlpha = 0.38
 }

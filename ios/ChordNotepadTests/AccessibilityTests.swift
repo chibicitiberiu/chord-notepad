@@ -168,7 +168,13 @@ final class AccessibilityTests: XCTestCase {
         }
         expect("play", "menu", AccessibilityLabels.menu)
         expect("play", "save", AccessibilityLabels.save)
-        expect("play", "tab-edit", AccessibilityLabels.edit)
+        // Edit / Play is the system's segmented control: its segments carry the words, not identifiers.
+        for screen in ["play", "edit"] {
+            for label in [AccessibilityLabels.edit, AccessibilityLabels.play] {
+                XCTAssertNotNil(byScreen[screen]?.first { $0.label == label && $0.traits.contains(.button) },
+                                "\(screen): the \(label) segment")
+            }
+        }
         // The scene is frozen while a chord sounds: ⏸.
         expect("play", "player-play", AccessibilityLabels.pause)
         expect("edit", "menu", AccessibilityLabels.menu)
@@ -215,6 +221,44 @@ final class AccessibilityTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(edit.frame.width.rounded(), 44, "a comfortable target: \(edit.frame)")
         XCTAssertTrue(edit.object.accessibilityActivate())
         XCTAssertEqual(events.sent, [.editDirective(offset)])
+    }
+
+    /// Every icon the chrome names exists, and each SF Symbol came with iOS
+    /// 17 or before (the deployment target: a newer one draws nothing there).
+    /// The system's own list says when each symbol came
+    /// (`CoreGlyphs.bundle/name_availability.plist`: its year, and the year's
+    /// iOS release); without it only the names are checked.
+    func testEveryAppSymbolExistsOnTheDeploymentTarget() throws {
+        let missing = AppSymbols.all.filter { name in
+            AppSymbols.isOwnImage(name) ? UIImage(named: name) == nil : UIImage(systemName: name) == nil
+        }
+        XCTAssertEqual(missing, [], "symbols or images the app doesn't have")
+        let environment = ProcessInfo.processInfo.environment
+        let roots = [environment["SIMULATOR_ROOT"], environment["IPHONE_SIMULATOR_ROOT"], ""].compactMap { $0 }
+        let plist = roots.lazy
+            .map { URL(fileURLWithPath: $0 + "/System/Library/CoreServices/CoreGlyphs.bundle/name_availability.plist") }
+            .compactMap { NSDictionary(contentsOf: $0) as? [String: Any] }
+            .first
+        guard let plist, let symbols = plist["symbols"] as? [String: String],
+              let releases = plist["year_to_release"] as? [String: [String: String]] else {
+            print("Symbols: no name_availability.plist under \(roots); names checked only")
+            return
+        }
+        var late: [String] = []
+        var unlisted: [String] = []
+        for name in AppSymbols.all where !AppSymbols.isOwnImage(name) {
+            guard let year = symbols[name] else {
+                unlisted.append(name)
+                continue
+            }
+            let iOS = releases[year]?["iOS"] ?? "?"
+            print("Symbols: \(name) \(year) iOS \(iOS)")
+            if iOS == "?" || iOS.compare("17.0", options: .numeric) == .orderedDescending {
+                late.append("\(name) (iOS \(iOS))")
+            }
+        }
+        if !unlisted.isEmpty { print("Symbols not in the list (aliases?): \(unlisted)") }
+        XCTAssertEqual(late, [], "symbols newer than iOS 17")
     }
 
     func testImageNamesAreToldFromWords() {

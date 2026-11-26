@@ -51,7 +51,7 @@ public enum MenuTint: UInt32, Sendable {
 public struct MenuEntry: Sendable, Hashable {
     public var action: MenuAction
     public var label: String
-    /// The icon's asset name (Android's MDI drawable), or `sf.` and an SF Symbol's name.
+    /// The icon: an SF Symbol's name (`AppSymbols`).
     public var icon: String
     public var tint: SheetColor
     /// False: listed but not built on iOS yet.
@@ -89,28 +89,28 @@ public enum AppMenu {
         let diagnosticsTint = SheetColor(argb: 0xFF54_6E7A)
         return [
             .entries([
-                entry(.newSong, "new", "New song", "mdi_file_plus", .newSong),
-                entry(.open, "open", "Open…", "mdi_folder_open", .open),
+                entry(.newSong, "new", "New song", AppSymbols.newSong, .newSong),
+                entry(.open, "open", "Open…", AppSymbols.open, .open),
             ]),
             .recent(recent.map {
-                MenuEntry(.openRecent($0), $0.displayName, icon: "mdi_file_music", tint: MenuTint.recent.color,
+                MenuEntry(.openRecent($0), $0.displayName, icon: AppSymbols.recent, tint: MenuTint.recent.color,
                           enabled: available.contains("recent"))
             }),
             .separator,
             .entries([
-                entry(.saveAs, "saveAs", "Save as…", "mdi_content_save_edit", .open),
-                entry(.exportMidi, "exportMidi", "Export MIDI…", "mdi_export", .export),
-                entry(.exportAudio, "exportAudio", "Export audio…", "mdi_waveform", .export),
-                entry(.exportPdf, "exportPdf", "Export PDF…", "mdi_file_pdf_box", .export),
+                entry(.saveAs, "saveAs", "Save as…", AppSymbols.saveAs, .open),
+                entry(.exportMidi, "exportMidi", "Export MIDI…", AppSymbols.exportMidi, .export),
+                entry(.exportAudio, "exportAudio", "Export audio…", AppSymbols.exportAudio, .export),
+                entry(.exportPdf, "exportPdf", "Export PDF…", AppSymbols.exportPdf, .export),
             ]),
             .separator,
             .entries([
-                entry(.settings, "settings", "Settings", "mdi_cog", .settings),
-                entry(.examples, "examples", "Examples", "mdi_music_box_multiple", .examples),
-                entry(.userGuide, "userGuide", "User guide", "mdi_book_open_variant", .guide),
-                entry(.quickStart, "quickStart", "Quick start", "mdi_school", .quickStart),
-                entry(.about, "about", "About", "mdi_information", .about),
-                MenuEntry(.diagnostics, "Diagnostics", icon: "sf.stethoscope", tint: diagnosticsTint, enabled: true),
+                entry(.settings, "settings", "Settings", AppSymbols.settings, .settings),
+                entry(.examples, "examples", "Examples", AppSymbols.examples, .examples),
+                entry(.userGuide, "userGuide", "User guide", AppSymbols.guide, .guide),
+                entry(.quickStart, "quickStart", "Quick start", AppSymbols.quickStart, .quickStart),
+                entry(.about, "about", "About", AppSymbols.about, .about),
+                MenuEntry(.diagnostics, "Diagnostics", icon: AppSymbols.diagnostics, tint: diagnosticsTint, enabled: true),
             ]),
         ]
     }

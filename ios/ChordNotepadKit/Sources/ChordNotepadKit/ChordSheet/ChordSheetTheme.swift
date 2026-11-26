@@ -24,7 +24,7 @@ public struct ChordSheetColors: Sendable, Equatable {
     public var line: SheetColor
     public var text: SheetColor
     public var muted: SheetColor
-    /// The playhead's edge mark.
+    /// The playhead's edge mark (the system blue, the app's accent).
     public var primary: SheetColor
     /// Drag handles.
     public var grip: SheetColor
@@ -39,9 +39,9 @@ public struct ChordSheetColors: Sendable, Equatable {
         line: SheetColor(argb: 0xFFD5_D8E2),
         text: SheetColor(argb: 0xFF1A_1B20),
         muted: SheetColor(argb: 0xFF5C_5F6B),
-        primary: SheetColor(argb: 0xFF3F_51B5),
+        primary: SheetColor(argb: 0xFF00_7AFF),
         grip: SheetColor(argb: 0xFFC3_C6D1),
-        sheetPlaying: SheetColor(argb: 0x243F_51B5))
+        sheetPlaying: SheetColor(argb: 0x2400_7AFF))
 
     public static let dark = ChordSheetColors(
         dark: true,
@@ -51,9 +51,9 @@ public struct ChordSheetColors: Sendable, Equatable {
         line: SheetColor(argb: 0xFF35_3842),
         text: SheetColor(argb: 0xFFE3_E4EB),
         muted: SheetColor(argb: 0xFFA3_A7B3),
-        primary: SheetColor(argb: 0xFFB6_C3FF),
+        primary: SheetColor(argb: 0xFF0A_84FF),
         grip: SheetColor(argb: 0xFF55_5A66),
-        sheetPlaying: SheetColor(argb: 0x33B6_C3FF))
+        sheetPlaying: SheetColor(argb: 0x330A_84FF))
 
     public static func forScheme(dark: Bool) -> ChordSheetColors { dark ? .dark : .light }
 }
