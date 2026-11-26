@@ -799,11 +799,39 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   Save), `PlayerBar`, `Overlays` (the menu, the dialogs, the snackbar),
   `PlayerSheets`, `DiagnosticsView`. Play mode is `Editor/PlayText.swift`
   with `EditorController`'s Play part.
-- **Icons:** Android's Material Design Icons, so the bar and the player look
-  the same: `ios/tools/mdi_assets.py` turns Android's generated vector
-  drawables into SVG image sets rendered as templates
-  (`Assets.xcassets/Icons`), tinted like Android's `MdiIcon`. The ribbon
-  keeps its SF Symbols; Diagnostics has the stethoscope.
+- **The iOS look** (Tibi's call on 2026-11-26, after using the app on a
+  Mac's simulator: "still a bit too material-y"). The layout and the
+  behaviour are Android's; the controls and their drawing are iOS's, so the
+  app reads as an iPhone and iPad app rather than a port:
+  - SF Symbols for every icon of the chrome, named by role in the kit's
+    `AppSymbols` (a test checks each exists on iOS 17, the deployment
+    target). Chord Notepad's own drawings stay for a capo, transposing and
+    a time signature, which no symbol shows (`ic_capo`, `ic_transpose`,
+    `ic_time_signature`, template images from Android's drawables through
+    `ios/tools/mdi_assets.py`).
+  - The system accent colour (blue) and the system's dynamic colours
+    (`Screens/Theme.swift`: backgrounds, label greys, separators, red), so
+    dark mode and Increase Contrast are the system's. The kit's
+    `AppColors`, `EditorPalette` and `ChordSheetColors` hold the same values
+    for what needs a number. The editor's syntax colours and the chord
+    sheet's drawing are content and keep Android's; only the sheet's
+    playhead mark and playing column take the accent.
+  - The bar is drawn as a navigation bar (☰ and Save as symbols in the
+    accent colour, the title as a headline), Edit / Play is the system's
+    segmented control, as are AB/Do in the ribbon and the chord sheet's
+    views. The ribbon is a toolbar of symbols with captions; the player's
+    buttons are symbols, one that is on filled and tinted, ▶/⏸ a filled
+    accent circle.
+  - The player's and the ribbon's sheets, the tools and the Insert dialogs
+    are iOS sheets with a navigation bar and inset grouped lists ("The
+    player's sheets and the ribbon's tools"); Settings, About and the
+    licences are grouped lists with navigation bars ("Settings, About and
+    Licences").
+  - Alerts are the system's where it can show them; the ones with a field
+    whose state must stay (Rename, a voicing's rename), the unsaved-changes
+    question and the catalog's pictures of alerts are drawn in the system's
+    alert look (`Screens/Alerts.swift`, as "Preparing export…" is). See the
+    differences below.
 - **Play mode** is the same `EditorTextView`, frozen: not editable or
   selectable (the keyboard goes), so both tabs share the layout and the
   scroll position. The marker is a `CAShapeLayer` in the text's own
@@ -860,10 +888,15 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   empty last song or 60 s without the song end it too ("The last song"). `launch.json` says whether it was still up
   (`launching`, which CI's main launch checks is false) and whether it hid
   the untitled song (`hidUntitled`). Off in the catalog and under XCTest.
-- **Large text:** the bar is a fixed 48 pt; its title is body text, which
+- **Large text:** the bar is a fixed 48 pt; its title is a headline, which
   follows Dynamic Type up to `accessibility2`, and on a phone at the
-  accessibility sizes the tabs drop their captions (icons only) so the title
-  keeps its room. The player (a fixed 110 pt) follows it up to `xxLarge`.
+  accessibility sizes the Edit / Play segments show their symbols instead of
+  their words so the title keeps its room. The player (a fixed 110 pt)
+  follows it up to `xxLarge`. The ☰ menu, the sheets, Settings and the
+  alerts follow it all the way and scroll; a menu entry's name wraps
+  (Tibi's session at Accessibility Extra Large: "Export MID…" cut short,
+  Diagnostics cut off at the bottom, and the outlined fields' labels over
+  their values in Settings and Identify).
 - **Launch hooks:** `-CNScreen selftest` opens Diagnostics,
   `-CNScreen chordsheet` opens Play with the sheet shown, `-CNScreen editor`
   switches to Edit before typing, `-CNScreen menu` opens the menu,
@@ -883,15 +916,26 @@ The third slice: the app's frame, a port of Android's `ui/main/`
 
 Deliberate differences from Android:
 
-- The menu is a panel from the leading edge over a dimmed screen, opened by
-  ☰ only; there's no edge swipe (Android allows the swipe only while the
-  drawer is open, and an edge swipe would fight the marker's grab strip at
-  a line's first chord). It lists Diagnostics, which Android doesn't have.
-- The dialogs (rename, a refused rename) are cards in the app's colours over
-  a dimmed screen, so the catalog draws them; Diagnostics and Examples are
-  iOS sheets.
-- Snackbars are drawn by the screen (no Material snackbar host); a greyed
-  button's reason is a short snackbar (Android: a Toast).
+- The menu is a panel from the leading edge over a dimmed screen, drawn as
+  an iPad's sidebar (an inset grouped list), opened by ☰ only; there's no
+  edge swipe (Android allows the swipe only while the drawer is open, and an
+  edge swipe would fight the marker's grab strip at a line's first chord).
+  It lists Diagnostics, which Android doesn't have. It stays a panel rather
+  than an iOS pull-down menu: a menu can't be opened by the app
+  (`-CNScreen menu`) and has no room for the recent songs' names.
+- Rename is drawn in the system's alert look with its field: the session's
+  refusal of a name stays under the field, and a system alert closes on any
+  button. A refused rename (Save a copy…) is the system's alert. Diagnostics
+  and Examples are iOS sheets.
+- The unsaved-changes question is drawn in the system's alert look over
+  everything: the session can ask while a sheet is up or going away
+  (Examples, a song from Files), when the system can't present an alert.
+  While it is asked no sheet shows.
+- Snackbars are drawn by the screen as iOS banners on the system material
+  (iOS has no snackbar); a greyed button's reason is a short one (Android: a
+  Toast). A sheet that is up shows them itself.
+- The Edit / Play control is a segmented control, not tabs: its segments
+  carry the words, not the `tab-edit` and `tab-play` identifiers.
 - While the app starts it shows a spinner until the launch's song is open
   (Android shows the empty song, its title and Edit tab with a progress bar
   under the header while Python starts; BACKLOG).
@@ -1245,21 +1289,24 @@ nothing in the core or the schema changed.
   `SessionSnapshot` keeps `CapoAdviceState`, `IdentifierState` and
   `DirectiveCheck`; an `InsertDirectiveRequest` is a dialog now, not
   cancelled.
-- **In the app**: `Screens/PlayerSheets.swift` (`BottomSheet`, Android's
-  `PickerSheet`: a handle, the title row, the body, the actions under a
-  divider; `SheetRow`, `SheetSection`, the text and Done buttons, the radio
-  mark, `DropdownChip`; the Voicing, Instrument, Speed, Playback settings and
-  Insert sheets), `Tools/ToolDialogs.swift` (`ToolDialog`, `OutlinedField`,
-  `DialogPicker`, `ValueStepper`, `Spinner`; Manual…, the tempo, Transpose,
-  Suggest Capo, the Insert dialogs) and `Tools/ChordIdentifierView.swift`
-  (the identifier and `PianoView`, a `Canvas`). `MainScreen` draws them over
-  itself from the route, the pending request and `CapoAdviceState.active`;
-  `AppModel.sheet(_:)` runs the reducer. The ribbon gains Insert, Transpose,
-  Capo and Identify (Android's icons) and scrolls sideways when it doesn't
-  fit.
+- **In the app**: `Screens/PlayerSheets.swift` (`SheetScaffold`: a sheet's
+  navigation stack with the title inline, Cancel and the confirming button
+  in its bar; `ChoiceRow`, a list row with a checkmark; `CatalogSheetFrame`;
+  the Voicing, Instrument, Speed with Manual…, Playback settings with its
+  tempo, Insert and Examples sheets), `Tools/ToolDialogs.swift` (Transpose,
+  Suggest Capo and the Insert dialogs as form sheets) and
+  `Tools/ChordIdentifierView.swift` (the identifier and `PianoView`, a
+  `Canvas`). `MainScreen` presents one of them at a time with
+  `.sheet(item:)` from the route, the pending request and
+  `CapoAdviceState.active` (`MainSheet`), so going from one to the next (Insert
+  to its dialog, the dialog's Suggest to Suggest Capo) waits for the first to
+  go; `AppModel.sheet(_:)` runs the reducer. The catalog can't present, so it
+  draws the same view in `CatalogSheetFrame` (a sheet from the bottom, a
+  form sheet in a regular-width window). The ribbon gains Insert, Transpose,
+  Capo and Identify and scrolls sideways when it doesn't fit.
 - **The flows**, as Android's: Voicing and Instrument apply a choice at once
-  and stay open (Done closes); Instrument opens a family's programs, ← goes
-  back. Speed sends each new 5 % stop while the finger moves; Manual… checks
+  and stay open (Done closes); Instrument pushes a family's programs, Back
+  (or the edge swipe) goes back. Speed sends each new 5 % stop while the finger moves; Manual… checks
   12.5–400 before OK. Playback settings shows a value a directive sets as
   "Set by `{bpm: 90}` in the song · Edit" (Edit, a button at least 44 pt
   each way, goes to Edit mode with the caret on the directive; a link inside
@@ -1287,19 +1334,23 @@ nothing in the core or the schema changed.
 
 Deliberate differences from Android:
 
-- The sheets and the tools' dialogs are drawn by the screen over a dimmed
-  copy of itself (a panel from the bottom with a handle, cards for the
-  dialogs), not iOS sheets and alerts: a dialog (Manual…, the tempo) stacks
-  over its sheet as on Android, and the catalog draws them. A tap on the
-  dimmed screen or a swipe down on the handle closes a sheet.
-- The dropdowns (Playback settings' time and key, the Insert dialogs'
-  pickers, Suggest Capo's voicing) are iOS pop-up menus with the same
-  choices.
-- The speed slider is drawn in Material's shape (a thick track, a bar
-  thumb, a stop dot) instead of a UISlider, so it looks like Android's and
-  the catalog draws it; VoiceOver adjusts it in 5 % steps.
-- A greyed value's reason in Playback settings is a short snackbar over the
-  sheet (Android: a Toast).
+- The sheets and the tools' dialogs are iOS sheets (half the window,
+  draggable to full; Identify nearly full, a form sheet on an iPad), each
+  with a navigation bar: Cancel on the leading side, Done, OK, Insert or
+  Apply bold on the trailing one (Android: the actions at the bottom). A
+  swipe down sends that sheet's own way out: Done for the player's, Cancel
+  for the tools (an Insert dialog answers the session's request, Suggest
+  Capo closes the session's advice). Manual… and the tempo are small sheets
+  over theirs (Android: dialogs over the sheet). Identify's Insert is in its
+  bar; its status line stays at the bottom.
+- The lists use iOS's controls: a checkmark on the current voicing,
+  instrument and capo (Android: radio buttons); pop-up menus for Playback
+  settings' time and key, the Insert dialogs' pickers and Suggest Capo's
+  voicing; the system's slider for the speed (VoiceOver still adjusts it in
+  5 % steps); steppers for Transpose and a loop's count; plain text fields,
+  the name on the left and the value typed on the right.
+- A greyed value's reason in Playback settings is a banner over the sheet
+  (Android: a Toast).
 - The ribbon's › chevron scrolls to the end of the row (Android scrolls
   140 dp; on a phone that is the end).
 - The Insert dialogs, Manual… and the tempo don't keep their fields across a
@@ -1342,13 +1393,13 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   `.about`, `.licences` and `.licence(id:fromAbout:)` with Android's
   `Pages.parent` and `onSongOpened`.
 - **In the app** (`Screens/`): `SettingsScreen` (`SettingsView.swift`: the
-  bar, the pages, General, Playback, the dialogs), `VoicingsView.swift` (the
-  list, Add voicing, the voicing's detail, the form by kind, the records as
-  cards or a table through `WeightedRow`), `SettingsWidgets.swift` (the
-  outlined field with its label on the outline, − and +, the dropdown, the
-  Material switch, the segmented buttons, section titles, the error banner,
-  list rows, `PageColumn`) and `AboutView.swift` (About, the licences, a
-  licence's text). `AppModel` keeps the controller while Settings is open
+  navigation, the pages, General, Playback, the alerts), `VoicingsView.swift`
+  (the list, Add voicing, the voicing's detail, the form by kind, the
+  records as sections or a table through `WeightedRow`),
+  `SettingsWidgets.swift` (`EchoTextField`, `NumberRow`: a name, the number
+  typed and the system's stepper; `RowNote`, the error banner, `BackButton`
+  and `pageBar`) and `AboutView.swift` (About, the licences, a licence's
+  text), all inset grouped lists and forms of the system's controls. `AppModel` keeps the controller while Settings is open
   (`openSettings`, `settingsAct`: the commands go out, a typed number is
   saved 400 ms after the last change, the screen goes once the edit ends)
   and the parsed schema; `MainScreen` draws the page over itself, under the
@@ -1392,6 +1443,12 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   Settings › Voicings. About shows the version, build type, build number
   and commit (Info.plist), the licence (the app's own text) and the source,
   then Open source licences; each opens in the browser only when tapped.
+  On a phone Settings is a navigation stack bound to the kit's
+  `SettingsNav` (the system's Back and edge swipe go up a level through the
+  controller, which never refuses going up); Done leaves, asking first while
+  something is wrong. With two panes the pages list is a sidebar beside the
+  page, the voicing form pushed over the voicings list in the page's own
+  stack when they don't fit side by side.
   There is no Ko-fi link, unlike Android's FOSS flavour: an App Store app
   may not link to an outside payment page.
 - **Live check:** `SessionTests` toggles word wrap (saved and applied to the
@@ -1406,18 +1463,29 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
 
 Deliberate differences from Android:
 
-- The pages are drawn by the main screen over itself (no navigation stack),
-  with Android's bar; there is no edge swipe back.
-- The dialogs (problems, remove, model, rename) are cards over a dimmed
-  screen, like the other dialogs, so the catalog draws them.
+- The pages are drawn by the main screen over itself, each in a navigation
+  stack of its own: Settings, About and the guide have Done, the licences
+  and a licence Back to where they came from (Android's ← in a top bar).
+  Settings' pages on a phone are pushed, with the system's Back and edge
+  swipe.
+- Leaving with wrong values, removing a voicing and switching its model ask
+  with the system's alerts; renaming a voicing is drawn in the alert's look
+  with its field, since OK stays off while the name is blank (a system
+  alert reads its buttons once). The catalog draws all four.
+- The fields are iOS's: the name on the left, the value typed on the right,
+  a stepper for a number, the help or the range (red) in the section's
+  footer or under the row; switches, pop-up menus and the notation's
+  segmented control are the system's (Android: outlined fields with their
+  labels on the outline, Material switches and segmented buttons). An
+  ensemble's voices are a section each, headed by the voice's number and ↑,
+  ↓, copy and ✕, or a table row each on an iPad on its side.
 - The dropdowns and Add voicing's menu are iOS pop-up menus with the same
-  choices and group titles; the catalog draws Add voicing's menu as a card.
-- Switches are drawn in Material's shape (a UISwitch looks like iOS's and
-  the catalog can't draw it); VoiceOver reads them as switches.
+  choices and group titles; the catalog draws Add voicing's menu as a
+  picture of one.
 - The voicing form's number fields bring up the numbers and punctuation
   keyboard (the number and decimal pads have no minus sign, and weights are
   negative); General's and Playback's take the number pad.
-- The rename dialog opens with the caret after the name; Android selects
+- The rename alert opens with the caret after the name; Android selects
   the whole name, ready to type over (SwiftUI's text field can't select).
 - No support card above the pages: the FOSS flavour hides it (no purchase),
   and iOS has no StoreKit yet.
