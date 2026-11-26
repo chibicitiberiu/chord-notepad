@@ -32,63 +32,55 @@ struct QuickStartScreen: View {
     private var palette: EditorPalette { .forScheme(dark: scheme == .dark) }
 
     var body: some View {
-        GeometryReader { window in
-            screen(columnWidth: min(Double(window.size.width) - 2 * Self.columnMargin, Self.columnMaxWidth))
+        NavigationStack {
+            GeometryReader { window in
+                screen(columnWidth: min(Double(window.size.width) - 2 * Self.columnMargin, Self.columnMaxWidth))
+            }
+            .navigationTitle(QuickStartTexts.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(action: close) {
+                        Image(systemName: AppSymbols.close)
+                            .fontWeight(.semibold)
+                    }
+                    .accessibilityLabel(QuickStartTexts.close)
+                    .accessibilityIdentifier("quick-start-close")
+                }
+            }
         }
+        .accessibilityIdentifier("quick-start-screen")
     }
 
     private func screen(columnWidth: Double) -> some View {
         VStack(spacing: 0) {
-            bar
             if let content, !content.pages.isEmpty {
                 let pager = QuickStartPager(pageCount: content.pages.count, index: page?.wrappedValue ?? ownPage)
                 pageView(content.pages[pager.current], columnWidth: columnWidth)
-                colors.line.swiftUI.frame(height: 1)
-                checkbox
-                buttons(pager)
+                colors.separator.frame(height: 0.5)
+                VStack(spacing: 4) {
+                    checkbox
+                    buttons(pager)
+                }
+                .background(colors.bar.ignoresSafeArea(edges: .bottom))
             } else {
                 ProgressView()
-                    .tint(colors.primary.swiftUI)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
-        .background(colors.surface.swiftUI.ignoresSafeArea())
-        .accessibilityIdentifier("quick-start-screen")
+        .background(colors.background.ignoresSafeArea())
     }
 
     private func go(_ index: Int) {
         if let page { page.wrappedValue = index } else { ownPage = index }
     }
 
-    /// Android's TopAppBar with ✕ (close) and the title.
-    private var bar: some View {
-        HStack(spacing: 4) {
-            Button(action: close) {
-                MdiIcon("settings_close", tint: colors.text.swiftUI)
-                    .frame(width: 48, height: 48)
-                    .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(QuickStartTexts.close)
-            .accessibilityIdentifier("quick-start-close")
-            Text(QuickStartTexts.title)
-                .font(.title2)
-                .foregroundColor(colors.text.swiftUI)
-                .lineLimit(1)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 4)
-        .frame(height: 64)
-        .dynamicTypeSize(...DynamicTypeSize.accessibility1)
-    }
-
     @ViewBuilder
     private func pageView(_ page: QuickStartPage, columnWidth: Double) -> some View {
         let column = VStack(alignment: .leading, spacing: 12) {
             Text(page.title)
-                .font(.title2)
-                .foregroundColor(colors.text.swiftUI)
+                .font(.title2.weight(.bold))
+                .foregroundColor(colors.label)
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityAddTraits(.isHeader)
             ForEach(Array(page.blocks.enumerated()), id: \.offset) { _, block in
@@ -97,7 +89,7 @@ struct QuickStartScreen: View {
                 case "text":
                     Text(block.text)
                         .font(.body)
-                        .foregroundColor(colors.text.swiftUI)
+                        .foregroundColor(colors.label)
                         .fixedSize(horizontal: false, vertical: true)
                 // "image": the mobile tour has none (the desktop's screenshot isn't bundled).
                 default: EmptyView()
@@ -108,13 +100,9 @@ struct QuickStartScreen: View {
         .padding(.horizontal, Self.columnMargin)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        if live {
-            ScrollView { column }
-                .frame(maxHeight: .infinity)
-                .id(page.title)
-        } else {
-            column.topClipped()
-        }
+        ScrollView { column }
+            .frame(maxHeight: .infinity)
+            .id(page.title)
     }
 
     /// An example song as the editor draws it in the current theme: monospaced,
@@ -129,17 +117,11 @@ struct QuickStartScreen: View {
             .foregroundColor(palette.text.swiftUI)
             .fixedSize()
             .padding(Self.snippetPadding)
-        return Group {
-            if live {
-                ScrollView(.horizontal) { text }
-            } else {
-                text.frame(maxWidth: .infinity, alignment: .leading).clipped()
-            }
-        }
-        .fixedSize(horizontal: false, vertical: true)
-        .background(palette.background.swiftUI, in: RoundedRectangle(cornerRadius: 6))
-        .overlay(RoundedRectangle(cornerRadius: 6).stroke(colors.line.swiftUI, lineWidth: 1))
-        .accessibilityLabel(block.text)
+        return ScrollView(.horizontal) { text }
+            .fixedSize(horizontal: false, vertical: true)
+            .background(colors.cell, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+            .overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(colors.separator, lineWidth: 0.5))
+            .accessibilityLabel(block.text)
     }
 
     private func styled(_ block: QuickStartBlock) -> AttributedString {
@@ -157,87 +139,36 @@ struct QuickStartScreen: View {
         return (try? AttributedString(ns, including: \.uiKit)) ?? AttributedString(block.text)
     }
 
-    /// "Show at startup", the whole row a toggle.
+    /// "Show at startup": the system's switch.
     private var checkbox: some View {
-        Button { setShowAtStartup(!showAtStartup) } label: {
-            HStack(spacing: 0) {
-                CheckMark(on: showAtStartup, colors: colors)
-                    .padding(12)
-                Text(QuickStartTexts.showAtStartup)
-                    .font(.body)
-                    .foregroundColor(colors.text.swiftUI)
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, 12)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(QuickStartTexts.showAtStartup)
-        .accessibilityValue(showAtStartup ? "1" : "0")
-        .accessibilityAddTraits(.isToggle)
-        .accessibilityIdentifier("quick-start-show")
+        Toggle(QuickStartTexts.showAtStartup, isOn: Binding(get: { showAtStartup }, set: { setShowAtStartup($0) }))
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .accessibilityIdentifier("quick-start-show")
     }
 
+    /// Previous, "1 of 7", Next (Done on the last page): the system's buttons.
     private func buttons(_ pager: QuickStartPager) -> some View {
         HStack {
-            Button { go(pager.previous().current) } label: {
-                Text(QuickStartTexts.previous)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(pager.isFirst ? colors.text.swiftUI.opacity(AppColors.disabledAlpha)
-                                     : colors.primary.swiftUI)
-                    .padding(.horizontal, 24)
-                    .frame(minHeight: 40)
-                    .overlay(Capsule().stroke(colors.line.swiftUI.opacity(pager.isFirst ? 0.5 : 1), lineWidth: 1))
-                    .contentShape(Capsule())
-            }
-            .buttonStyle(.plain)
-            .disabled(pager.isFirst)
-            .accessibilityIdentifier("quick-start-previous")
+            Button(QuickStartTexts.previous) { go(pager.previous().current) }
+                .buttonStyle(.bordered)
+                .disabled(pager.isFirst)
+                .accessibilityIdentifier("quick-start-previous")
             Spacer(minLength: 8)
             Text(QuickStartTexts.pageOf(pager.current + 1, pager.pageCount))
                 .font(.subheadline)
-                .foregroundColor(colors.text.swiftUI)
+                .foregroundColor(colors.secondaryLabel)
             Spacer(minLength: 8)
-            Button { pager.isLast ? close() : go(pager.next().current) } label: {
-                Text(pager.isLast ? QuickStartTexts.done : QuickStartTexts.next)
-                    .font(.subheadline.weight(.medium))
-                    .foregroundColor(colors.onPrimary.swiftUI)
-                    .padding(.horizontal, 24)
-                    .frame(minHeight: 40)
-                    .background(colors.primary.swiftUI, in: Capsule())
+            Button(pager.isLast ? QuickStartTexts.done : QuickStartTexts.next) {
+                pager.isLast ? close() : go(pager.next().current)
             }
-            .buttonStyle(.plain)
+            .buttonStyle(.borderedProminent)
             .accessibilityIdentifier(pager.isLast ? "quick-start-done" : "quick-start-next")
         }
+        .controlSize(.large)
         .padding(.horizontal, 16)
+        .padding(.top, 4)
         .padding(.bottom, 12)
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-    }
-}
-
-/// Material's checkbox: a rounded square, filled in the primary colour with a
-/// tick when on.
-struct CheckMark: View {
-    let on: Bool
-    let colors: AppColors
-
-    var body: some View {
-        ZStack {
-            RoundedRectangle(cornerRadius: 2)
-                .fill(on ? colors.primary.swiftUI : Color.clear)
-            RoundedRectangle(cornerRadius: 2)
-                .stroke(on ? colors.primary.swiftUI : colors.muted.swiftUI, lineWidth: 2)
-            if on {
-                Path { path in
-                    path.move(to: CGPoint(x: 4, y: 9.5))
-                    path.addLine(to: CGPoint(x: 7.5, y: 13))
-                    path.addLine(to: CGPoint(x: 14, y: 5.5))
-                }
-                .stroke(colors.onPrimary.swiftUI, style: StrokeStyle(lineWidth: 2, lineCap: .round, lineJoin: .round))
-            }
-        }
-        .frame(width: 18, height: 18)
-        .accessibilityHidden(true)
     }
 }

@@ -61,9 +61,10 @@ struct MainView: View {
                                        actions: aboutActions))
         case .licences:
             return AnyView(LicencesScreen(entries: AppLicences.entries, actions: aboutActions))
-        case .licence(let id, _):
+        case .licence(let id, let fromAbout):
             let entry = AppLicences.entries.first { $0.id == id }
             return AnyView(LicenceDetailScreen(entry: entry, text: entry.flatMap(AppLicences.text),
+                                               backTitle: fromAbout ? AboutTexts.appName : AboutTexts.licencesTitle,
                                                actions: aboutActions))
         case .userGuide:
             return AnyView(UserGuideScreen(close: { model.pageBack() },

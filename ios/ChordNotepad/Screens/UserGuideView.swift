@@ -24,19 +24,21 @@ struct UserGuideScreen: View {
     private var colors: AppColors { .forScheme(dark: scheme == .dark) }
 
     var body: some View {
-        VStack(spacing: 0) {
-            PageBar(title: UserGuideTexts.title, colors: colors, back: close)
-            if UserGuideFiles.available {
-                GuideWebView(dark: scheme == .dark, background: UIColor(colors.surface.swiftUI),
-                             linkFailed: linkFailed, loaded: loaded)
-            } else {
-                Text(UserGuideTexts.missing)
-                    .foregroundColor(colors.text.swiftUI)
-                    .padding(24)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        NavigationStack {
+            Group {
+                if UserGuideFiles.available {
+                    GuideWebView(dark: scheme == .dark, background: .systemBackground,
+                                 linkFailed: linkFailed, loaded: loaded)
+                } else {
+                    Text(UserGuideTexts.missing)
+                        .foregroundColor(colors.label)
+                        .padding(24)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                }
             }
+            .background(colors.background.ignoresSafeArea())
+            .pageBar(title: UserGuideTexts.title, back: nil, action: close)
         }
-        .background(colors.surface.swiftUI.ignoresSafeArea())
         .accessibilityIdentifier("user-guide-screen")
     }
 }

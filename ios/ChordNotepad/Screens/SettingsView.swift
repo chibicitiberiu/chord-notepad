@@ -5,14 +5,21 @@ import SwiftUI
 /// ``SettingsController`` (the app sends what it queues). Nil in the catalog.
 typealias SettingsAct = ((inout SettingsController) -> Void) -> Void
 
+/// A level of Settings' navigation on a phone.
+enum SettingsStep: Hashable {
+    case page(SettingsPage)
+    case voicingDetail
+}
+
 /// ☰ › Settings (Android's `SettingsScreen`): General, Playback and the
 /// Voicings editor over a settings edit (`begin_settings_edit` when it opens;
 /// every change is saved as it is made with `commit_settings`; leaving sends
-/// `cancel_settings_edit`, asking first while a value is wrong). Full screen:
-/// on a phone the pages list, a page, the voicing form; from 600 pt wide the
-/// pages list stays on the left; the voicings list and form side by side
-/// when there is room for both. Drawn from the controller's value, so the
-/// catalog draws it from a recorded scene.
+/// `cancel_settings_edit`, asking first while a value is wrong). Drawn as
+/// iOS's Settings: on a phone a navigation stack (the pages list, a page,
+/// the voicing form, with the system's Back and its swipe), from 600 pt wide
+/// the pages list beside the page, the voicings list and form side by side
+/// when there is room for both. Done leaves. The stack follows the kit's
+/// ``SettingsNav``, so the catalog draws it from a recorded scene.
 struct SettingsScreen: View {
     let controller: SettingsController
     let schema: EditorSchema?
@@ -35,164 +42,297 @@ struct SettingsScreen: View {
             let width = Double(window.size.width)
             let twoPane = settingsTwoPane(width: width)
             let split = splitsVoicings(width: width)
-            VStack(spacing: 0) {
-                PageBar(title: settingsTitle(controller.ui, editor: controller.editor, twoPane: twoPane, split: split),
-                        colors: colors) {
-                    change { $0.back(twoPane: twoPane, split: split) }
+            Group {
+                if twoPane {
+                    HStack(spacing: 0) {
+                        NavigationStack {
+                            pagesList(selected: controller.ui.nav.shown(twoPane: true))
+                                .navigationTitle(SettingsTexts.title)
+                                .toolbar { doneItem(twoPane: true, split: split) }
+                        }
+                        .frame(width: CGFloat(settingsPagesPaneWidth) + 40)
+                        colors.separator.frame(width: 0.5)
+                        NavigationStack(path: detailPath(split: split)) {
+                            pageView(controller.ui.nav.shown(twoPane: true) ?? .general, split: split)
+                                .navigationDestination(for: SettingsStep.self) { _ in voicingDetail(wide: false) }
+                        }
+                    }
+                } else {
+                    NavigationStack(path: phonePath(split: split)) {
+                        pagesList(selected: nil)
+                            .navigationTitle(SettingsTexts.title)
+                            .toolbar { doneItem(twoPane: false, split: split) }
+                            .navigationDestination(for: SettingsStep.self) { step in
+                                switch step {
+                                case .page(let page): pageView(page, split: split)
+                                case .voicingDetail: voicingDetail(wide: false)
+                                }
+                            }
+                    }
                 }
-                if settingsShowsRestoredBanner(controller.ui, editor: controller.editor) {
-                    restoredBanner
-                }
-                content(twoPane: twoPane, split: split)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             }
-            .background(colors.surface.swiftUI.ignoresSafeArea())
-            .overlay { dialogs }
+            .background(colors.groupedBackground.ignoresSafeArea())
+            .overlay { drawnDialogs }
             .task(id: twoPane) { if live { change { $0.settleNav(twoPane: twoPane) } } }
         }
+        .modifier(SettingsAlerts(controller: controller, schema: schema, live: live, change: change))
         .accessibilityIdentifier("settings-screen")
     }
 
-    @ViewBuilder
-    private func content(twoPane: Bool, split: Bool) -> some View {
+    /// Done: leave Settings (asking first while a value is wrong).
+    private func doneItem(twoPane: Bool, split: Bool) -> some ToolbarContent {
+        ToolbarItem(placement: .confirmationAction) {
+            Button(sheetDone) { change { $0.requestClose() } }
+                .fontWeight(.semibold)
+                .accessibilityIdentifier("page-back")
+        }
+    }
+
+    /// A phone's stack: the page, then the voicing form. Back (the button or
+    /// the swipe) goes up a level through the controller.
+    private func phonePath(split: Bool) -> Binding<[SettingsStep]> {
+        let nav = controller.ui.nav
+        var path: [SettingsStep] = []
+        if let page = nav.page {
+            path.append(.page(page))
+            if page == .voicings && nav.voicingDetail && !split && controller.editor?.state.selected != nil {
+                path.append(.voicingDetail)
+            }
+        }
+        return Binding(get: { path }, set: { new in
+            guard new.count < path.count else { return }
+            for _ in new.count..<path.count { change { $0.back(twoPane: false, split: split) } }
+        })
+    }
+
+    /// The right pane's stack with two panes: the voicing form over the
+    /// voicings list when they don't fit side by side.
+    private func detailPath(split: Bool) -> Binding<[SettingsStep]> {
+        let nav = controller.ui.nav
+        let path: [SettingsStep] = nav.page == .voicings && nav.voicingDetail && !split
+            && controller.editor?.state.selected != nil ? [.voicingDetail] : []
+        return Binding(get: { path }, set: { new in
+            if new.isEmpty && !path.isEmpty { change { $0.back(twoPane: true, split: split) } }
+        })
+    }
+
+    private var ready: Bool {
         let ui = controller.ui
-        if let draft = ui.draft, let limits = controller.limits, ui.phase != .new, ui.phase != .opening {
-            let shown = ui.nav.shown(twoPane: twoPane)
-            if twoPane {
-                HStack(spacing: 0) {
-                    pagesList(selected: shown)
-                        .frame(width: CGFloat(settingsPagesPaneWidth))
-                        .frame(maxHeight: .infinity, alignment: .top)
-                    Rule(colors: colors, vertical: true)
-                    page(shown ?? .general, draft: draft, limits: limits, split: split)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                }
-            } else if let shown {
-                page(shown, draft: draft, limits: limits, split: split)
-            } else {
-                pagesList(selected: nil)
-            }
-        } else {
-            Spinner(color: colors.primary.swiftUI, animated: live)
-                .frame(width: 40, height: 40)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-        }
+        return ui.draft != nil && controller.limits != nil && ui.phase != .new && ui.phase != .opening
     }
 
     @ViewBuilder
-    private func page(_ page: SettingsPage, draft: SettingsDraft, limits: SettingsState, split: Bool) -> some View {
-        switch page {
-        case .general:
-            GeneralPage(draft: draft, limits: limits, numbers: controller.ui.numberTexts,
-                        focus: controller.ui.focus, colors: colors, live: live, act: change)
-        case .playback:
-            PlaybackPage(draft: draft, limits: limits, numbers: controller.ui.numberTexts,
-                         focus: controller.ui.focus, colors: colors, live: live, act: change)
-        case .voicings:
-            VoicingsPage(schema: schema, view: controller.editor, detail: controller.ui.nav.voicingDetail,
-                         split: split, colors: colors, live: live, addMenuShown: addMenuShown, act: change)
+    private func pageView(_ page: SettingsPage, split: Bool) -> some View {
+        Group {
+            if let draft = controller.ui.draft, let limits = controller.limits, ready {
+                switch page {
+                case .general:
+                    GeneralPage(draft: draft, limits: limits, numbers: controller.ui.numberTexts,
+                                focus: controller.ui.focus, colors: colors, live: live, act: change)
+                case .playback:
+                    PlaybackPage(draft: draft, limits: limits, numbers: controller.ui.numberTexts,
+                                 focus: controller.ui.focus, colors: colors, live: live, act: change)
+                case .voicings:
+                    VoicingsPage(schema: schema, view: controller.editor, split: split, colors: colors, live: live,
+                                 addMenuShown: addMenuShown, act: change)
+                }
+            } else {
+                loading
+            }
         }
+        .navigationTitle(page.title)
+        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) { restoredBanner }
     }
 
-    /// The pages: General, Playback, Voicings (the shown one tinted with two
-    /// panes). The FOSS flavour's support card has nothing to show, so none.
+    private func voicingDetail(wide: Bool) -> some View {
+        Group {
+            if let schema, let view = controller.editor {
+                VoicingDetail(schema: schema, view: view, wide: wide, colors: colors, live: live, act: change)
+            } else {
+                loading
+            }
+        }
+        .navigationTitle(controller.editor?.state.selected ?? SettingsTexts.pageVoicings)
+        .navigationBarTitleDisplayMode(.inline)
+        .safeAreaInset(edge: .top) { restoredBanner }
+    }
+
+    private var loading: some View {
+        ProgressView()
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    /// The pages: General, Playback, Voicings, each with what it holds; with
+    /// two panes the shown one is selected as a sidebar's row. The FOSS
+    /// flavour's support card has nothing to show, so none.
     private func pagesList(selected: SettingsPage?) -> some View {
-        VStack(spacing: 0) {
-            ForEach(SettingsPage.allCases, id: \.self) { page in
-                ListRow(headline: page.title, supporting: page.summary, selected: page == selected, colors: colors,
-                        identifier: "settings-page-\(page.rawValue)") {
-                    change { $0.openPage(page) }
+        List {
+            Section {
+                ForEach(SettingsPage.allCases, id: \.self) { page in
+                    let on = page == selected
+                    Button { change { $0.openPage(page) } } label: {
+                        HStack(spacing: 8) {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(page.title)
+                                    .foregroundColor(on ? .white : colors.label)
+                                Text(page.summary)
+                                    .font(.footnote)
+                                    .foregroundColor(on ? .white.opacity(0.85) : colors.secondaryLabel)
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            if selected == nil {
+                                Image(systemName: AppSymbols.chevronRight)
+                                    .font(.footnote.weight(.semibold))
+                                    .foregroundColor(colors.tertiaryLabel)
+                                    .accessibilityHidden(true)
+                            }
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .listRowBackground(on ? Color.accentColor : colors.cell)
+                    .accessibilityAddTraits(on ? .isSelected : [])
+                    .accessibilityIdentifier("settings-page-\(page.rawValue)")
                 }
             }
-            Spacer(minLength: 0)
         }
-        .padding(.top, 8)
+        .listStyle(.insetGrouped)
+        .safeAreaInset(edge: .top) { restoredBanner }
     }
 
     /// Wrong values kept from last time: Edit goes to the first, Discard drops them.
+    @ViewBuilder
     private var restoredBanner: some View {
-        VStack(alignment: .trailing, spacing: 0) {
-            Text(SettingsTexts.restored)
+        if settingsShowsRestoredBanner(controller.ui, editor: controller.editor) {
+            VStack(alignment: .leading, spacing: 4) {
+                Label {
+                    Text(SettingsTexts.restored)
+                        .fixedSize(horizontal: false, vertical: true)
+                } icon: {
+                    Image(systemName: AppSymbols.error).foregroundStyle(colors.red)
+                }
                 .font(.subheadline)
-                .foregroundColor(colors.onErrorContainer.swiftUI)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.trailing, 8)
-            HStack(spacing: 0) {
-                DialogButton(label: SettingsTexts.problemsDiscard, colors: colors) {
-                    change { $0.discardProblems() }
+                HStack(spacing: 20) {
+                    Spacer(minLength: 0)
+                    Button(SettingsTexts.problemsDiscard) { change { $0.discardProblems() } }
+                    Button(SettingsTexts.problemsEdit) { change { $0.editProblems() } }
+                        .fontWeight(.semibold)
                 }
-                DialogButton(label: SettingsTexts.problemsEdit, colors: colors) {
-                    change { $0.editProblems() }
-                }
+                .buttonStyle(.borderless)
+                .frame(minHeight: 36)
             }
+            .padding(.horizontal, 16)
+            .padding(.top, 12)
+            .padding(.bottom, 6)
+            .background(colors.cell, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
+            .accessibilityIdentifier("settings-restored")
         }
-        .padding(.leading, 16)
-        .padding(.top, 12)
-        .padding(.trailing, 8)
-        .background(colors.errorContainer.swiftUI, in: RoundedRectangle(cornerRadius: 12))
-        .padding(.horizontal, 16)
-        .padding(.vertical, 8)
-        .accessibilityIdentifier("settings-restored")
     }
 
     // MARK: - Dialogs
 
+    /// Rename (a field, so drawn in the system's alert look, live and in the
+    /// catalog) and the catalog's pictures of the system's alerts.
     @ViewBuilder
-    private var dialogs: some View {
+    private var drawnDialogs: some View {
         switch controller.ui.dialog {
-        case .problems?:
-            problemsDialog
-        case .removeVoicing(let name)?:
-            confirmDialog(title: schema?.text("remove_confirm_title") ?? "",
-                          message: (schema?.text("remove_confirm") ?? "").replacingOccurrences(of: "{name}", with: name))
-        case .changeModel?:
-            confirmDialog(title: schema?.text("model_confirm_title") ?? "", message: schema?.text("model_confirm") ?? "")
         case .rename(let name)?:
             RenameVoicingDialog(name: name, schema: schema, colors: colors, live: live, typed: renameText,
                                 confirm: { new in change { $0.confirmDialog(newName: new) } },
                                 dismiss: { change { $0.dismissDialog() } })
+        case .problems?:
+            if !live {
+                AlertCard(title: SettingsTexts.problemsTitle, message: SettingsAlerts.problemsMessage(controller),
+                          actions: [AlertAction(title: SettingsTexts.problemsDiscard, role: .destructive) {},
+                                    AlertAction(title: SettingsTexts.problemsEdit, role: .preferred) {}],
+                          live: false, identifier: "settings-problems")
+            }
+        case .removeVoicing(let name)?:
+            if !live {
+                AlertCard(title: schema?.text("remove_confirm_title") ?? "",
+                          message: SettingsAlerts.removeMessage(schema, name),
+                          actions: [AlertAction(title: SettingsTexts.cancel, role: .cancel) {},
+                                    AlertAction(title: SettingsTexts.ok, role: .destructive) {}],
+                          live: false, identifier: "settings-confirm")
+            }
+        case .changeModel?:
+            if !live {
+                AlertCard(title: schema?.text("model_confirm_title") ?? "",
+                          message: schema?.text("model_confirm") ?? "",
+                          actions: [AlertAction(title: SettingsTexts.cancel, role: .cancel) {},
+                                    AlertAction(title: SettingsTexts.ok, role: .preferred) {}],
+                          live: false, identifier: "settings-confirm")
+            }
         case nil:
             EmptyView()
         }
     }
+}
 
-    /// Leaving with wrong values: each listed (numbers worded here, voicing
-    /// values as Python words them), Edit goes to the first, Discard drops
-    /// them and leaves.
-    private var problemsDialog: some View {
+/// Settings' questions as the system's alerts (live): leaving with wrong
+/// values (Discard, or Edit to go to the first), removing a voicing,
+/// switching a voicing's model.
+private struct SettingsAlerts: ViewModifier {
+    let controller: SettingsController
+    let schema: EditorSchema?
+    let live: Bool
+    let change: (@escaping (inout SettingsController) -> Void) -> Void
+
+    static func problemsMessage(_ controller: SettingsController) -> String {
         let lines = settingsProblemLines(controller.ui, editor: controller.editor, limits: controller.limits)
-        return ToolDialog(title: SettingsTexts.problemsTitle, colors: colors, live: live, identifier: "settings-problems",
-                          dismiss: { change { $0.dismissDialog() } }) {
-            VStack(alignment: .leading, spacing: 8) {
-                Text(SettingsTexts.problemsIntro)
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    Text("• \(line)").font(.subheadline)
-                }
-            }
-            .foregroundColor(colors.text.swiftUI)
-            .fixedSize(horizontal: false, vertical: true)
-        } buttons: {
-            DialogButton(label: SettingsTexts.problemsDiscard, colors: colors) { change { $0.confirmDialog() } }
-            DialogButton(label: SettingsTexts.problemsEdit, colors: colors) { change { $0.editProblems() } }
-        }
+        return ([SettingsTexts.problemsIntro] + lines.map { "• \($0)" }).joined(separator: "\n")
     }
 
-    private func confirmDialog(title: String, message: String) -> some View {
-        ToolDialog(title: title, colors: colors, live: live, identifier: "settings-confirm",
-                   dismiss: { change { $0.dismissDialog() } }) {
-            Text(message)
-                .foregroundColor(colors.text.swiftUI)
-                .fixedSize(horizontal: false, vertical: true)
-        } buttons: {
-            DialogButton(label: SettingsTexts.cancel, colors: colors) { change { $0.dismissDialog() } }
-            DialogButton(label: SettingsTexts.ok, colors: colors) { change { $0.confirmDialog() } }
-        }
+    static func removeMessage(_ schema: EditorSchema?, _ name: String) -> String {
+        (schema?.text("remove_confirm") ?? "").replacingOccurrences(of: "{name}", with: name)
+    }
+
+    /// Shown while the controller asks; the buttons answer it (a system
+    /// alert has no other way out).
+    private func shown(_ matches: @escaping (SettingsDialog?) -> Bool) -> Binding<Bool> {
+        Binding(get: { live && matches(controller.ui.dialog) }, set: { _ in })
+    }
+
+    private var removing: String? {
+        if case .removeVoicing(let name)? = controller.ui.dialog { return name }
+        return nil
+    }
+
+    func body(content: Content) -> some View {
+        content
+            .alert(SettingsTexts.problemsTitle, isPresented: shown { $0 == .problems }) {
+                Button(SettingsTexts.problemsDiscard, role: .destructive) { change { $0.confirmDialog() } }
+                Button(SettingsTexts.problemsEdit) { change { $0.editProblems() } }
+            } message: {
+                Text(Self.problemsMessage(controller))
+            }
+            .alert(schema?.text("remove_confirm_title") ?? "", isPresented: shown { dialog in
+                if case .removeVoicing? = dialog { return true }
+                return false
+            }) {
+                Button(SettingsTexts.cancel, role: .cancel) { change { $0.dismissDialog() } }
+                Button(SettingsTexts.ok, role: .destructive) { change { $0.confirmDialog() } }
+            } message: {
+                Text(Self.removeMessage(schema, removing ?? ""))
+            }
+            .alert(schema?.text("model_confirm_title") ?? "", isPresented: shown { dialog in
+                if case .changeModel? = dialog { return true }
+                return false
+            }) {
+                Button(SettingsTexts.cancel, role: .cancel) { change { $0.dismissDialog() } }
+                Button(SettingsTexts.ok) { change { $0.confirmDialog() } }
+            } message: {
+                Text(schema?.text("model_confirm") ?? "")
+            }
     }
 }
 
-/// Rename a voicing (the name selected, ready to type over); a refused name
-/// comes back as the session's "Rename Voicing" error.
+/// Rename a voicing, as an alert with a field; OK stays off while the name is
+/// blank (drawn: a system alert reads its buttons once). A refused name comes
+/// back as the session's "Rename Voicing" error.
 struct RenameVoicingDialog: View {
     let name: String
     let schema: EditorSchema?
@@ -204,35 +344,19 @@ struct RenameVoicingDialog: View {
     var dismiss: () -> Void = {}
 
     @State private var text: String?
-    @FocusState private var focused: Bool
 
     var body: some View {
         let current = text ?? typed ?? name
-        ToolDialog(title: SettingsTexts.voicingsRename, colors: colors, live: live, identifier: "voicing-rename",
-                   dismiss: dismiss) {
-            OutlinedBox(label: schema?.text("name_label", fallback: "Name") ?? "Name", colors: colors,
-                        supporting: schema?.help["name"], focused: true, background: colors.surfaceHigh.swiftUI) {
-                Group {
-                    if live {
-                        TextField("", text: Binding(get: { current }, set: { text = $0 }))
-                            .textInputAutocapitalization(.never)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
-                            .focused($focused)
-                            .onSubmit { if !blank(current) { confirm(current) } }
-                            .onAppear { focused = true }
-                            .accessibilityIdentifier("voicing-rename-field")
-                    } else {
-                        Text(current)
-                    }
-                }
-                .font(.body)
-                .foregroundColor(colors.text.swiftUI)
-                .padding(.horizontal, 16)
+        AlertCard(title: SettingsTexts.voicingsRename, message: schema?.help["name"],
+                  actions: [AlertAction(title: SettingsTexts.cancel, role: .cancel, action: dismiss),
+                            AlertAction(title: SettingsTexts.ok, role: .preferred, enabled: !blank(current),
+                                        identifier: "voicing-rename-ok") { confirm(current) }],
+                  live: live, identifier: "voicing-rename") {
+            AlertTextField(placeholder: schema?.text("name_label", fallback: "Name") ?? "Name",
+                           text: Binding(get: { current }, set: { text = $0 }), live: live,
+                           identifier: "voicing-rename-field") {
+                if !blank(current) { confirm(current) }
             }
-        } buttons: {
-            DialogButton(label: SettingsTexts.cancel, colors: colors, action: dismiss)
-            DialogButton(label: SettingsTexts.ok, colors: colors, enabled: !blank(current)) { confirm(current) }
         }
     }
 
@@ -252,43 +376,70 @@ struct GeneralPage: View {
     var act: (@escaping (inout SettingsController) -> Void) -> Void = { _ in }
 
     var body: some View {
-        PageColumn(live: live) {
-            DropdownField(label: SettingsTexts.fontFamily, selected: draft.fontKind, options: EditorFontKind.allCases,
-                          optionLabel: { $0.map(fontKindLabel) ?? "" }, colors: colors, live: live,
-                          supporting: SettingsTexts.fontFamilyHelp, identifier: "settings-font-family") { kind in
-                act { $0.updateDraft { $0.fontKind = kind } }
+        Form {
+            Section {
+                Picker(SettingsTexts.fontFamily, selection: Binding(get: { draft.fontKind }, set: { kind in
+                    act { $0.updateDraft { $0.fontKind = kind } }
+                })) {
+                    ForEach(EditorFontKind.allCases, id: \.self) { kind in
+                        Text(fontKindLabel(kind)).tag(kind)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-font-family")
+            } footer: {
+                Text(SettingsTexts.fontFamilyHelp)
             }
-            NumberSettingField(setting: .fontSize, draft: draft, limits: limits, numbers: numbers, focus: focus,
-                               colors: colors, live: live, act: act)
-            SwitchRow(label: SettingsTexts.wordWrap, checked: draft.wordWrap, colors: colors,
-                      supporting: SettingsTexts.wordWrapHelp, identifier: "settings-word-wrap") { on in
-                act { $0.updateDraft { $0.wordWrap = on } }
+            NumberSettingSection(setting: .fontSize, draft: draft, limits: limits, numbers: numbers, focus: focus,
+                                 colors: colors, live: live, act: act)
+            Section {
+                Toggle(SettingsTexts.wordWrap, isOn: Binding(get: { draft.wordWrap }, set: { on in
+                    act { $0.updateDraft { $0.wordWrap = on } }
+                }))
+                .accessibilityIdentifier("settings-word-wrap")
+            } footer: {
+                Text(SettingsTexts.wordWrapHelp)
             }
-            Text(SettingsTexts.notation)
-                .font(.body)
-                .foregroundColor(colors.text.swiftUI)
-            SegmentedRow(options: [(Notation.american, SettingsTexts.notationAmerican),
-                                   (Notation.european, SettingsTexts.notationEuropean)],
-                         selected: draft.notation, colors: colors, identifier: "settings-notation") { notation in
-                act { $0.setNotation(notation) }
+            Section {
+                Picker(SettingsTexts.notation, selection: Binding(get: { draft.notation }, set: { notation in
+                    act { $0.setNotation(notation) }
+                })) {
+                    Text(SettingsTexts.notationAmerican).tag(Notation.american)
+                    Text(SettingsTexts.notationEuropean).tag(Notation.european)
+                }
+                .pickerStyle(.segmented)
+                .accessibilityIdentifier("settings-notation")
+            } header: {
+                Text(SettingsTexts.notation)
+            } footer: {
+                Text(SettingsTexts.notationHelp)
             }
-            HelpText(text: SettingsTexts.notationHelp, colors: colors)
-            DropdownField(label: SettingsTexts.defaultKey, selected: draft.key, options: [""] + limits.americanKeys,
-                          optionLabel: { key in
-                              guard let key, !key.isEmpty else { return SettingsTexts.keyNone }
-                              return shownKey(key, notation: draft.notation, limits: limits)
-                          },
-                          colors: colors, live: live, supporting: SettingsTexts.defaultKeyHelp,
-                          identifier: "settings-default-key") { key in
-                act { $0.updateDraft { $0.key = key } }
+            Section {
+                Picker(SettingsTexts.defaultKey, selection: Binding(get: { draft.key }, set: { key in
+                    act { $0.updateDraft { $0.key = key } }
+                })) {
+                    ForEach([""] + limits.americanKeys, id: \.self) { key in
+                        Text(key.isEmpty ? SettingsTexts.keyNone : shownKey(key, notation: draft.notation, limits: limits))
+                            .tag(key)
+                    }
+                }
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-default-key")
+            } footer: {
+                Text(SettingsTexts.defaultKeyHelp)
             }
-            SwitchRow(label: SettingsTexts.quickStart, checked: draft.showQuickStartOnStartup, colors: colors,
-                      supporting: SettingsTexts.quickStartHelp, identifier: "settings-quick-start") { show in
-                act { $0.updateDraft { $0.showQuickStartOnStartup = show } }
+            Section {
+                Toggle(SettingsTexts.quickStart, isOn: Binding(get: { draft.showQuickStartOnStartup }, set: { show in
+                    act { $0.updateDraft { $0.showQuickStartOnStartup = show } }
+                }))
+                .accessibilityIdentifier("settings-quick-start")
+            } footer: {
+                Text(SettingsTexts.quickStartHelp)
             }
-            NumberSettingField(setting: .maxRecentFiles, draft: draft, limits: limits, numbers: numbers, focus: focus,
-                               colors: colors, live: live, act: act)
+            NumberSettingSection(setting: .maxRecentFiles, draft: draft, limits: limits, numbers: numbers,
+                                 focus: focus, colors: colors, live: live, act: act)
         }
+        .scrollDismissesKeyboard(.interactively)
     }
 }
 
@@ -303,35 +454,69 @@ struct PlaybackPage: View {
     var act: (@escaping (inout SettingsController) -> Void) -> Void = { _ in }
 
     var body: some View {
-        PageColumn(live: live) {
-            NumberSettingField(setting: .bpm, draft: draft, limits: limits, numbers: numbers, focus: focus,
-                               colors: colors, live: live, act: act)
-            Text(SettingsTexts.timeSignature)
-                .font(.body)
-                .foregroundColor(colors.text.swiftUI)
-            HStack(alignment: .top, spacing: 12) {
-                NumberSettingField(setting: .timeSignatureBeats, draft: draft, limits: limits, numbers: numbers,
-                                   focus: focus, colors: colors, live: live, act: act)
-                    .frame(maxWidth: .infinity)
-                DropdownField(label: SettingsTexts.beatUnit, selected: draft.timeSignatureUnit,
-                              options: limits.timeSignatureUnits, optionLabel: { $0.map(String.init) ?? "" },
-                              colors: colors, live: live, identifier: "settings-beat-unit") { unit in
+        Form {
+            NumberSettingSection(setting: .bpm, draft: draft, limits: limits, numbers: numbers, focus: focus,
+                                 colors: colors, live: live, act: act)
+            Section {
+                NumberSettingRow(setting: .timeSignatureBeats, draft: draft, limits: limits, numbers: numbers,
+                                 focus: focus, colors: colors, live: live, act: act)
+                Picker(SettingsTexts.beatUnit, selection: Binding(get: { draft.timeSignatureUnit }, set: { unit in
                     act { $0.updateDraft { $0.timeSignatureUnit = unit } }
+                })) {
+                    ForEach(limits.timeSignatureUnits, id: \.self) { unit in
+                        Text(String(unit)).tag(unit)
+                    }
                 }
-                .frame(maxWidth: .infinity)
+                .pickerStyle(.menu)
+                .accessibilityIdentifier("settings-beat-unit")
+            } header: {
+                Text(SettingsTexts.timeSignature)
+            } footer: {
+                let wrong = numbers[.timeSignatureBeats] != nil
+                Text(wrong ? NumberSetting.timeSignatureBeats.rangeText(limits) : SettingsTexts.timeSignatureHelp)
+                    .foregroundColor(wrong ? colors.red : nil)
             }
-            HelpText(text: SettingsTexts.timeSignatureHelp, colors: colors)
-            SwitchRow(label: SettingsTexts.clickChartVoicing, checked: draft.clickPlaysChartVoicing, colors: colors,
-                      supporting: SettingsTexts.clickChartVoicingHelp, identifier: "settings-click-voicing") { on in
-                act { $0.updateDraft { $0.clickPlaysChartVoicing = on } }
+            Section {
+                Toggle(SettingsTexts.clickChartVoicing, isOn: Binding(get: { draft.clickPlaysChartVoicing }, set: { on in
+                    act { $0.updateDraft { $0.clickPlaysChartVoicing = on } }
+                }))
+                .accessibilityIdentifier("settings-click-voicing")
+            } footer: {
+                Text(SettingsTexts.clickChartVoicingHelp)
+            }
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+}
+
+/// A whole-number setting in a section of its own: the row, and its help
+/// under it (its range in red while the text is out of range, not saved).
+struct NumberSettingSection: View {
+    let setting: NumberSetting
+    let draft: SettingsDraft
+    let limits: SettingsState
+    let numbers: [NumberSetting: String]
+    let focus: NumberSetting?
+    let colors: AppColors
+    var live = true
+    var act: (@escaping (inout SettingsController) -> Void) -> Void = { _ in }
+
+    var body: some View {
+        let wrong = numbers[setting] != nil
+        Section {
+            NumberSettingRow(setting: setting, draft: draft, limits: limits, numbers: numbers, focus: focus,
+                             colors: colors, live: live, act: act)
+        } footer: {
+            if let help = wrong ? setting.rangeText(limits) : setting.help {
+                Text(help)
+                    .foregroundColor(wrong ? colors.red : nil)
             }
         }
     }
 }
 
-/// A whole-number setting with − and +; text out of range shows its range
-/// in red and isn't saved.
-struct NumberSettingField: View {
+/// A whole-number setting's row: its name, the number typed, and − / +.
+struct NumberSettingRow: View {
     let setting: NumberSetting
     let draft: SettingsDraft
     let limits: SettingsState
@@ -345,14 +530,11 @@ struct NumberSettingField: View {
         let range = setting.range(limits)
         let value = setting.get(draft)
         let wrong = numbers[setting]
-        FormField(label: setting.label, value: wrong ?? String(value), colors: colors, live: live,
-                  supporting: wrong != nil ? setting.rangeText(limits) : setting.help, error: wrong != nil,
-                  keyboard: .numberPad, focusNow: focus == setting, focusShown: { act { $0.focusShown() } },
-                  identifier: "settings-\(setting.key)", change: { text in act { $0.setNumber(setting, text) } }) {
-            StepperButtons(label: setting.label, canDown: range.contains(value - 1), canUp: range.contains(value + 1),
-                           colors: colors, identifier: "settings-\(setting.key)") { delta in
-                act { $0.stepNumber(setting, delta) }
-            }
-        }
+        NumberRow(label: setting.label, value: wrong ?? String(value), error: wrong != nil, live: live,
+                  keyboard: .numberPad, canDown: range.contains(value - 1), canUp: range.contains(value + 1),
+                  focusNow: focus == setting, focusShown: { act { $0.focusShown() } },
+                  identifier: "settings-\(setting.key)",
+                  change: { text in act { $0.setNumber(setting, text) } },
+                  step: { delta in act { $0.stepNumber(setting, delta) } })
     }
 }

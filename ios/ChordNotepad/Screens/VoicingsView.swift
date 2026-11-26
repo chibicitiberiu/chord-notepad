@@ -2,13 +2,12 @@ import ChordNotepadKit
 import SwiftUI
 
 /// Settings › Voicings (Android's `VoicingsPage`): the voicings grouped by
-/// model, each group's built-ins first (muted, with a lock), and the selected
-/// one's form; both side by side when `split`, else the list, then the form
-/// once a voicing is picked.
+/// model, each group's built-ins first (with a lock), and the selected one's
+/// form. Side by side when `split`; else the list, and the form pushed on it
+/// once a voicing is picked (`SettingsScreen`'s navigation).
 struct VoicingsPage: View {
     let schema: EditorSchema?
     let view: EditorView?
-    let detail: Bool
     let split: Bool
     let colors: AppColors
     var live = true
@@ -19,23 +18,19 @@ struct VoicingsPage: View {
         if let schema, let view {
             if split {
                 HStack(spacing: 0) {
-                    VoicingList(schema: schema, state: view.state, colors: colors, live: live,
+                    VoicingList(schema: schema, state: view.state, split: true, colors: colors, live: live,
                                 addMenuShown: addMenuShown, act: act)
-                        .frame(width: CGFloat(voicingsListWidth))
-                        .frame(maxHeight: .infinity, alignment: .top)
-                    Rule(colors: colors, vertical: true)
+                        .frame(width: CGFloat(voicingsListWidth) + 40)
+                    colors.separator.frame(width: 0.5)
                     VoicingDetail(schema: schema, view: view, wide: true, colors: colors, live: live, act: act)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-            } else if detail && view.state.selected != nil {
-                VoicingDetail(schema: schema, view: view, wide: false, colors: colors, live: live, act: act)
             } else {
-                VoicingList(schema: schema, state: view.state, colors: colors, live: live, addMenuShown: addMenuShown,
-                            act: act)
+                VoicingList(schema: schema, state: view.state, split: false, colors: colors, live: live,
+                            addMenuShown: addMenuShown, act: act)
             }
         } else {
-            Spinner(color: colors.primary.swiftUI, animated: live)
-                .frame(width: 40, height: 40)
+            ProgressView()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
@@ -47,138 +42,165 @@ struct VoicingsPage: View {
 struct VoicingList: View {
     let schema: EditorSchema
     let state: VoicingEditorState
+    let split: Bool
     let colors: AppColors
     var live = true
     var addMenuShown = false
     var act: (@escaping (inout SettingsController) -> Void) -> Void = { _ in }
 
     var body: some View {
-        let list = VStack(alignment: .leading, spacing: 0) {
-            AddVoicingButton(schema: schema, presets: state.addPresets(), colors: colors, live: live,
-                             shown: addMenuShown) { preset in
-                act { $0.addVoicingFrom(preset) }
-            }
-            .padding(.horizontal, 16)
-            .zIndex(1)
-            if let help = schema.help["tree_add"] {
-                HelpText(text: help, colors: colors, indent: 0)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
+        let builtin = state.showsBuiltin
+        List {
+            Section {
+                AddVoicingButton(schema: schema, presets: state.addPresets(), live: live) { preset in
+                    act { $0.addVoicingFrom(preset) }
+                }
+            } footer: {
+                if let help = schema.help["tree_add"] { Text(help) }
             }
             if !state.invalid.isEmpty {
-                ErrorBanner(messages: [SettingsTexts.voicingsInvalidBanner], colors: colors)
-                    .padding(16)
+                Section {
+                    ErrorBanner(messages: [SettingsTexts.voicingsInvalidBanner], colors: colors)
+                }
             }
-            let builtin = state.showsBuiltin
             ForEach(state.groups, id: \.model) { group in
-                SectionTitle(title: group.label, level: 1, colors: colors)
-                    .padding(.horizontal, 16)
-                if group.names.isEmpty && group.builtins.isEmpty {
-                    HelpText(text: SettingsTexts.voicingsEmptyGroup, colors: colors, indent: 0)
-                        .padding(.horizontal, 16)
-                }
-                ForEach(group.builtins, id: \.self) { label in
-                    ListRow(headline: label, headlineColor: colors.muted.swiftUI,
-                            selected: builtin && state.model == group.model && label == state.selected, colors: colors,
-                            identifier: "builtin-\(label)",
-                            action: { act { $0.selectBuiltin(model: group.model, label: label) } },
-                            leading: { EmptyView() },
-                            trailing: {
-                                MdiIcon("settings_lock", tint: colors.muted.swiftUI, size: 18)
-                                    .accessibilityLabel(SettingsTexts.voicingsBuiltin)
-                            })
-                }
-                ForEach(group.names, id: \.self) { name in
-                    let invalid = state.invalid.contains(name)
-                    ListRow(headline: name, supporting: invalid ? SettingsTexts.voicingsInvalid : nil,
-                            supportingColor: colors.error.swiftUI, selected: !builtin && name == state.selected,
-                            colors: colors, identifier: "voicing-\(name)",
-                            action: { act { $0.selectVoicing(name) } },
-                            leading: {
-                                if invalid { MdiIcon("settings_error", tint: colors.error.swiftUI) }
-                            },
-                            trailing: { EmptyView() })
-                }
-            }
-        }
-        .padding(.vertical, 8)
-        if live {
-            ScrollView { list }
-        } else {
-            list.topClipped()
-        }
-    }
-}
-
-/// Add voicing: a menu of what the new voicing starts as (the blanks, then
-/// the built-ins by model and the user's own voicings, each group under its
-/// title). Live, iOS's menu; the catalog draws the open menu as a card.
-struct AddVoicingButton: View {
-    let schema: EditorSchema
-    let presets: [VoicingPreset]
-    let colors: AppColors
-    var live = true
-    var shown = false
-    var pick: (VoicingPreset) -> Void = { _ in }
-
-    var body: some View {
-        let sections = addVoicingSections(presets, schema: schema)
-        let button = IconTextLabel(icon: "settings_add", label: SettingsTexts.voicingsAdd, colors: colors,
-                                   style: .tonal)
-        if live {
-            Menu {
-                ForEach(Array(sections.enumerated()), id: \.offset) { _, section in
-                    Section(section.title ?? "") {
-                        ForEach(section.presets, id: \.label) { preset in
-                            Button(preset.label) { pick(preset) }
+                Section(group.label) {
+                    if group.names.isEmpty && group.builtins.isEmpty {
+                        Text(SettingsTexts.voicingsEmptyGroup)
+                            .foregroundColor(colors.secondaryLabel)
+                    }
+                    ForEach(group.builtins, id: \.self) { label in
+                        row(label, selected: builtin && state.model == group.model && label == state.selected,
+                            identifier: "builtin-\(label)") {
+                            Text(label)
+                                .foregroundColor(colors.secondaryLabel)
+                            Spacer(minLength: 8)
+                            Image(systemName: AppSymbols.lock)
+                                .font(.footnote)
+                                .foregroundColor(colors.tertiaryLabel)
+                                .accessibilityLabel(SettingsTexts.voicingsBuiltin)
+                        } action: {
+                            act { $0.selectBuiltin(model: group.model, label: label) }
+                        }
+                    }
+                    ForEach(group.names, id: \.self) { name in
+                        let invalid = state.invalid.contains(name)
+                        row(name, selected: !builtin && name == state.selected, identifier: "voicing-\(name)") {
+                            if invalid {
+                                Image(systemName: AppSymbols.error)
+                                    .foregroundStyle(colors.red)
+                                    .accessibilityHidden(true)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(name)
+                                    .foregroundColor(colors.label)
+                                if invalid {
+                                    Text(SettingsTexts.voicingsInvalid)
+                                        .font(.footnote)
+                                        .foregroundColor(colors.red)
+                                }
+                            }
+                            Spacer(minLength: 8)
+                        } action: {
+                            act { $0.selectVoicing(name) }
                         }
                     }
                 }
-            } label: {
-                button
             }
-            .accessibilityIdentifier("voicings-add")
-        } else {
-            button
-                .overlay(alignment: .topLeading) {
-                    if shown { menuCard(sections).offset(y: 44) }
-                }
+        }
+        .listStyle(.insetGrouped)
+        .overlay(alignment: .topLeading) {
+            if !live && addMenuShown {
+                AddVoicingMenuPicture(sections: addVoicingSections(state.addPresets(), schema: schema))
+                    .padding(.leading, 32)
+                    .padding(.top, 76)
+            }
         }
     }
 
-    /// The open menu as Android draws it, for the catalog.
-    private func menuCard(_ sections: [(title: String?, presets: [VoicingPreset])]) -> some View {
+    /// A voicing's row: a chevron when the form opens over the list, the
+    /// selected one tinted when both show.
+    private func row<Content: View>(_ label: String, selected: Bool, identifier: String,
+                                    @ViewBuilder content: () -> Content,
+                                    action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 10) {
+                content()
+                if !split {
+                    Image(systemName: AppSymbols.chevronRight)
+                        .font(.footnote.weight(.semibold))
+                        .foregroundColor(colors.tertiaryLabel)
+                        .accessibilityHidden(true)
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .listRowBackground(selected && split ? Color.accentColor.opacity(0.18) : colors.cell)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(identifier)
+    }
+}
+
+/// Add voicing: iOS's menu of what the new voicing starts as (the blanks,
+/// then the built-ins by model and the user's own voicings, each group under
+/// its title).
+struct AddVoicingButton: View {
+    let schema: EditorSchema
+    let presets: [VoicingPreset]
+    var live = true
+    var pick: (VoicingPreset) -> Void = { _ in }
+
+    var body: some View {
+        Menu {
+            ForEach(Array(addVoicingSections(presets, schema: schema).enumerated()), id: \.offset) { _, section in
+                Section(section.title ?? "") {
+                    ForEach(section.presets, id: \.label) { preset in
+                        Button(preset.label) { pick(preset) }
+                    }
+                }
+            }
+        } label: {
+            Label(SettingsTexts.voicingsAdd, systemImage: AppSymbols.add)
+        }
+        .accessibilityIdentifier("voicings-add")
+    }
+}
+
+/// The catalog's picture of the open Add voicing menu, as iOS draws a menu.
+private struct AddVoicingMenuPicture: View {
+    let sections: [(title: String?, presets: [VoicingPreset])]
+
+    var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             ForEach(Array(sections.enumerated()), id: \.offset) { index, section in
-                if index > 0 { Rule(colors: colors).padding(.vertical, 4) }
+                if index > 0 { Color(uiColor: .separator).frame(height: 6).opacity(0.3) }
                 if let title = section.title {
                     Text(title)
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(colors.primary.swiftUI)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 8)
+                        .font(.footnote)
+                        .foregroundColor(Color(uiColor: .secondaryLabel))
+                        .padding(.horizontal, 16)
+                        .padding(.top, 8)
+                        .padding(.bottom, 4)
                 }
-                ForEach(section.presets, id: \.label) { preset in
+                ForEach(Array(section.presets.enumerated()), id: \.offset) { row, preset in
+                    if row > 0 { Color(uiColor: .separator).frame(height: 0.5) }
                     Text(preset.label)
-                        .font(.body)
-                        .foregroundColor(colors.text.swiftUI)
                         .lineLimit(1)
-                        .padding(.horizontal, 12)
-                        .frame(minHeight: 44, alignment: .leading)
+                        .padding(.horizontal, 16)
+                        .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
                 }
             }
         }
-        .padding(.vertical, 8)
-        .frame(width: 280, alignment: .leading)
-        .background(colors.surfaceHigh.swiftUI, in: RoundedRectangle(cornerRadius: 4))
-        .shadow(color: .black.opacity(0.2), radius: 6, y: 2)
+        .frame(width: 260, alignment: .leading)
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 13, style: .continuous))
+        .shadow(color: .black.opacity(0.2), radius: 20, y: 6)
         .fixedSize(horizontal: false, vertical: true)
     }
 }
 
-/// The selected voicing: name, model, remove, then the form under the
-/// errors banner. A built-in shows read-only: its name as text with a lock
-/// and Copy to a new voicing, the model and the form greyed, no remove.
+/// The selected voicing: its name (tap to rename), model, Remove, then the
+/// form under the errors banner. A built-in shows read-only: its name with a
+/// lock and Copy to a new voicing, the model and the form greyed, no Remove.
 struct VoicingDetail: View {
     let schema: EditorSchema
     let view: EditorView
@@ -201,10 +223,11 @@ struct VoicingDetail: View {
             }
         } else {
             Text(schema.text("placeholder"))
-                .foregroundColor(colors.muted.swiftUI)
+                .foregroundColor(colors.secondaryLabel)
                 .multilineTextAlignment(.center)
                 .padding(24)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(colors.groupedBackground)
         }
     }
 
@@ -214,39 +237,46 @@ struct VoicingDetail: View {
         let items = buildForm(form, values: view.values, errors: state.fieldErrors, hints: state.hints,
                               enabled: !builtin)
         let bannerKey = "\(name):\(state.model ?? "")"
-        return VStack(spacing: 0) {
+        return Form {
             if live ? banner.visible && state.hasErrors : state.hasErrors {
-                ErrorBanner(messages: state.formErrors,
-                            title: schema.text("errors_banner", fallback: "Fix these errors to apply changes"),
-                            colors: colors)
-                    .frame(maxWidth: 900)
-                    .padding(.horizontal, 16)
-                    .padding(.top, 8)
-                    .accessibilityIdentifier("voicing-errors")
+                Section {
+                    ErrorBanner(messages: state.formErrors,
+                                title: schema.text("errors_banner", fallback: "Fix these errors to apply changes"),
+                                colors: colors)
+                        .accessibilityIdentifier("voicing-errors")
+                }
             }
-            PageColumn(live: live, spacing: 8, maxWidth: 900) {
-                if builtin {
-                    builtinName(name)
-                } else {
-                    nameField(name)
-                }
-                DropdownField(label: schema.text("model_label"),
-                              selected: schema.models.first { $0.model == state.model },
-                              options: schema.models, optionLabel: { $0?.label ?? "" }, colors: colors, live: live,
-                              supporting: schema.help["model"], enabled: !builtin, identifier: "voicing-model") { option in
-                    act { $0.askModel(option.model) }
-                }
-                if !builtin {
-                    IconTextButton(icon: "settings_delete", label: SettingsTexts.voicingsRemove, colors: colors,
-                                   identifier: "voicing-remove") {
-                        act { $0.askRemove(name) }
+            if builtin {
+                builtinName(name)
+            } else {
+                nameRow(name)
+            }
+            Section {
+                Picker(schema.text("model_label"), selection: Binding(get: { state.model ?? "" }, set: { model in
+                    act { $0.askModel(model) }
+                })) {
+                    ForEach(schema.models, id: \.model) { option in
+                        Text(option.label).tag(option.model)
                     }
                 }
-                Rule(colors: colors).padding(.top, 8)
-                VoicingFormItems(items: items, formKey: "\(name):\(state.model ?? ""):\(builtin)", wide: wide,
-                                 colors: colors, live: live, act: act)
+                .pickerStyle(.menu)
+                .disabled(builtin)
+                .accessibilityIdentifier("voicing-model")
+            } footer: {
+                if let help = schema.help["model"] { Text(help) }
             }
+            if !builtin {
+                Section {
+                    Button(role: .destructive) { act { $0.askRemove(name) } } label: {
+                        Label(SettingsTexts.voicingsRemove, systemImage: AppSymbols.delete)
+                    }
+                    .accessibilityIdentifier("voicing-remove")
+                }
+            }
+            VoicingFormItems(items: items, formKey: "\(name):\(state.model ?? ""):\(builtin)", wide: wide,
+                             colors: colors, live: live, act: act)
         }
+        .scrollDismissesKeyboard(.interactively)
         .task(id: "\(bannerKey):\(state.hasErrors)") {
             guard live else { return }
             if banner.update(key: bannerKey, hasErrors: state.hasErrors) {
@@ -256,80 +286,74 @@ struct VoicingDetail: View {
         }
     }
 
-    /// The voicing's name; tapping it (or the pencil) opens the rename dialog.
-    private func nameField(_ name: String) -> some View {
-        OutlinedBox(label: schema.text("name_label"), colors: colors, supporting: schema.help["name"],
-                    background: colors.surface.swiftUI) {
-            HStack(spacing: 0) {
-                Text(name)
-                    .font(.body)
-                    .foregroundColor(colors.text.swiftUI)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.leading, 16)
-                IconButton(icon: "settings_edit", label: SettingsTexts.voicingsRename, colors: colors,
-                           identifier: "voicing-rename") {
-                    act { $0.askRename(name) }
+    /// The voicing's name; tapping the row opens the rename dialog.
+    private func nameRow(_ name: String) -> some View {
+        Section {
+            Button { act { $0.askRename(name) } } label: {
+                HStack(spacing: 8) {
+                    Text(schema.text("name_label"))
+                        .foregroundColor(colors.label)
+                    Spacer(minLength: 8)
+                    Text(name)
+                        .foregroundColor(colors.secondaryLabel)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.trailing)
+                    Image(systemName: AppSymbols.rename)
+                        .font(.footnote)
+                        .accessibilityHidden(true)
                 }
+                .contentShape(Rectangle())
             }
-            .contentShape(Rectangle())
-            .onTapGesture { act { $0.askRename(name) } }
+            .accessibilityLabel("\(schema.text("name_label")): \(name)")
+            .accessibilityHint(SettingsTexts.voicingsRename)
+            .accessibilityIdentifier("voicing-rename")
+        } footer: {
+            if let help = schema.help["name"] { Text(help) }
         }
     }
 
-    /// A built-in's name, as text with a lock, and Copy to a new voicing;
-    /// beside it when wide, under it on a phone.
-    @ViewBuilder
+    /// A built-in's name, with a lock, and Copy to a new voicing.
     private func builtinName(_ name: String) -> some View {
-        let title = VStack(alignment: .leading, spacing: 2) {
-            Text(schema.text("name_label"))
-                .font(.caption.weight(.medium))
-                .foregroundColor(colors.muted.swiftUI)
+        Section {
             HStack(spacing: 8) {
-                MdiIcon("settings_lock", tint: colors.muted.swiftUI, size: 18)
+                Image(systemName: AppSymbols.lock)
+                    .foregroundColor(colors.secondaryLabel)
                     .accessibilityLabel(SettingsTexts.voicingsBuiltin)
                 Text(name)
                     .font(.headline)
-                    .foregroundColor(colors.text.swiftUI)
                     .lineLimit(2)
             }
-        }
-        let copy = IconTextButton(icon: "settings_content_copy", label: SettingsTexts.voicingsCopyBuiltin,
-                                  colors: colors, style: .tonal, identifier: "voicing-copy") {
-            act { $0.addVoicingFrom(VoicingPreset(group: view.state.model ?? "", label: name)) }
-        }
-        if wide {
-            HStack(spacing: 16) {
-                title.frame(maxWidth: .infinity, alignment: .leading)
-                copy
+            Button {
+                act { $0.addVoicingFrom(VoicingPreset(group: view.state.model ?? "", label: name)) }
+            } label: {
+                Label(SettingsTexts.voicingsCopyBuiltin, systemImage: AppSymbols.copy)
             }
-            .padding(.vertical, 4)
-        } else {
-            VStack(alignment: .leading, spacing: 8) {
-                title
-                copy
-            }
-            .padding(.vertical, 4)
+            .accessibilityIdentifier("voicing-copy")
+        } header: {
+            Text(schema.text("name_label"))
         }
     }
 
     private func newerVersion(name: String) -> some View {
-        PageColumn(live: live, spacing: 8, maxWidth: 900) {
-            nameField(name)
-            ForEach(Array(view.state.formErrors.enumerated()), id: \.offset) { _, note in
-                Text(note).foregroundColor(colors.muted.swiftUI)
-            }
-            IconTextButton(icon: "settings_delete", label: SettingsTexts.voicingsRemove, colors: colors,
-                           identifier: "voicing-remove") {
-                act { $0.askRemove(name) }
+        Form {
+            nameRow(name)
+            Section {
+                ForEach(Array(view.state.formErrors.enumerated()), id: \.offset) { _, note in
+                    Text(note).foregroundColor(colors.secondaryLabel)
+                }
+                Button(role: .destructive) { act { $0.askRemove(name) } } label: {
+                    Label(SettingsTexts.voicingsRemove, systemImage: AppSymbols.delete)
+                }
+                .accessibilityIdentifier("voicing-remove")
             }
         }
     }
 }
 
-/// The voicing form: every ``FormItem`` drawn by kind. `formKey` names the
-/// voicing and model (the fields start afresh when it changes); `wide` puts
-/// grids in two columns and records in a table.
+/// The voicing form: every ``FormItem`` drawn by kind, a section from each
+/// header to the next; a records field's rows each a section of their own (a
+/// table row each when `wide`). `formKey` names the voicing and model (the
+/// fields start afresh when it changes); `wide` puts grids in two columns.
 struct VoicingFormItems: View {
     let items: [FormItem]
     let formKey: String
@@ -338,61 +362,107 @@ struct VoicingFormItems: View {
     var live = true
     var act: (@escaping (inout SettingsController) -> Void) -> Void = { _ in }
 
+    /// A run of items under one header, or a records field (with its header).
+    private enum FormGroup {
+        case fields(title: String?, blurb: String?, items: [FormItem])
+        case records(title: String?, blurb: String?, item: RecordsItem)
+    }
+
+    private var groups: [FormGroup] {
+        var groups: [FormGroup] = []
+        var title: String?
+        var blurb: String?
+        var run: [FormItem] = []
+        func flush() {
+            if !run.isEmpty || title != nil { groups.append(.fields(title: title, blurb: blurb, items: run)) }
+            run = []
+            title = nil
+            blurb = nil
+        }
+        for item in items {
+            switch item {
+            case .header(_, let headerTitle, let headerBlurb, _):
+                flush()
+                title = headerTitle
+                blurb = headerBlurb
+            case .records(let records):
+                groups.append(.records(title: title, blurb: blurb, item: records))
+                if !run.isEmpty { groups.insert(.fields(title: nil, blurb: nil, items: run), at: groups.count - 1) }
+                run = []
+                title = nil
+                blurb = nil
+            default:
+                run.append(item)
+            }
+        }
+        flush()
+        return groups
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(items, id: \.key) { item in
-                switch item {
-                case .header(_, let title, let blurb, let level):
-                    SectionTitle(title: title, blurb: blurb, level: level, colors: colors)
-                case .stack(_, let fields):
-                    ForEach(fields, id: \.spec.id) { field in input(field) }
-                case .grid(_, let fields):
-                    grid(fields)
-                case .range(_, let label, let help, let low, let high):
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(label).font(.body).foregroundColor(colors.text.swiftUI)
-                        if !help.trimmingCharacters(in: .whitespaces).isEmpty {
-                            Text(help).font(.caption).foregroundColor(colors.muted.swiftUI)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-                        HStack(alignment: .top, spacing: 12) {
-                            input(low, withHelp: false).frame(maxWidth: .infinity)
-                            input(high, withHelp: false).frame(maxWidth: .infinity)
-                        }
-                    }
-                    .padding(.top, 4)
-                case .records(let records):
-                    RecordsInput(item: records, formKey: formKey, wide: wide, colors: colors, live: live, act: act)
+        ForEach(Array(groups.enumerated()), id: \.offset) { _, group in
+            switch group {
+            case .fields(let title, let blurb, let items):
+                Section {
+                    ForEach(items, id: \.key) { item in rows(item) }
+                } header: {
+                    if let title { Text(title) }
+                } footer: {
+                    if let blurb { Text(blurb) }
                 }
+            case .records(let title, let blurb, let item):
+                RecordsInput(item: item, title: title, blurb: blurb, formKey: formKey, wide: wide, colors: colors,
+                             live: live, act: act)
             }
         }
     }
 
     @ViewBuilder
-    private func grid(_ fields: [FieldItem]) -> some View {
-        if wide {
-            let pairs = stride(from: 0, to: fields.count, by: 2).map { Array(fields[$0..<min($0 + 2, fields.count)]) }
-            ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
+    private func rows(_ item: FormItem) -> some View {
+        switch item {
+        case .stack(_, let fields):
+            ForEach(fields, id: \.spec.id) { field in input(field) }
+        case .grid(_, let fields):
+            if wide {
+                let pairs = stride(from: 0, to: fields.count, by: 2).map { Array(fields[$0..<min($0 + 2, fields.count)]) }
+                ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
+                    HStack(alignment: .top, spacing: 16) {
+                        ForEach(pair, id: \.spec.id) { field in input(field, cell: true).frame(maxWidth: .infinity) }
+                        if pair.count == 1 { Spacer().frame(maxWidth: .infinity) }
+                    }
+                }
+            } else {
+                ForEach(fields, id: \.spec.id) { field in input(field) }
+            }
+        case .range(_, let label, let help, let low, let high):
+            VStack(alignment: .leading, spacing: 6) {
+                Text(label)
+                if !help.trimmingCharacters(in: .whitespaces).isEmpty {
+                    RowNote(text: help)
+                }
                 HStack(alignment: .top, spacing: 12) {
-                    ForEach(pair, id: \.spec.id) { field in input(field).frame(maxWidth: .infinity) }
-                    if pair.count == 1 { Spacer().frame(maxWidth: .infinity) }
+                    input(low, withHelp: false, cell: true).frame(maxWidth: .infinity)
+                    input(high, withHelp: false, cell: true).frame(maxWidth: .infinity)
                 }
             }
-        } else {
-            ForEach(fields, id: \.spec.id) { field in input(field) }
+            .padding(.vertical, 2)
+        case .header, .records:
+            EmptyView()
         }
     }
 
-    private func input(_ field: FieldItem, withHelp: Bool = true) -> some View {
-        FieldInput(field: field, colors: colors, live: live, withHelp: withHelp) { value in
+    private func input(_ field: FieldItem, withHelp: Bool = true, cell: Bool = false) -> some View {
+        FieldInput(field: field, colors: colors, live: live, withHelp: withHelp, cell: cell) { value in
             act { $0.edit(.object([field.spec.id: value])) }
         }
         .id("\(formKey):\(field.spec.id)")
     }
 }
 
-/// One field of the form by kind. A `cell` (of a records row) is narrow: a
-/// number has no − and + (it is typed) and the label stays on one line.
+/// One field of the form by kind, as a form row: a switch, a pop-up menu, a
+/// number with − / +, a text field; its help or error under it. A `cell` (a
+/// table's, a grid's) is compact: the name small above a bordered field, no
+/// stepper.
 struct FieldInput: View {
     let field: FieldItem
     let colors: AppColors
@@ -404,43 +474,78 @@ struct FieldInput: View {
     var body: some View {
         let spec = field.spec
         let supporting = field.supporting(withHelp: withHelp)
+        let error = field.error != nil
+        VStack(alignment: .leading, spacing: 4) {
+            if cell {
+                Text(spec.label)
+                    .font(.caption)
+                    .foregroundColor(colors.secondaryLabel)
+                    .lineLimit(1)
+            }
+            control(spec, error: error)
+            if let supporting, !cell || error {
+                RowNote(text: supporting, error: error)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func control(_ spec: FieldSpec, error: Bool) -> some View {
         switch spec.kind {
         case .bool:
-            SwitchRow(label: spec.label, checked: field.checked, colors: colors, supporting: supporting,
-                      enabled: field.enabled, identifier: "field-\(spec.id)") { send(.bool($0)) }
+            Toggle(cell ? "" : spec.label, isOn: Binding(get: { field.checked }, set: { send(.bool($0)) }))
+                .disabled(!field.enabled)
+                .accessibilityLabel(spec.label)
+                .accessibilityIdentifier("field-\(spec.id)")
         case .choice:
-            DropdownField(label: spec.label, selected: field.choice, options: spec.choices,
-                          optionLabel: { $0?.label ?? "" }, colors: colors, live: live, supporting: supporting,
-                          error: field.error != nil, enabled: field.enabled, identifier: "field-\(spec.id)") {
-                send($0.value)
-            }
-        case .int, .float:
-            FormField(label: spec.label, value: field.text, colors: colors, live: live, supporting: supporting,
-                      error: field.error != nil, enabled: field.enabled,
-                      // Negative weights need the minus sign, which the number and decimal pads lack.
-                      keyboard: .numbersAndPunctuation, labelLines: cell ? 1 : nil,
-                      identifier: "field-\(spec.id)", change: { send(.string($0)) }) {
-                if !cell {
-                    StepperButtons(label: spec.label, canDown: field.enabled && canStep(spec, field.text, -1),
-                                   canUp: field.enabled && canStep(spec, field.text, 1), colors: colors,
-                                   identifier: "field-\(spec.id)") { delta in
-                        if let next = stepNumber(spec, field.text, delta) { send(.string(next)) }
-                    }
+            Picker(cell ? "" : spec.label, selection: Binding(get: { field.choice?.label ?? "" }, set: { label in
+                if let option = spec.choices.first(where: { $0.label == label }) { send(option.value) }
+            })) {
+                ForEach(spec.choices, id: \.label) { option in
+                    Text(option.label).tag(option.label)
                 }
             }
+            .pickerStyle(.menu)
+            .disabled(!field.enabled)
+            .accessibilityLabel(spec.label)
+            .accessibilityIdentifier("field-\(spec.id)")
+        case .int, .float:
+            if cell {
+                EchoTextField(label: spec.label, value: field.text, error: error, enabled: field.enabled,
+                              keyboard: .numbersAndPunctuation, alignment: .leading, bordered: true, live: live,
+                              identifier: "field-\(spec.id)", change: { send(.string($0)) })
+            } else {
+                // Negative weights need the minus sign, which the number and decimal pads lack.
+                NumberRow(label: spec.label, value: field.text, error: error, enabled: field.enabled, live: live,
+                          keyboard: .numbersAndPunctuation, canDown: canStep(spec, field.text, -1),
+                          canUp: canStep(spec, field.text, 1), identifier: "field-\(spec.id)",
+                          change: { send(.string($0)) },
+                          step: { delta in if let next = stepNumber(spec, field.text, delta) { send(.string(next)) } })
+            }
         default:
-            FormField(label: spec.label, value: field.text, colors: colors, live: live, supporting: supporting,
-                      error: field.error != nil, enabled: field.enabled, keyboard: .asciiCapable,
-                      labelLines: cell ? 1 : nil, identifier: "field-\(spec.id)", change: { send(.string($0)) })
+            if cell {
+                EchoTextField(label: spec.label, value: field.text, error: error, enabled: field.enabled,
+                              keyboard: .asciiCapable, alignment: .leading, bordered: true, live: live,
+                              identifier: "field-\(spec.id)", change: { send(.string($0)) })
+            } else {
+                HStack(spacing: 12) {
+                    Text(spec.label)
+                    EchoTextField(label: spec.label, value: field.text, error: error, enabled: field.enabled,
+                                  keyboard: .asciiCapable, live: live, identifier: "field-\(spec.id)",
+                                  change: { send(.string($0)) })
+                }
+            }
         }
     }
 }
 
-/// A records field (an ensemble's voices): each column's help once, the
-/// rows (a card each on a phone, a table row when wide) with ↑, ↓, copy and
-/// ✕, and the add button.
+/// A records field (an ensemble's voices): each column's help once, then the
+/// rows, each a section headed by its number and ↑, ↓, copy and ✕ (a table
+/// row each when wide), and the add button.
 struct RecordsInput: View {
     let item: RecordsItem
+    var title: String?
+    var blurb: String?
     let formKey: String
     let wide: Bool
     let colors: AppColors
@@ -449,31 +554,49 @@ struct RecordsInput: View {
 
     var body: some View {
         let spec = item.spec
-        VStack(alignment: .leading, spacing: 8) {
-            ForEach(spec.columns.filter { !$0.help.trimmingCharacters(in: .whitespaces).isEmpty }, id: \.id) { column in
-                Text("\(column.label): \(column.help)")
-                    .font(.caption)
-                    .foregroundColor(colors.muted.swiftUI)
-                    .fixedSize(horizontal: false, vertical: true)
+        let columnHelp = spec.columns.filter { !$0.help.trimmingCharacters(in: .whitespaces).isEmpty }
+        Section {
+            ForEach(columnHelp, id: \.id) { column in
+                RowNote(text: "\(column.label): \(column.help)")
             }
             if let error = item.error {
-                Text(error).font(.caption).foregroundColor(colors.error.swiftUI)
+                RowNote(text: error, error: true)
             }
+            if wide {
+                ForEach(item.rows, id: \.index) { row in tableRow(row) }
+            }
+        } header: {
+            if let title { Text(title) }
+        } footer: {
+            if let blurb { Text(blurb) }
+        }
+        if !wide {
             ForEach(item.rows, id: \.index) { row in
-                if wide { tableRow(row) } else { card(row) }
+                Section {
+                    ForEach(row.cells, id: \.spec.id) { field in cell(field, row, compact: false) }
+                } header: {
+                    HStack(spacing: 0) {
+                        Text("\(row.index + 1)")
+                        Spacer(minLength: 8)
+                        buttons(row)
+                    }
+                    .textCase(nil)
+                }
             }
-            IconTextButton(icon: "settings_add", label: spec.addLabel ?? spec.label, colors: colors, style: .outlined,
-                           enabled: item.canAdd, identifier: "records-add-\(spec.id)") {
-                act { $0.addRecord(spec.id) }
+        }
+        Section {
+            Button { act { $0.addRecord(spec.id) } } label: {
+                Label(spec.addLabel ?? spec.label, systemImage: AppSymbols.add)
             }
-            if let help = spec.addHelp {
-                HelpText(text: help, colors: colors, indent: 0)
-            }
+            .disabled(!item.canAdd)
+            .accessibilityIdentifier("records-add-\(spec.id)")
+        } footer: {
+            if let help = spec.addHelp { Text(help) }
         }
     }
 
-    private func cell(_ field: FieldItem, _ row: RecordRow) -> some View {
-        FieldInput(field: field, colors: colors, live: live, withHelp: false, cell: true) { value in
+    private func cell(_ field: FieldItem, _ row: RecordRow, compact: Bool) -> some View {
+        FieldInput(field: field, colors: colors, live: live, withHelp: false, cell: compact) { value in
             act { $0.editCell(item.spec.id, index: row.index, column: field.spec.id, value: value) }
         }
         .id("\(formKey):\(item.spec.id):\(row.index):\(field.spec.id)")
@@ -481,24 +604,30 @@ struct RecordsInput: View {
 
     private func buttons(_ row: RecordRow) -> some View {
         let spec = item.spec
-        return HStack(spacing: 0) {
-            IconButton(icon: "settings_arrow_upward", label: spec.moveUpHelp ?? "Move up", colors: colors,
-                       enabled: row.canMoveUp, identifier: "row-\(row.index)-up") {
-                act { $0.moveRecord(row.index, -1, spec.id) }
-            }
-            IconButton(icon: "settings_arrow_downward", label: spec.moveDownHelp ?? "Move down", colors: colors,
-                       enabled: row.canMoveDown, identifier: "row-\(row.index)-down") {
-                act { $0.moveRecord(row.index, 1, spec.id) }
-            }
-            IconButton(icon: "settings_content_copy", label: spec.duplicateHelp ?? "Duplicate", colors: colors,
-                       enabled: item.canAdd, identifier: "row-\(row.index)-copy") {
-                act { $0.duplicateRecord(row.index, spec.id) }
-            }
-            IconButton(icon: "settings_close", label: spec.removeHelp ?? spec.removeLabel ?? "Remove", colors: colors,
-                       enabled: item.canRemove, identifier: "row-\(row.index)-remove") {
-                act { $0.removeRecord(row.index, spec.id) }
-            }
+        return HStack(spacing: 4) {
+            iconButton(AppSymbols.moveUp, spec.moveUpHelp ?? "Move up", enabled: row.canMoveUp,
+                       identifier: "row-\(row.index)-up") { act { $0.moveRecord(row.index, -1, spec.id) } }
+            iconButton(AppSymbols.moveDown, spec.moveDownHelp ?? "Move down", enabled: row.canMoveDown,
+                       identifier: "row-\(row.index)-down") { act { $0.moveRecord(row.index, 1, spec.id) } }
+            iconButton(AppSymbols.copy, spec.duplicateHelp ?? "Duplicate", enabled: item.canAdd,
+                       identifier: "row-\(row.index)-copy") { act { $0.duplicateRecord(row.index, spec.id) } }
+            iconButton(AppSymbols.close, spec.removeHelp ?? spec.removeLabel ?? "Remove", enabled: item.canRemove,
+                       identifier: "row-\(row.index)-remove") { act { $0.removeRecord(row.index, spec.id) } }
         }
+    }
+
+    private func iconButton(_ symbol: String, _ label: String, enabled: Bool, identifier: String,
+                            action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: symbol)
+                .font(.body)
+                .frame(width: 40, height: 36)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.borderless)
+        .disabled(!enabled)
+        .accessibilityLabel(label)
+        .accessibilityIdentifier(identifier)
     }
 
     /// A row as one line of a table: the columns side by side, weighted by
@@ -508,45 +637,11 @@ struct RecordsInput: View {
             WeightedRow(weights: row.cells.map { field in
                 field.spec.id == "name" ? 2 : field.spec.kind.numeric ? 1.5 : 1
             }) {
-                ForEach(row.cells, id: \.spec.id) { field in cell(field, row) }
+                ForEach(row.cells, id: \.spec.id) { field in cell(field, row, compact: true) }
             }
             buttons(row)
         }
-    }
-
-    /// A row as a card: its number and buttons, the name, then the other
-    /// text columns two per line and each number on a line of its own.
-    private func card(_ row: RecordRow) -> some View {
-        let first = row.cells.first
-        let rest = Array(row.cells.dropFirst())
-        let texts = rest.filter { !$0.spec.kind.numeric }
-        let numbers = rest.filter { $0.spec.kind.numeric }
-        let pairs = stride(from: 0, to: texts.count, by: 2).map { Array(texts[$0..<min($0 + 2, texts.count)]) }
-        return VStack(alignment: .leading, spacing: 4) {
-            HStack(spacing: 0) {
-                Text("\(row.index + 1)")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundColor(colors.text.swiftUI)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                buttons(row)
-            }
-            VStack(alignment: .leading, spacing: 4) {
-                if let first { cell(first, row) }
-                ForEach(Array(pairs.enumerated()), id: \.offset) { _, pair in
-                    HStack(alignment: .top, spacing: 8) {
-                        ForEach(pair, id: \.spec.id) { field in cell(field, row).frame(maxWidth: .infinity) }
-                        if pair.count == 1 { Spacer().frame(maxWidth: .infinity) }
-                    }
-                }
-                ForEach(numbers, id: \.spec.id) { field in cell(field, row) }
-            }
-            .padding(.trailing, 8)
-        }
-        .padding(.leading, 12)
-        .padding(.trailing, 4)
-        .padding(.bottom, 12)
-        .background(colors.surfaceLow.swiftUI, in: RoundedRectangle(cornerRadius: 12))
-        .accessibilityElement(children: .contain)
+        .padding(.vertical, 2)
     }
 }
 

@@ -321,13 +321,13 @@ enum PreviewCatalog {
         let start = records > 0 && { if case .header = all[records - 1] { return true } else { return false } }()
             ? records - 1 : records
         let items = Array(all[start...])
-        VStack(spacing: 0) {
-            PageBar(title: state?.selected ?? "", colors: colors)
-            PageColumn(live: false, spacing: 8, maxWidth: 900) {
+        NavigationStack {
+            Form {
                 VoicingFormItems(items: items, formKey: "catalog", wide: false, colors: colors, live: false)
             }
+            .navigationTitle(state?.selected ?? "")
+            .navigationBarTitleDisplayMode(.inline)
         }
-        .background(colors.surface.swiftUI)
     }
 
     /// A scene with the find bar open on `query` over its text, match
