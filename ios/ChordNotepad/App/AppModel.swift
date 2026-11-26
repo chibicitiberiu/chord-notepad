@@ -355,7 +355,15 @@ final class AppModel: ObservableObject {
     /// then asks about them as any open does.
     private func openLastSong(urlsWaiting waiting: [URL]) {
         guard let session, let store else { return }
-        let launch = LastSongPolicy.launchSong(lastSongFile.read())
+        let kept = lastSongFile.read()
+        if kept == .unreadable {
+            // Kept aside, not written over by the next save: it may still hold someone's words.
+            let aside = lastSongFile.url.deletingPathExtension()
+                .appendingPathExtension("unreadable-\(Int(Date().timeIntervalSince1970)).json")
+            try? FileManager.default.moveItem(at: lastSongFile.url, to: aside)
+            Log.store.error("The last song's file can't be read; kept as \(aside.lastPathComponent, privacy: .public)")
+        }
+        let launch = LastSongPolicy.launchSong(kept)
         launchSong = launch
         Log.ui.info("Launch song: \(String(describing: launch.kind), privacy: .public)")
         // The user's typing (the editor's model; the session's output is watched in receive).

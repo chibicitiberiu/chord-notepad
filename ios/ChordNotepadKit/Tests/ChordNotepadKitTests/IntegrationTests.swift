@@ -458,6 +458,8 @@ final class IntegrationTests: XCTestCase {
         // The guide's scenes before the editor's features, which leave a serif font at 16.
         try await recordHelpScenes(session, log, scenes)
         try await checkEditorFeatures(session, log, scenes)
+        // The last song's launches: after every scene, so none of them changes.
+        try await checkLastSongLaunches(session, log, store)
 
         // -- every output decoded with the generated types; nothing unexpected -------------
         for event in log.events(since: 0) {

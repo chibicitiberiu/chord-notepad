@@ -1130,7 +1130,7 @@ state's binder transaction).
 | Last song | Opens |
 |---|---|
 | No file (the first launch) | the quick-start song, read only, in Play (`bundle:01_quick_start.txt`, as before) |
-| A file that can't be read | the empty song: the app ran before, so not Quick Start |
+| A file that can't be read | the empty song: the app ran before, so not Quick Start. The file is moved aside (`last_song.unreadable-<time>.json`, logged) rather than written over |
 | Untitled and empty (New, nothing typed) | the empty song |
 | Untitled with text | the text as an unsaved draft (`restore_draft`, no document, modified) |
 | Saved, no changes | the document read again through the store (`open_document {ref, read_only}`), so changes made elsewhere show |
@@ -1192,7 +1192,10 @@ Deliberate differences from Android:
 
 What CI checks: the kit's tests (every row of the table, the gone
 document, the file; the launch state for an untitled draft, a saved song
-in Edit, a failed open). `ci_screenshots.sh`'s first launch after the
+in Edit, a failed open), and `IntegrationLastSongTests` over the real
+core: a saved song read again, one whose file is gone, a changed song
+with its document and one without, each from the empty song with the
+session's own output fed through the launch state. `ci_screenshots.sh`'s first launch after the
 install must report the quick-start song and the tour (`startup.json`).
 Its relaunch check, after the other hooks: `-CNScreen draft` waits for the
 launch's song, makes a new song, types a line with chords in Edit and
