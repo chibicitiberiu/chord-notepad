@@ -605,7 +605,14 @@ Deliberate differences from Android:
 - Scrolling is a `UIScrollView`'s (it bounces at the ends); a jump to the
   playhead is `setContentOffset(animated:)`.
 - The first buffer opens with the playhead's chord in view; after that the
-  strip follows the playhead only when it moves, as on Android.
+  strip follows the playhead only when it moves, as on Android. Its
+  handlers get the sheet, the two indices and the width as one value
+  (`StripInputs`, one `onChange`): an `onChange` action may run with the
+  closure of the update before the change, so indices read from the view
+  there can be one state old. That is the likely cause of S0 issue 7: after
+  ⏮ the follower would still see the paused chord, and the strip stayed near
+  it (the core and `PlayheadFollower` give the right chord for that sequence). `SessionTests` hosts the strip,
+  plays it chord by chord, then ⏮, and checks the scroll view is back at 0.
 - A tap on an unavailable view shows the core's reason in a capsule over the
   strip for 2.5 s (Android: a Toast).
 - The header is a fixed 32 pt, so its labels follow Dynamic Type up to

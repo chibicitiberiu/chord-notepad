@@ -249,6 +249,23 @@ struct StripPinch: Equatable {
     var committed = false
 }
 
+/// What the strip follows, handed to its handlers as one value: an
+/// `onChange` action can run with the closure of the update before the
+/// change, so it mustn't read the view's own `let`s (the likely cause of S0
+/// issue 7: after ⏮ the strip stayed near the paused chord).
+struct StripInputs: Equatable {
+    let sheet: PreparedSheet
+    let currentIndex: Int?
+    let cursorIndex: Int?
+    /// The strip's width less the gutter.
+    let viewport: Double
+
+    static func == (a: StripInputs, b: StripInputs) -> Bool {
+        a.sheet.id == b.sheet.id && a.currentIndex == b.currentIndex && a.cursorIndex == b.cursorIndex
+            && a.viewport == b.viewport
+    }
+}
+
 /// A scroll the strip asks its scroll view for.
 struct StripJump: Equatable {
     var x: Double
@@ -276,13 +293,14 @@ struct ChordSheetStrip: View {
     @State private var follower = PlayheadFollower()
     @State private var pinch: StripPinch?
     @State private var jump: StripJump?
-    @State private var viewport: Double = 0
 
     var body: some View {
         GeometryReader { geometry in
             let size = geometry.size
             let gutter = Double(sheet.buffer.gutterWidth)
             let scrollX = scroll ?? initialScroll(viewport: size.width - gutter)
+            let inputs = StripInputs(sheet: sheet, currentIndex: currentIndex, cursorIndex: cursorIndex,
+                                     viewport: Double(size.width) - gutter)
             ZStack(alignment: .topLeading) {
                 Canvas { context, canvasSize in
                     let painter = SheetPainter(glyphs: SheetGlyphImages.shared.index, pixelScale: displayScale)
@@ -303,14 +321,14 @@ struct ChordSheetStrip: View {
                 }
             }
             .clipped()
-            .onAppear { sheetChanged(viewport: size.width - gutter) }
-            .onChange(of: sheet.id) { _, _ in sheetChanged(viewport: size.width - gutter) }
-            .onChange(of: size.width) { _, width in
-                viewport = width - gutter
-                followPlayhead()
+            .onAppear { sheetChanged(inputs) }
+            .onChange(of: inputs) { old, new in
+                if old.sheet.id != new.sheet.id {
+                    sheetChanged(new)
+                } else {
+                    followPlayhead(new)
+                }
             }
-            .onChange(of: currentIndex) { _, _ in followPlayhead() }
-            .onChange(of: cursorIndex) { _, _ in followPlayhead() }
             .task(id: pinch?.committed) {
                 // A pinch that didn't change the zoom (or whose buffer never came) springs back.
                 guard pinch?.committed == true else { return }
@@ -335,9 +353,9 @@ struct ChordSheetStrip: View {
     }
 
     /// A new buffer: keep the same music in view, then follow the playhead.
-    private func sheetChanged(viewport: Double) {
-        self.viewport = viewport
-        let buffer = sheet.buffer
+    private func sheetChanged(_ inputs: StripInputs) {
+        let viewport = inputs.viewport
+        let buffer = inputs.sheet.buffer
         let previous = shown
         let target: Double
         if let previous, let scroll {
@@ -345,21 +363,23 @@ struct ChordSheetStrip: View {
                                                      viewportWidth: viewport)
             if previous.zoom != buffer.zoom || previous.viewId != buffer.viewId { pinch = nil }
         } else {
-            target = initialScroll(viewport: viewport)
+            target = ChordSheetScroll.target(forChord: inputs.currentIndex ?? inputs.cursorIndex, in: buffer,
+                                             viewportWidth: viewport, currentScroll: 0) ?? 0
         }
         shown = buffer
         scroll = target
         jump = StripJump(x: target, animated: false, id: (jump?.id ?? 0) + 1)
-        followPlayhead()
+        followPlayhead(inputs)
     }
 
     /// Bring the chord the follower names into view (the desktop's 25 % / 70 % band).
-    private func followPlayhead() {
-        guard viewport > 0,
-              let index = follower.update(currentIndex: currentIndex, cursorIndex: cursorIndex, sheetID: sheet.id,
-                                          viewportWidth: viewport),
-              let target = ChordSheetScroll.target(forChord: index, in: sheet.buffer, viewportWidth: viewport,
-                                                   currentScroll: scroll ?? 0) else { return }
+    private func followPlayhead(_ inputs: StripInputs) {
+        guard inputs.viewport > 0,
+              let index = follower.update(currentIndex: inputs.currentIndex, cursorIndex: inputs.cursorIndex,
+                                          sheetID: inputs.sheet.id, viewportWidth: inputs.viewport),
+              let target = ChordSheetScroll.target(forChord: index, in: inputs.sheet.buffer,
+                                                   viewportWidth: inputs.viewport, currentScroll: scroll ?? 0)
+        else { return }
         if interactive {
             jump = StripJump(x: target, animated: true, id: (jump?.id ?? 0) + 1)
         } else {

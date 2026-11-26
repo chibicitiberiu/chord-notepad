@@ -109,6 +109,7 @@ final class SessionTests: XCTestCase {
         png.name = "chordsheet-live.png"
         png.lifetime = .keepAlways
         add(png)
+        try await checkTheStripFollowsTheRewind(sheet, palette: source.palette(for: sheet, colors: .light))
         session.submit(.setChordSheetVisible(visible: false))
 
         try await checkFiles(model)
