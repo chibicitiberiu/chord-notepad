@@ -390,6 +390,15 @@ final class MainScreenTests: XCTestCase {
         XCTAssertFalse(ui.launching)
         XCTAssertEqual(ui.mode, .play)
 
+        // New asked for before the launch's song came (CI's keyboard hook; Command-N):
+        // the launch state ends with the next document instead of waiting for the song.
+        var renewed = MainUiState()
+        renewed.launchBegan()
+        renewed.modes.expectOpen()
+        renewed.modes.expectNew()
+        renewed.documentChanged(doc(nil))
+        XCTAssertFalse(renewed.launching)
+
         var failed = MainUiState()
         failed.launchBegan()
         failed.launchEnded()

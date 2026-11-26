@@ -880,6 +880,13 @@ final class AppModel: ObservableObject {
               editor.textView == nil || !editor.model.text.contains(EditorScript.line) {
             try? await Task.sleep(for: .milliseconds(100))
         }
+        // The text view comes on screen when the launch state ends: let it settle in its
+        // window first, as a person's first tap would (CI run 45738789119: typed at once on
+        // the iPad, the host hadn't laid out the new view and didn't follow the caret).
+        while ContinuousClock.now < deadline, ui.launching || editor.textView?.window == nil {
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        try? await Task.sleep(for: .milliseconds(500))
         let typed = EditorScript.type(into: editor)
         var highlighted = false
         if typed {

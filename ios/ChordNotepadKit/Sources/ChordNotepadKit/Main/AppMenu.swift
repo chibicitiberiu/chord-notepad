@@ -228,10 +228,13 @@ public struct MainUiState: Sendable, Equatable {
     }
 
     /// The session's document changed (``ModeController/onDocument(_:)``);
-    /// the launch is over once the song asked for at launch has arrived.
+    /// the launch is over once the song asked for at launch has arrived, or
+    /// once something else was asked for meanwhile (New, a save: Command-N
+    /// works before the screen does), so the launch state never waits for an
+    /// open that was given up.
     public mutating func documentChanged(_ document: DocumentState) {
         modes.onDocument(document)
-        if modes.opened > 0 { launching = false }
+        if modes.opened > 0 || !modes.expectingOpen { launching = false }
     }
 
     /// The launch is over without that song (start failed, nothing to open,

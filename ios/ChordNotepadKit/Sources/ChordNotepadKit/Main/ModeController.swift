@@ -75,6 +75,9 @@ public struct ModeController: Sendable, Equatable {
         expecting = .open
     }
 
+    /// An asked-for open hasn't arrived yet.
+    public var expectingOpen: Bool { expecting == .open }
+
     /// New was asked for.
     public mutating func expectNew() {
         expecting = .new
