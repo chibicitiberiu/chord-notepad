@@ -1193,8 +1193,8 @@ document, the file; the launch state for an untitled draft, a saved song
 in Edit, a failed open). `ci_screenshots.sh`'s first launch after the
 install must report the quick-start song and the tour (`startup.json`).
 Its relaunch check, after the other hooks: `-CNScreen draft` waits for the
-launch's song, makes a new song, types two lines in Edit and leaves them
-unsaved (`draft.json`); the script launches the Settings app, which sends
+launch's song, makes a new song, types a line with chords in Edit and
+leaves it unsaved (`draft.json`); the script launches the Settings app, which sends
 ours to the background, where the last song is written
 (`draft-kept.json`); it ends the app there, as iOS or a swipe would, and
 `-CNScreen restored` checks the next launch brought the song back: a draft,

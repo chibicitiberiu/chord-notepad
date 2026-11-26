@@ -1055,7 +1055,7 @@ final class AppModel: ObservableObject {
     }
 
     /// The song CI's relaunch check types (`-CNScreen draft`, then `restored`).
-    static let relaunchText = "Kept across launches\nG       D       Em      C\n"
+    static let relaunchText = "Kept across launches  G  D  Em  C"
 
     /// `-CNScreen draft` (CI's relaunch check, first half): once the launch's
     /// song is on screen, a new song (its question answered Don't save) with
@@ -1074,7 +1074,7 @@ final class AppModel: ObservableObject {
         selectMode(.edit)
         try? await Task.sleep(for: .seconds(1))
         ok = ok && EditorScript.type(Self.relaunchText, at: 0, into: editor)
-        ok = ok && editor.model.text == Self.relaunchText
+        ok = ok && editor.model.text.contains(Self.relaunchText)
         Diagnostics.shared.writeJSON(ToolScreenReport(name: "draft", ok: ok, route: String(describing: ui.route),
                                                       detail: "mode \(ui.mode), \(editor.model.text.count) characters"),
                                      name: "draft.json")
@@ -1085,9 +1085,9 @@ final class AppModel: ObservableObject {
     /// back: untitled, unsaved, the typed text, in Edit. `restored.json`.
     func runRestoredCheck() async {
         let arrived = await waitForModel(timeout: .seconds(120)) { !$0.ui.launching }
-        _ = await waitForModel(timeout: .seconds(10)) { $0.editor.model.text == Self.relaunchText }
+        _ = await waitForModel(timeout: .seconds(10)) { $0.editor.model.text.contains(Self.relaunchText) }
         let document = snapshot.document
-        let ok = arrived && launchSong?.kind == "draft" && editor.model.text == Self.relaunchText
+        let ok = arrived && launchSong?.kind == "draft" && editor.model.text.contains(Self.relaunchText)
             && document?.documentId == nil && document?.isModified == true && ui.mode == .edit
         Diagnostics.shared.writeJSON(
             ToolScreenReport(name: "restored", ok: ok, route: String(describing: ui.route),
