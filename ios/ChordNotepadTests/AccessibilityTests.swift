@@ -210,8 +210,9 @@ final class AccessibilityTests: XCTestCase {
                                  "\(elements.map(\.identifier))")
         XCTAssertEqual(edit.label, SongDefaultsTexts.edit)
         XCTAssertTrue(edit.traits.contains(.button))
-        XCTAssertGreaterThanOrEqual(edit.frame.height, 44, "a comfortable target: \(edit.frame)")
-        XCTAssertGreaterThanOrEqual(edit.frame.width, 44, "a comfortable target: \(edit.frame)")
+        // Rounded: layout gives 43.99999999999997 for a 44 pt frame on the iPhone.
+        XCTAssertGreaterThanOrEqual(edit.frame.height.rounded(), 44, "a comfortable target: \(edit.frame)")
+        XCTAssertGreaterThanOrEqual(edit.frame.width.rounded(), 44, "a comfortable target: \(edit.frame)")
         XCTAssertTrue(edit.object.accessibilityActivate())
         XCTAssertEqual(events.sent, [.editDirective(offset)])
     }
