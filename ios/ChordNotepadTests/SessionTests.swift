@@ -385,7 +385,7 @@ final class SessionTests: XCTestCase {
         done = await model.waitFor(timeout: .seconds(10)) { $0.capoAdvice?.active == false }
         XCTAssertTrue(done)
 
-        // The chord identifier: C, E and G tapped, C picked and inserted at the cursor.
+        // The chord identifier: C, E and G tapped, C picked, inserted at the cursor (Insert closes it).
         model.sheet(.ribbon(.identify))
         XCTAssertEqual(model.ui.route, .identify)
         // One key at a time, as a person taps: the field follows the session's
@@ -404,11 +404,10 @@ final class SessionTests: XCTestCase {
         caretAtStart(editor)
         revision = model.snapshot.textRevision
         model.sheet(.identifierInsert(nil))
+        XCTAssertEqual(model.ui.route, MainRoute.none, "Insert closes the identifier")
         done = await model.waitFor(timeout: .seconds(30)) { $0.textRevision > revision }
         XCTAssertTrue(done)
         XCTAssertTrue(editor.model.text.hasPrefix("C {bpm: 110}"), "\(editor.model.text.prefix(60))")
-        model.sheet(.dismiss)
-        XCTAssertEqual(model.ui.route, MainRoute.none)
     }
 
     /// Settings, live, through the app's own calls (the screen's taps): a

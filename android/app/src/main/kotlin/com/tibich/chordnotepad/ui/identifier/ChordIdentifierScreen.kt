@@ -252,7 +252,7 @@ private fun ChordIdentifier(
         val candidates: @Composable (Modifier) -> Unit = { listModifier ->
             Text(stringResource(R.string.identifier_candidates), style = MaterialTheme.typography.titleSmall)
             Candidates(
-                state, model.picked, { model.pick(it) }, { model.pick(it, rolled = true) }, model::insert,
+                state, model.picked, { model.pick(it) }, { model.pick(it, rolled = true) },
                 listModifier.fillMaxWidth(),
             )
         }
@@ -354,8 +354,8 @@ private fun PlayButton(enabled: Boolean, onPlay: () -> Unit, onPlayRolled: () ->
 }
 
 /**
- * The candidates (tap plays, long press plays rolled, double-tap inserts), or
- * the session's message when there are none.
+ * The candidates (a tap picks and plays, a long press plays rolled; Insert
+ * inserts the picked one), or the session's message when there are none.
  */
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -364,7 +364,6 @@ private fun Candidates(
     picked: String?,
     onPick: (String) -> Unit,
     onRoll: (String) -> Unit,
-    onInsert: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val candidates = shownCandidates(state)
@@ -393,7 +392,6 @@ private fun Candidates(
                         onLongClickLabel = rollLabel,
                         onClick = { onPick(chord) },
                         onLongClick = { onRoll(chord) },
-                        onDoubleClick = { onInsert(chord) },
                     )
                     .heightIn(min = 48.dp)
                     .padding(horizontal = 12.dp, vertical = 12.dp),

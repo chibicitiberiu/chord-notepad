@@ -268,7 +268,6 @@ final class SheetControllerTests: XCTestCase {
                            [("play_identified_chord", #"{"chord": "C5", "rolled": true}"#)])
         try assertCommands(tap(.identifierPlay(rolled: false)).commands,
                            [("identifier_play_selection", #"{"rolled": false}"#)])
-        try assertCommands(tap(.identifierInsert(nil)).commands, [("insert_chord", #"{"at": 4, "chord": "C5"}"#)])
         try assertCommands(tap(.identifierType("C E")).commands,
                            [("identifier_set_notes_text", #"{"text": "C E"}"#)])
         tap(.identifierExpired(1))
@@ -276,6 +275,18 @@ final class SheetControllerTests: XCTestCase {
         try assertCommands(tap(.identifierClear).commands, [("identifier_clear", "{}")])
         tap(.dismiss)
         XCTAssertEqual(ui.route, MainRoute.none)
+        XCTAssertEqual(ui.tools.identifier, IdentifierModel())
+    }
+
+    func testInsertInsertsThePickedChordAndClosesTheIdentifier() throws {
+        tap(.ribbon(.identify))
+        XCTAssertTrue(tap(.identifierInsert(nil)).commands.isEmpty, "nothing picked: nothing inserted")
+        XCTAssertEqual(ui.route, .identify, "and the identifier stays open")
+        tap(.identifierPick("C5", rolled: false))
+        XCTAssertEqual(ui.route, .identify, "a tap only picks and plays")
+        XCTAssertEqual(ui.tools.identifier.picked, "C5")
+        try assertCommands(tap(.identifierInsert(nil)).commands, [("insert_chord", #"{"at": 4, "chord": "C5"}"#)])
+        XCTAssertEqual(ui.route, MainRoute.none, "Insert closes the identifier")
         XCTAssertEqual(ui.tools.identifier, IdentifierModel())
     }
 }

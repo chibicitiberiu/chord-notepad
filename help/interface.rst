@@ -1409,9 +1409,6 @@ As you select notes, Chord Notepad analyzes them and shows matching chords:
       Picks it and plays it rolled: one note at a time from the lowest, like
       a quick strum.
 
-   **Double-tap a result:**
-      Inserts that chord into your document at the cursor position.
-
 While a chord plays, the keys it actually sounds light up in amber for a few
 seconds (a key that is also selected keeps its blue and gets an amber dot),
 so you can see when what you hear isn't what you picked. The chord plays on
@@ -1433,8 +1430,17 @@ The Insert Button
 
    Tap **Insert** to put the picked chord, followed by a space, at the cursor
    in your document (with a space before it too, right after a chord or a
-   word). The identifier stays open, so you can work out and insert
-   the next chord too; the line at the bottom confirms each insert.
+   word).
+
+   .. only:: not ios
+
+      The identifier stays open, so you can work out and insert the next
+      chord too; the line at the bottom confirms each insert.
+
+   .. only:: ios
+
+      The identifier closes and you are back in your song, where the status
+      line confirms the insert.
 
 The Clear Button
 ----------------
@@ -1486,7 +1492,7 @@ Using the Chord Identifier
    3. Tap the notes on the piano keyboard (or type them)
    4. Look at the results list
    5. Tap results to hear which one sounds right
-   6. Double-tap it (or tap Insert) to add it to your document
+   6. Tap Insert to add the picked one to your document
 
 
 Visual Guide

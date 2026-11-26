@@ -92,7 +92,7 @@ final class IdentifierTests: XCTestCase {
                            [("play_identified_chord", #"{"chord": "Am7", "rolled": true}"#)])
         XCTAssertEqual(model.picked, "Am7")
         XCTAssertEqual(model.insert(), "Am7")
-        XCTAssertEqual(model.insert("C"), "C", "a double tap inserts that one")
+        XCTAssertEqual(model.insert("C"), "C", "a candidate's VoiceOver Insert inserts that one")
         XCTAssertEqual(model.picked, "C")
     }
 

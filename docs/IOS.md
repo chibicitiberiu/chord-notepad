@@ -1079,8 +1079,9 @@ nothing in the core or the schema changed.
   recommended row is chosen, a new voicing or new rows choose it again, Apply
   waits while a song plays. Identify clears the notes, a key tap toggles it,
   a long press sounds it, the typed notes follow the keys until the user
-  types, a candidate tap plays it (long press rolled, double tap inserts),
-  Insert puts the chord and a space at the editor's caret.
+  types, a candidate tap picks and plays it (long press rolled), Insert
+  puts the picked chord and a space at the editor's caret and closes the
+  identifier (VoiceOver also has an Insert action on each candidate).
 - **Live check:** `SessionTests` drives the speed sheet (a drag, a refused
   and an accepted Manual… value, Reset), Playback settings' Edit, and from
   the ribbon Transpose, Insert › Tempo with the session's check, Suggest Capo
@@ -1111,8 +1112,8 @@ Deliberate differences from Android:
   anyway).
 
 What CI doesn't test: a finger on the slider, a swipe down on a sheet, the
-pop-up menus, a long press on a piano key, Play or a candidate, a double tap
-on a candidate (the session test sends the same events the gestures send),
+pop-up menus, a long press on a piano key, Play or a candidate (the session
+test sends the same events the gestures send),
 the keyboard over the Insert dialogs and the identifier's field, the live
 sound of the identifier's notes (the session test has the FakePlayer;
 `-CNScreen identify` plays them in the simulator), VoiceOver, rotation with a
@@ -2215,7 +2216,7 @@ gives each issue an expected result. Exit status 0 is ready. By hand:
   4. Transpose with and without a selection; Suggest Capo with another
      voicing, Apply.
   5. Identify: tap and long-press keys, type notes, long-press Play and a
-     candidate (rolled), double-tap a candidate (inserted), on the phone
+     candidate (rolled), tap a candidate and Insert (inserted, closed), on the phone
      upright and on its side and on an iPad; the notes sound.
   6. The ribbon on the smallest phone: drag it sideways, tap ›.
 

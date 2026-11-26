@@ -72,7 +72,8 @@ public enum SheetEvent: Sendable, Equatable {
     case identifierClear
     case identifierPick(String, rolled: Bool)
     case identifierPlay(rolled: Bool)
-    /// Insert (nil: the picked candidate) or a candidate's double tap.
+    /// Insert (nil: the picked candidate) or a candidate's VoiceOver Insert
+    /// action: the chord goes in at the cursor and the identifier closes.
     case identifierInsert(String?)
     /// The sounding keys' time ran out for this token.
     case identifierExpired(Int)
@@ -344,7 +345,13 @@ extension MainUiState {
         case .identifierPlay(let rolled):
             effects.commands = tools.identifier.play(rolled: rolled)
         case .identifierInsert(let chord):
-            if let chord = tools.identifier.insert(chord) { effects.commands = editor.insertChordCommands(chord) }
+            if let chord = tools.identifier.insert(chord) {
+                effects.commands = editor.insertChordCommands(chord)
+                if route == .identify {
+                    tools.identifier = IdentifierModel()
+                    route = .none
+                }
+            }
         case .identifierExpired(let token):
             tools.identifierExpired = token
         }

@@ -85,6 +85,7 @@ struct ChordIdentifierView: View {
                     .foregroundColor(colors.text.swiftUI)
                     .lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading)
+                // Inserts the picked chord and closes the identifier (SheetController).
                 Button { event(.identifierInsert(nil)) } label: {
                     Text(IdentifierTexts.insert)
                         .font(.subheadline.weight(.medium))
@@ -206,8 +207,8 @@ struct ChordIdentifierView: View {
             .padding(.top, 6)
     }
 
-    /// The candidates (tap plays, long press plays rolled, double tap
-    /// inserts), or the session's message when there are none.
+    /// The candidates (a tap picks and plays, a long press plays rolled;
+    /// Insert inserts the picked one), or the session's message when there are none.
     @ViewBuilder
     private var candidates: some View {
         Text(IdentifierTexts.candidates)
@@ -239,7 +240,6 @@ struct ChordIdentifierView: View {
             .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
             .background(selected ? colors.primarySoft.swiftUI : .clear)
             .contentShape(Rectangle())
-            .onTapGesture(count: 2) { event(.identifierInsert(chord)) }
             .onTapGesture { event(.identifierPick(chord, rolled: false)) }
             .onLongPressGesture(minimumDuration: 0.5) { event(.identifierPick(chord, rolled: true)) }
             .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)

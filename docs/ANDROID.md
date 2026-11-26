@@ -1048,8 +1048,8 @@ objects, against the release build's R8 rules ("R8 in release builds").
     showed the old `notes_text`; the picked candidate moves to its
     respelled name), key labels and the hint in `notation`, Clear, Play (tap →
     `identifier_play_selection {rolled: false}`, long press → rolled), the
-    candidates (tap picks and plays, long press plays rolled, double-tap or
-    Insert → `insert_chord {at: cursor}`) or
+    candidates (tap picks and plays, long press plays rolled; Insert →
+    `insert_chord {at: cursor}` for the picked one, the dialog stays open) or
     `message`, and the status line at the bottom ("Inserted chord: C").
     `identifier_clear` when it opens.
 - **Close**: Android has no File › Exit. Back on the main screen is the

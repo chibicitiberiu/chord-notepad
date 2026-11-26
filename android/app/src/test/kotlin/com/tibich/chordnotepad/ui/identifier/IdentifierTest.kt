@@ -126,7 +126,7 @@ class IdentifierTest {
         assertSent("play_identified_chord", """{"chord": "Am7", "rolled": true}""")
         assertEquals("Am7", model.picked)
         model.insert()
-        model.insert("C") // double tap
+        model.insert("C") // a chord given explicitly
         assertEquals(listOf("Am7", "C"), inserted)
     }
 
