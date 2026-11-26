@@ -2,307 +2,158 @@ import ChordNotepadKit
 import SwiftUI
 
 // The player's sheets and the ribbon's Insert sheet, ported from Android's
-// ui/sheets/ (PickerSheet.kt, PlayerSheets.kt, SongDefaultsSheet.kt). They are
-// panels the screen draws over itself rather than system sheets, as Android's
-// bottom sheets are part of its screen: a dialog (Manual…, the tempo) stacks
-// over its sheet, and the preview catalog draws them as they are. Every tap
-// goes to the kit's reducer as a ``SheetEvent``.
+// ui/sheets/ (PickerSheet.kt, PlayerSheets.kt, SongDefaultsSheet.kt) and
+// drawn as iOS sheets: a navigation bar with the title, Cancel or Done, an
+// inset grouped list. The main screen presents them (`MainScreen`'s
+// `.sheet(item:)`); the preview catalog draws the same views in a sheet's
+// frame (`CatalogSheetFrame`), since it can't present. Every tap goes to the
+// kit's reducer as a ``SheetEvent``.
 
-/// Android's `PickerSheet`: a panel from the bottom over a dimmed screen,
-/// with a drag handle, a title row (`leading` before the title, `trailing`
-/// after it), an optional subtitle, the body (scrolling live) and the actions
-/// row under a divider. A tap on the dimmed screen or a swipe down dismisses.
-struct BottomSheet<Content: View, Actions: View>: View {
+/// A button in a sheet's navigation bar.
+struct BarButton {
     let title: String
-    let colors: AppColors
-    var subtitle: String?
-    /// False in the catalog: no ScrollView and no gestures (ImageRenderer).
-    var live = true
-    var leading: AnyView?
-    var trailing: AnyView?
-    var dismiss: () -> Void = {}
+    var enabled = true
+    var identifier: String?
+    let action: () -> Void
+}
+
+/// A sheet's navigation stack: the title inline, Cancel (`cancel`) on the
+/// leading side and the confirming button (Done, OK, Insert) bold on the
+/// trailing side.
+struct SheetScaffold<Content: View>: View {
+    let title: String
+    var cancel: BarButton?
+    var confirm: BarButton?
     @ViewBuilder let content: () -> Content
-    @ViewBuilder let actions: () -> Actions
-
-    @State private var contentHeight: CGFloat = 0
-    @State private var drag: CGFloat = 0
-
-    /// What the catalog leaves the body: the window less the handle, the
-    /// title, the subtitle, the actions and the margins.
-    private var chrome: CGFloat { subtitle == nil ? 150 : 176 }
 
     var body: some View {
-        GeometryReader { geometry in
-            let room = max(geometry.size.height - 16, 160)
-            ZStack(alignment: .bottom) {
-                Color.black.opacity(0.32)
-                    .ignoresSafeArea()
-                    .onTapGesture { dismiss() }
-                    .accessibilityLabel(AccessibilityLabels.close)
-                    .accessibilityAddTraits(.isButton)
-                panel(room: room)
-                    .offset(y: max(drag, 0))
-            }
-            .frame(width: geometry.size.width, height: geometry.size.height, alignment: .bottom)
+        NavigationStack {
+            content()
+                .sheetBar(title: title, cancel: cancel, confirm: confirm)
         }
     }
+}
 
-    private func panel(room: CGFloat) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                Capsule()
-                    .fill(colors.grip.swiftUI)
-                    .frame(width: 32, height: 4)
-                    .frame(maxWidth: .infinity)
-                    .padding(.top, 10)
-                    .padding(.bottom, 8)
-                HStack(spacing: 8) {
-                    leading
-                    Text(title)
-                        .font(.callout.weight(.medium))
-                        .foregroundColor(colors.text.swiftUI)
-                        .accessibilityAddTraits(.isHeader)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                    trailing
+extension View {
+    /// The sheet's title and bar buttons on a view in a navigation stack.
+    func sheetBar(title: String, cancel: BarButton?, confirm: BarButton?) -> some View {
+        navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                if let cancel {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(cancel.title, action: cancel.action)
+                            .disabled(!cancel.enabled)
+                            .modifier(AlertIdentifier(id: cancel.identifier))
+                    }
                 }
-                .padding(.top, 2)
-                .padding(.bottom, 6)
-                .frame(minHeight: 36)
-                if let subtitle {
-                    Text(subtitle)
-                        .font(.caption)
-                        .foregroundColor(colors.muted.swiftUI)
-                        .padding(.bottom, 6)
+                if let confirm {
+                    ToolbarItem(placement: .confirmationAction) {
+                        Button(confirm.title, action: confirm.action)
+                            .fontWeight(.semibold)
+                            .disabled(!confirm.enabled)
+                            .modifier(AlertIdentifier(id: confirm.identifier))
+                    }
                 }
+            }
+    }
+}
+
+/// How tall a sheet opens.
+enum SheetHeight {
+    /// Half the window, draggable to full (the system's medium and large).
+    case medium
+    /// Nearly the whole window.
+    case large
+
+    var detents: Set<PresentationDetent> {
+        switch self {
+        case .medium: return [.medium, .large]
+        case .large: return [.large]
+        }
+    }
+}
+
+/// The catalog's picture of a presented sheet: the screen dimmed, the sheet
+/// from the bottom at its height with rounded top corners (a centred card
+/// in a regular-width window, as an iPad presents a form sheet).
+struct CatalogSheetFrame<Content: View>: View {
+    var height = SheetHeight.medium
+    @ViewBuilder let content: () -> Content
+
+    @Environment(\.horizontalSizeClass) private var sizeClass
+
+    var body: some View {
+        GeometryReader { window in
+            let size = window.size
+            ZStack(alignment: sizeClass == .regular ? .center : .bottom) {
+                Color.black.opacity(0.25)
+                if sizeClass == .regular {
+                    content()
+                        .frame(width: min(540, size.width - 40), height: min(620, size.height - 80))
+                        .background(Color(uiColor: .systemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: glassAlerts ? 30 : 12, style: .continuous))
+                } else {
+                    content()
+                        .frame(width: glassAlerts ? size.width - 16 : size.width,
+                               height: height == .medium ? size.height * 0.52 : size.height - 44)
+                        .background(Color(uiColor: .systemGroupedBackground))
+                        .clipShape(UnevenRoundedRectangle(topLeadingRadius: glassAlerts ? 30 : 12,
+                                                          bottomLeadingRadius: glassAlerts ? 30 : 0,
+                                                          bottomTrailingRadius: glassAlerts ? 30 : 0,
+                                                          topTrailingRadius: glassAlerts ? 30 : 12,
+                                                          style: .continuous))
+                        .padding(.bottom, glassAlerts ? 8 : 0)
+                }
+            }
+            .frame(width: size.width, height: size.height)
+        }
+    }
+}
+
+/// A row that chooses: the label, a value on the right, a checkmark when chosen.
+struct ChoiceRow: View {
+    let label: String
+    var detail: String?
+    var detailMonospaced = false
+    let selected: Bool
+    var identifier: String?
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Text(label)
+                    .foregroundColor(Color(uiColor: .label))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                if let detail {
+                    Text(detail)
+                        .font(detailMonospaced ? .body.monospacedDigit() : .body)
+                        .foregroundColor(Color(uiColor: .secondaryLabel))
+                }
+                Image(systemName: AppSymbols.checkmark)
+                    .font(.body.weight(.semibold))
+                    .foregroundStyle(.tint)
+                    .opacity(selected ? 1 : 0)
+                    .accessibilityHidden(true)
             }
             .contentShape(Rectangle())
-            .gesture(live ? swipeDown : nil)
-            bodyArea(room: room)
-            colors.line.swiftUI.frame(height: 1).padding(.top, 10)
-            HStack(spacing: 8) { actions() }
-                .padding(.top, 10)
         }
-        .padding(.horizontal, 18)
-        .padding(.bottom, 12)
-        .frame(maxWidth: 640)
-        // The panel is as tall as its rows: the background hugs them, and the
-        // room above (a flexible frame fills it) stays transparent.
-        .background(alignment: .top) {
-            UnevenRoundedRectangle(topLeadingRadius: 18, topTrailingRadius: 18)
-                .fill(colors.surfaceLow.swiftUI)
-                .ignoresSafeArea(edges: .bottom)
-        }
-        .frame(maxHeight: room, alignment: .bottom)
-        // The rows follow the text size up to a point: the sheet keeps room for its rows.
-        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
-    }
-
-    @ViewBuilder
-    private func bodyArea(room: CGFloat) -> some View {
-        let rows = VStack(alignment: .leading, spacing: 0, content: content)
-            .frame(maxWidth: .infinity, alignment: .leading)
-        if live {
-            ScrollView {
-                rows.onGeometryChange(for: CGFloat.self, of: { $0.size.height }) { contentHeight = $0 }
-            }
-            .scrollBounceBehavior(.basedOnSize)
-            .frame(maxHeight: contentHeight > 0 ? contentHeight : nil)
-        } else {
-            // The rows whole when they fit, else cut at the room left.
-            ViewThatFits(in: .vertical) {
-                rows.fixedSize(horizontal: false, vertical: true)
-                rows.fixedSize(horizontal: false, vertical: true)
-                    .frame(maxHeight: max(room - chrome, 60), alignment: .top).clipped()
-            }
-        }
-    }
-
-    private var swipeDown: some Gesture {
-        DragGesture(minimumDistance: 8)
-            .onChanged { drag = $0.translation.height }
-            .onEnded { value in
-                if value.translation.height > 80 { dismiss() }
-                drag = 0
-            }
+        .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)
+        .modifier(AlertIdentifier(id: identifier ?? "row-\(label)"))
     }
 }
 
-/// A row in a sheet (Android's `SheetRow`): `leading` icon, the label, `sub`
-/// on the right, `trailing`.
-struct SheetRow<Leading: View, Trailing: View>: View {
-    let label: String
-    let colors: AppColors
-    var sub: String?
-    var subMonospace = false
-    /// A radio row says whether it's the chosen one.
-    var selected: Bool?
-    var identifier: String?
-    let action: () -> Void
-    @ViewBuilder var leading: () -> Leading
-    @ViewBuilder var trailing: () -> Trailing
-
-    var body: some View {
-        Button(action: action) {
-            HStack(spacing: 14) {
-                leading()
-                Text(label)
-                    .font(.subheadline)
-                    .foregroundColor(colors.text.swiftUI)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                if let sub {
-                    Text(sub)
-                        .font(subMonospace ? .caption.monospaced() : .caption)
-                        .foregroundColor(colors.muted.swiftUI)
-                }
-                trailing()
-            }
-            .padding(.horizontal, 6)
-            .frame(minHeight: 46)
-            .contentShape(RoundedRectangle(cornerRadius: 10))
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(selected == true ? [.isSelected, .isButton] : .isButton)
-        .accessibilityIdentifier(identifier ?? "row-\(label)")
-    }
-}
-
-extension SheetRow where Trailing == EmptyView {
-    init(label: String, colors: AppColors, sub: String? = nil, subMonospace: Bool = false, selected: Bool? = nil,
-         identifier: String? = nil, action: @escaping () -> Void, @ViewBuilder leading: @escaping () -> Leading) {
-        self.init(label: label, colors: colors, sub: sub, subMonospace: subMonospace, selected: selected,
-                  identifier: identifier, action: action, leading: leading, trailing: { EmptyView() })
-    }
-}
-
-/// A small uppercase section heading (Android's `SheetSection`).
-struct SheetSection: View {
-    let text: String
-    let colors: AppColors
-
-    var body: some View {
-        Text(text.uppercased())
-            .font(.caption2.weight(.medium))
-            .tracking(0.66)
-            .foregroundColor(colors.muted.swiftUI)
-            .padding(.top, 12)
-            .padding(.bottom, 2)
-            .padding(.leading, 6)
-    }
-}
-
-/// A text button in the primary colour. Locked (`lockedReason`), it looks
-/// disabled but still takes the tap, so the action can say why.
-struct SheetTextButton<Leading: View>: View {
-    let label: String
-    let colors: AppColors
-    var enabled = true
-    var locked = false
-    var identifier: String?
-    let action: () -> Void
-    @ViewBuilder var leading: () -> Leading
-
-    var body: some View {
-        let dim = !enabled || locked
-        Button(action: action) {
-            HStack(spacing: 6) {
-                leading()
-                Text(label)
-                    .font(.subheadline.weight(.medium))
-            }
-            .foregroundColor(dim ? colors.text.swiftUI.opacity(AppColors.disabledAlpha) : colors.primary.swiftUI)
-            .padding(.horizontal, 12)
-            .frame(minHeight: 40)
-            .contentShape(Capsule())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityIdentifier(identifier ?? "sheet-\(label)")
-    }
-}
-
-extension SheetTextButton where Leading == EmptyView {
-    init(label: String, colors: AppColors, enabled: Bool = true, locked: Bool = false, identifier: String? = nil,
-         action: @escaping () -> Void) {
-        self.init(label: label, colors: colors, enabled: enabled, locked: locked, identifier: identifier,
-                  action: action, leading: { EmptyView() })
-    }
-}
-
-/// The filled primary button that closes a sheet (Done).
-struct SheetDoneButton: View {
-    let colors: AppColors
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(sheetDone)
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(colors.onPrimary.swiftUI)
-                .padding(.horizontal, 24)
-                .frame(minHeight: 40)
-                .background(colors.primary.swiftUI, in: Capsule())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier("sheet-done")
-    }
-}
-
-/// A radio mark: filled in the primary colour when on, else a grey ring.
-struct RadioMark: View {
-    let on: Bool
-    let colors: AppColors
-
-    var body: some View {
-        MdiIcon(on ? "mdi_radiobox_marked" : "mdi_radiobox_blank",
-                tint: on ? colors.primary.swiftUI : IconTints.off.swiftUI)
-            .accessibilityHidden(true)
-    }
-}
-
-/// A dropdown's button: the value and ▾ in an outlined chip. Live, a menu of
-/// the choices; in the catalog, the chip alone.
-struct DropdownChip: View {
-    let text: String
-    let choices: [String]
-    let colors: AppColors
-    var live = true
-    var locked = false
-    var identifier: String?
-    var choose: (String) -> Void = { _ in }
-    /// A tap while locked.
-    var lockedTap: () -> Void = {}
-
-    var body: some View {
-        if live && !locked {
-            Menu {
-                ForEach(choices, id: \.self) { choice in
-                    Button(choice) { choose(choice) }
-                }
-            } label: { chip }
-            .accessibilityIdentifier(identifier ?? "dropdown")
-        } else {
-            Button(action: lockedTap) { chip }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier(identifier ?? "dropdown")
-        }
-    }
-
-    private var chip: some View {
-        Text("\(text) ▾")
-            .font(.subheadline.weight(.medium))
-            .foregroundColor(locked ? colors.muted.swiftUI.opacity(0.6) : colors.text.swiftUI)
-            .padding(.horizontal, 10)
-            .padding(.vertical, 5)
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(colors.line.swiftUI, lineWidth: 1))
-            .contentShape(RoundedRectangle(cornerRadius: 8))
-    }
+/// The Done button that closes a sheet.
+func doneButton(_ action: @escaping () -> Void) -> BarButton {
+    BarButton(title: sheetDone, identifier: "sheet-done", action: action)
 }
 
 // MARK: - Voicing and Instrument
 
-/// Voicing: Piano, Fretted, Ensembles and Your voicings with radio rows.
-/// Choosing one applies it at once (the sheet stays, Done closes it). Edit
-/// voicings… would open Settings › Voicings, which the iOS app hasn't got yet.
+/// Voicing: Piano, Fretted, Ensembles and Your voicings, the current one
+/// checked. Choosing one applies it at once (the sheet stays, Done closes
+/// it); Edit voicings… opens Settings › Voicings.
 struct VoicingPickerSheet: View {
     let state: VoicingMenuState?
     let colors: AppColors
@@ -310,35 +161,41 @@ struct VoicingPickerSheet: View {
     var event: (SheetEvent) -> Void = { _ in }
 
     var body: some View {
-        BottomSheet(title: VoicingSheetTexts.title, colors: colors, subtitle: VoicingSheetTexts.subtitle, live: live,
-                    dismiss: { event(.dismiss) }) {
-            if let state {
-                ForEach(voicingGroups(state), id: \.kind) { group in
-                    SheetSection(text: group.kind.title, colors: colors)
-                    ForEach(group.choices, id: \.value) { choice in
-                        SheetRow(label: choice.label, colors: colors, selected: choice.selected,
-                                 identifier: "voicing-\(choice.value)",
-                                 action: { event(.chooseVoicing(choice.value)) }) {
-                            RadioMark(on: choice.selected, colors: colors)
+        SheetScaffold(title: VoicingSheetTexts.title, confirm: doneButton { event(.done) }) {
+            List {
+                Section {
+                } footer: {
+                    Text(VoicingSheetTexts.subtitle)
+                }
+                if let state {
+                    ForEach(voicingGroups(state), id: \.kind) { group in
+                        Section(group.kind.title) {
+                            ForEach(group.choices, id: \.value) { choice in
+                                ChoiceRow(label: choice.label, selected: choice.selected,
+                                          identifier: "voicing-\(choice.value)") {
+                                    event(.chooseVoicing(choice.value))
+                                }
+                            }
                         }
                     }
                 }
+                Section {
+                    Button { event(.editVoicings) } label: {
+                        Label(VoicingSheetTexts.edit, systemImage: AppSymbols.edit)
+                    }
+                    .accessibilityIdentifier("sheet-\(VoicingSheetTexts.edit)")
+                }
             }
-        } actions: {
-            SheetTextButton(label: VoicingSheetTexts.edit, colors: colors,
-                            action: { event(.editVoicings) }) {
-                MdiIcon("mdi_pencil", tint: colors.primary.swiftUI, size: 18)
-            }
-            Spacer(minLength: 0)
-            SheetDoneButton(colors: colors) { event(.done) }
+            .listStyle(.insetGrouped)
         }
         .accessibilityIdentifier("voicing-sheet")
     }
 }
 
-/// Instrument, two levels: the 16 General MIDI families (a dot on the
-/// current one, its instrument on the right), then a family's 8 programs
-/// with their numbers; ← goes back to the families, Done closes.
+/// Instrument, two levels in a navigation stack: the 16 General MIDI
+/// families (the current one shows its instrument), then a family's 8
+/// programs with their numbers, the current one checked; Back goes to the
+/// families, Done closes.
 struct InstrumentPickerSheet: View {
     let state: InstrumentMenuState?
     /// The open family's index, or nil for the families.
@@ -349,145 +206,180 @@ struct InstrumentPickerSheet: View {
 
     var body: some View {
         let families = state.map(instrumentFamilies) ?? []
-        let open = family.flatMap { families.indices.contains($0) ? families[$0] : nil }
-        BottomSheet(title: open?.name ?? InstrumentSheetTexts.title, colors: colors, live: live,
-                    leading: open == nil ? nil : AnyView(backButton), dismiss: { event(.dismiss) }) {
-            if let open {
-                ForEach(open.programs, id: \.program) { program in
-                    let parts = programParts(program)
-                    SheetRow(label: parts.name, colors: colors, sub: parts.number, selected: program.selected,
-                             identifier: "program-\(program.program)",
-                             action: { event(.chooseInstrument(program.program)) }) {
-                        RadioMark(on: program.selected, colors: colors)
-                    }
-                }
-            } else {
+        NavigationStack(path: Binding(get: { family.map { [$0] } ?? [] }, set: { path in
+            if let last = path.last {
+                if last != family { event(.openFamily(last)) }
+            } else if family != nil {
+                event(.back)
+            }
+        })) {
+            List {
                 ForEach(Array(families.enumerated()), id: \.offset) { pair in
                     let f = pair.element
-                    SheetRow(label: f.name, colors: colors,
-                             sub: f.isCurrent ? f.programs.first(where: \.selected).map { programParts($0).name } : nil,
-                             identifier: "family-\(pair.offset)",
-                             action: { event(.openFamily(pair.offset)) }) {
-                        MdiIcon(f.isCurrent ? "mdi_circle" : "mdi_circle_outline",
-                                tint: (f.isCurrent ? colors.primary : colors.grip).swiftUI, size: 12)
-                            .frame(width: 24, height: 24)
-                    } trailing: {
-                        MdiIcon("mdi_chevron_right", tint: IconTints.off.swiftUI, size: 20)
+                    NavigationLink(value: pair.offset) {
+                        HStack {
+                            Text(f.name)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            if f.isCurrent, let current = f.programs.first(where: \.selected) {
+                                Text(programParts(current).name)
+                                    .foregroundColor(Color(uiColor: .secondaryLabel))
+                                    .lineLimit(1)
+                            }
+                        }
                     }
+                    .accessibilityAddTraits(f.isCurrent ? .isSelected : [])
+                    .accessibilityIdentifier("family-\(pair.offset)")
                 }
             }
-        } actions: {
-            Spacer(minLength: 0)
-            SheetDoneButton(colors: colors) { event(.done) }
+            .listStyle(.insetGrouped)
+            .sheetBar(title: InstrumentSheetTexts.title, cancel: nil, confirm: doneButton { event(.done) })
+            .navigationDestination(for: Int.self) { index in
+                programs(families.indices.contains(index) ? families[index] : nil)
+            }
         }
         .accessibilityIdentifier("instrument-sheet")
     }
 
-    private var backButton: some View {
-        Button { event(.back) } label: {
-            MdiIcon("mdi_arrow_left", tint: colors.text.swiftUI, size: 22)
-                .frame(width: 36, height: 36)
-                .contentShape(Circle())
+    private func programs(_ open: FamilyRow?) -> some View {
+        List {
+            ForEach(open?.programs ?? [], id: \.program) { program in
+                let parts = programParts(program)
+                ChoiceRow(label: parts.name, detail: parts.number, detailMonospaced: true, selected: program.selected,
+                          identifier: "program-\(program.program)") {
+                    event(.chooseInstrument(program.program))
+                }
+            }
         }
-        .buttonStyle(.plain)
-        .accessibilityLabel(InstrumentSheetTexts.back)
+        .listStyle(.insetGrouped)
+        .sheetBar(title: open?.name ?? InstrumentSheetTexts.title, cancel: nil, confirm: doneButton { event(.done) })
     }
 }
 
 // MARK: - Speed
 
-/// Playback speed: the value in large type, a 12.5–400 % slider (5 % steps;
-/// the session gets each new value), then Reset, Manual… and Done.
+/// Playback speed: the value in large type, the system's slider over
+/// 12.5–400 % (5 % stops; the session gets each new one), then Reset and
+/// Manual…; Done closes. Manual… is a small sheet of its own over this one.
 struct SpeedSheet: View {
     /// The session's speed.
     let pct: Double
     let slider: SpeedSlider
     let colors: AppColors
+    /// Manual…'s field while it is open.
+    var entry: SpeedEntry?
     var live = true
     var event: (SheetEvent) -> Void = { _ in }
 
     var body: some View {
         let shown = slider.shown(pct)
-        BottomSheet(title: SpeedTexts.title, colors: colors, live: live,
-                    trailing: AnyView(Text("\(speedPctText(shown))%")
-                        .font(.title3.weight(.medium))
-                        .foregroundColor(colors.primary.swiftUI)
-                        .accessibilityIdentifier("speed-value")),
-                    dismiss: { event(.dismiss) }) {
-            SpeedTrack(fraction: speedFraction(shown), colors: colors, live: live,
-                       value: "\(speedPctText(shown))%",
-                       moved: { event(.speedDragged(speedAt(fraction: $0))) },
-                       step: { up in event(.speedDragged(shown + (up ? speedStepPct : -speedStepPct))) })
-                .padding(.top, 10)
-            HStack {
-                Text("\(speedPctText(speedMinPct))%")
-                Spacer()
-                Text("\(speedPctText(speedMaxPct))%")
+        SheetScaffold(title: SpeedTexts.title, confirm: doneButton { event(.done) }) {
+            List {
+                Section {
+                    VStack(spacing: 8) {
+                        Text("\(speedPctText(shown))%")
+                            .font(.largeTitle.weight(.semibold).monospacedDigit())
+                            .foregroundStyle(.tint)
+                            .frame(maxWidth: .infinity)
+                            .accessibilityIdentifier("speed-value")
+                        Slider(value: Binding(get: { speedFraction(shown) },
+                                              set: { event(.speedDragged(speedAt(fraction: $0))) }),
+                               in: 0...1) {
+                            Text(SpeedTexts.title)
+                        } minimumValueLabel: {
+                            Text("\(speedPctText(speedMinPct))%").font(.caption)
+                        } maximumValueLabel: {
+                            Text("\(speedPctText(speedMaxPct))%").font(.caption)
+                        }
+                        .accessibilityValue("\(speedPctText(shown))%")
+                        .accessibilityAdjustableAction { direction in
+                            switch direction {
+                            case .increment: event(.speedDragged(shown + speedStepPct))
+                            case .decrement: event(.speedDragged(shown - speedStepPct))
+                            @unknown default: break
+                            }
+                        }
+                        .accessibilityIdentifier("speed-slider")
+                    }
+                    .padding(.vertical, 6)
+                }
+                Section {
+                    Button(SpeedTexts.reset) { event(.speedReset) }
+                        .accessibilityIdentifier("sheet-\(SpeedTexts.reset)")
+                    Button(SpeedTexts.manual) { event(.speedManual) }
+                        .accessibilityIdentifier("sheet-\(SpeedTexts.manual)")
+                }
             }
-            .font(.caption2)
-            .foregroundColor(colors.muted.swiftUI)
-        } actions: {
-            SheetTextButton(label: SpeedTexts.reset, colors: colors) { event(.speedReset) }
-            SheetTextButton(label: SpeedTexts.manual, colors: colors) { event(.speedManual) }
-            Spacer(minLength: 0)
-            SheetDoneButton(colors: colors) { event(.done) }
+            .listStyle(.insetGrouped)
+        }
+        .sheet(isPresented: Binding(get: { live && entry != nil }, set: { shown in
+            if !shown && entry != nil { event(.back) }
+        })) {
+            if let entry {
+                SpeedEntrySheet(entry: entry, live: live, event: event)
+                    .presentationDetents([.medium])
+            }
         }
         .accessibilityIdentifier("speed-sheet")
     }
 }
 
-/// The speed slider, drawn as Android's Material slider (a thick track, the
-/// active part up to a bar-shaped thumb, a stop dot at the end), so the
-/// catalog draws it too; VoiceOver adjusts it in 5 % steps.
-struct SpeedTrack: View {
-    /// Where the thumb is, 0…1.
-    let fraction: Double
-    let colors: AppColors
+/// Manual…: the speed typed, 12.5–400, checked by OK (a wrong one stays,
+/// with the range in red).
+struct SpeedEntrySheet: View {
+    let entry: SpeedEntry
     var live = true
-    let value: String
-    var moved: (Double) -> Void = { _ in }
-    var step: (Bool) -> Void = { _ in }
+    var event: (SheetEvent) -> Void = { _ in }
 
     var body: some View {
-        GeometryReader { geometry in
-            let width = geometry.size.width
-            let x = CGFloat(fraction) * width
-            ZStack(alignment: .leading) {
-                Capsule()
-                    .fill(colors.primary.swiftUI)
-                    .frame(width: max(x - 6, 0), height: 16)
-                Capsule()
-                    .fill(colors.primarySoft.swiftUI)
-                    .frame(width: max(width - x - 6, 0), height: 16)
-                    .offset(x: min(x + 6, width))
-                Circle()
-                    .fill(colors.primary.swiftUI)
-                    .frame(width: 4, height: 4)
-                    .offset(x: width - 10)
-                    .opacity(fraction < 0.99 ? 1 : 0)
-                Capsule()
-                    .fill(colors.primary.swiftUI)
-                    .frame(width: 4, height: 44)
-                    .offset(x: x - 2)
-            }
-            .frame(height: 44)
-            .contentShape(Rectangle())
-            .gesture(live ? DragGesture(minimumDistance: 0).onChanged { drag in
-                moved(Double(min(max(drag.location.x / max(width, 1), 0), 1)))
-            } : nil)
-        }
-        .frame(height: 44)
-        .accessibilityElement()
-        .accessibilityLabel(SpeedTexts.title)
-        .accessibilityValue(value)
-        .accessibilityAdjustableAction { direction in
-            switch direction {
-            case .increment: step(true)
-            case .decrement: step(false)
-            @unknown default: break
+        SheetScaffold(title: SpeedTexts.title,
+                      cancel: BarButton(title: "Cancel") { event(.back) },
+                      confirm: BarButton(title: "OK", identifier: "speed-ok") { event(.speedOK) }) {
+            Form {
+                Section {
+                    NumberEntryRow(text: entry.text, suffix: "%", keyboard: .decimalPad, live: live,
+                                   identifier: "speed-field", change: { event(.speedTyped($0)) },
+                                   submit: { event(.speedOK) })
+                } footer: {
+                    Text(entry.supportingText)
+                        .foregroundColor(entry.showError ? .red : nil)
+                }
             }
         }
-        .accessibilityIdentifier("speed-slider")
+        .accessibilityIdentifier("speed-dialog")
+    }
+}
+
+/// A typed number in a form row: the field, its unit after it; it takes
+/// the keyboard when the sheet opens (live).
+struct NumberEntryRow: View {
+    let text: String
+    var suffix: String?
+    var keyboard: UIKeyboardType = .numberPad
+    var live = true
+    var identifier: String?
+    var change: (String) -> Void = { _ in }
+    var submit: () -> Void = {}
+
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        HStack {
+            TextField("", text: Binding(get: { text }, set: { change($0) }))
+                .keyboardType(keyboard)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($focused)
+                .onSubmit(submit)
+                .modifier(AlertIdentifier(id: identifier))
+            if let suffix {
+                Text(suffix).foregroundColor(Color(uiColor: .secondaryLabel))
+            }
+        }
+        .task {
+            guard live else { return }
+            focused = true
+        }
     }
 }
 
@@ -497,107 +389,178 @@ struct SpeedTrack: View {
 /// Key, each with a line saying what it does. A value set by a directive is
 /// read only with "Set by `{bpm: 90}` in the song · Edit"; the others are
 /// this song's values (not saved with the file, as the note at the bottom
-/// says). Write into song inserts the missing directives at the top. While a
-/// song plays the values and Write into song are greyed, and a tap says why.
+/// says): the time and key as pop-up menus, the tempo typed in a small sheet.
+/// Write into song inserts the missing directives at the top. While a song
+/// plays the values and Write into song are greyed, and a tap says why.
 struct SongDefaultsSheet: View {
     let state: SongDefaultsState
     let keys: [String]
     let colors: AppColors
     let directive: Color
+    /// The tempo's field while its sheet is open.
+    var tempo: String?
     var live = true
     var event: (SheetEvent) -> Void = { _ in }
 
+    init(state: SongDefaultsState, keys: [String], colors: AppColors, directive: Color, tempo: String? = nil,
+         live: Bool = true, event: @escaping (SheetEvent) -> Void = { _ in }) {
+        self.state = state
+        self.keys = keys
+        self.colors = colors
+        self.directive = directive
+        self.tempo = tempo
+        self.live = live
+        self.event = event
+    }
+
     var body: some View {
         let locked = state.lockedReason != nil
-        BottomSheet(title: SongDefaultsTexts.title, colors: colors, live: live, dismiss: { event(.dismiss) }) {
-            ForEach(songDefaultRows(state, keys: keys), id: \.kind) { row in
-                defaultRow(row, locked: locked)
+        SheetScaffold(title: SongDefaultsTexts.title, confirm: doneButton { event(.done) }) {
+            List {
+                Section {
+                    ForEach(songDefaultRows(state, keys: keys), id: \.kind) { row in
+                        defaultRow(row, locked: locked)
+                    }
+                }
+                Section {
+                    Button { event(.writeIntoSong) } label: {
+                        Text(SongDefaultsTexts.write)
+                            .foregroundStyle(locked || !state.anythingToWrite ? AnyShapeStyle(HierarchicalShapeStyle.tertiary)
+                                             : AnyShapeStyle(TintShapeStyle()))
+                    }
+                    .disabled(!state.anythingToWrite)
+                    .accessibilityIdentifier("song-defaults-write")
+                } footer: {
+                    if state.anythingToWrite {
+                        Text(SongDefaultsTexts.unsaved)
+                    }
+                }
             }
-            if state.anythingToWrite {
-                Text(SongDefaultsTexts.unsaved)
-                    .font(.caption)
-                    .foregroundColor(colors.muted.swiftUI)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.top, 10)
+            .listStyle(.insetGrouped)
+        }
+        .sheet(isPresented: Binding(get: { live && tempo != nil }, set: { shown in
+            if !shown && tempo != nil { event(.tempoCancel) }
+        })) {
+            if let tempo {
+                TempoSheet(text: tempo, live: live, event: event)
+                    .presentationDetents([.medium])
             }
-        } actions: {
-            SheetTextButton(label: SongDefaultsTexts.write, colors: colors, enabled: state.anythingToWrite,
-                            locked: locked, identifier: "song-defaults-write") { event(.writeIntoSong) }
-            Spacer(minLength: 0)
-            SheetDoneButton(colors: colors) { event(.done) }
         }
         .accessibilityIdentifier("song-defaults-sheet")
     }
 
     @ViewBuilder
     private func defaultRow(_ row: SongDefaultRow, locked: Bool) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 12) {
-                MdiIcon(row.icon, tint: IconTints.of(row.kind).swiftUI)
-                VStack(alignment: .leading, spacing: 1) {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .center, spacing: 12) {
+                AppIcon(row.icon, size: 18)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(row.label)
-                        .font(.subheadline)
-                        .foregroundColor(colors.text.swiftUI)
                     Text(row.about)
-                        .font(.caption2)
-                        .foregroundColor(colors.muted.swiftUI)
+                        .font(.footnote)
+                        .foregroundColor(Color(uiColor: .secondaryLabel))
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                if row.fromDirective {
-                    Text(row.display)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(colors.muted.swiftUI)
-                } else if row.kind == .tempo {
-                    DropdownChip(text: row.display, choices: [], colors: colors, live: false, locked: locked,
-                                 identifier: "song-defaults-tempo", lockedTap: { event(.tempoOpen) })
-                } else {
-                    DropdownChip(text: row.display, choices: row.choices, colors: colors, live: live, locked: locked,
-                                 identifier: "song-defaults-\(row.kind.rawValue)",
-                                 choose: { event(.chooseDefault(row, $0)) }, lockedTap: { event(.locked) })
-                }
+                value(row, locked: locked)
             }
-            .padding(.vertical, 6)
-            .frame(minHeight: 52)
             if row.fromDirective { setBy(row) }
-            colors.line.swiftUI.frame(height: 1)
+        }
+        .padding(.vertical, 2)
+    }
+
+    /// The value: grey when a directive sets it; a pop-up menu (the tempo:
+    /// a button that opens its sheet) otherwise; greyed while a song plays,
+    /// when a tap says why.
+    @ViewBuilder
+    private func value(_ row: SongDefaultRow, locked: Bool) -> some View {
+        if row.fromDirective {
+            Text(row.display)
+                .foregroundColor(Color(uiColor: .secondaryLabel))
+        } else if locked || row.kind == .tempo || !live {
+            Button { event(row.kind == .tempo ? .tempoOpen : .locked) } label: { menuLabel(row.display, locked: locked) }
+                .buttonStyle(.borderless)
+                .accessibilityIdentifier(row.kind == .tempo ? "song-defaults-tempo" : "song-defaults-\(row.kind.rawValue)")
+        } else {
+            Menu {
+                ForEach(row.choices, id: \.self) { choice in
+                    Button(choice) { event(.chooseDefault(row, choice)) }
+                }
+            } label: {
+                menuLabel(row.display, locked: false)
+            }
+            .buttonStyle(.borderless)
+            .accessibilityIdentifier("song-defaults-\(row.kind.rawValue)")
         }
     }
 
+    private func menuLabel(_ text: String, locked: Bool) -> some View {
+        HStack(spacing: 4) {
+            Text(text)
+            Image(systemName: "chevron.up.chevron.down")
+                .font(.caption.weight(.semibold))
+        }
+        .foregroundStyle(locked ? AnyShapeStyle(HierarchicalShapeStyle.tertiary) : AnyShapeStyle(TintShapeStyle()))
+    }
+
     /// "Set by `{bpm: 90}` in the song · Edit", under a row a directive sets.
-    /// Edit is a button of its own, at least 44 pt tall: a link inside the
+    /// Edit is a button of its own, at least 44 pt each way: a link inside the
     /// text was a target a few points high that a real tap missed (S0 issue 13).
     private func setBy(_ row: SongDefaultRow) -> some View {
         var text = AttributedString("\(SongDefaultsTexts.setBy) ")
         var code = AttributedString(row.code)
         code.foregroundColor = directive
-        code.font = .caption2.monospaced()
+        code.font = .footnote.monospaced()
         text += code
         text += AttributedString(" \(SongDefaultsTexts.inSong)")
         if row.directiveOffset != nil { text += AttributedString(" ·") }
         return HStack(alignment: .center, spacing: 0) {
             Text(text)
-                .font(.caption2)
-                .foregroundColor(colors.muted.swiftUI)
+                .font(.footnote)
+                .foregroundColor(Color(uiColor: .secondaryLabel))
                 .fixedSize(horizontal: false, vertical: true)
                 .accessibilityIdentifier("song-defaults-set-by-\(row.kind.rawValue)")
             if let offset = row.directiveOffset {
                 Button { event(.editDirective(offset)) } label: {
                     Text(SongDefaultsTexts.edit)
-                        .font(.caption2.weight(.medium))
-                        .foregroundColor(colors.primary.swiftUI)
+                        .font(.footnote.weight(.semibold))
                         .padding(.leading, 4)
                         .padding(.trailing, 12)
                         .frame(minWidth: 44, minHeight: 44, alignment: .leading)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(.plain)
+                .buttonStyle(.borderless)
                 .accessibilityIdentifier("song-defaults-edit-\(row.kind.rawValue)")
             }
             Spacer(minLength: 0)
         }
-        .padding(.leading, 36)
-        .padding(.bottom, row.directiveOffset == nil ? 8 : 0)
+        .padding(.leading, 40)
+    }
+}
+
+/// The tempo for this song, typed (the session parses and clamps it).
+struct TempoSheet: View {
+    let text: String
+    var live = true
+    var event: (SheetEvent) -> Void = { _ in }
+
+    var body: some View {
+        SheetScaffold(title: "Tempo",
+                      cancel: BarButton(title: "Cancel") { event(.tempoCancel) },
+                      confirm: BarButton(title: "OK", enabled: !text.trimmingCharacters(in: .whitespaces).isEmpty,
+                                         identifier: "tempo-ok") { event(.tempoOK) }) {
+            Form {
+                Section {
+                    NumberEntryRow(text: text, suffix: "bpm", keyboard: .numberPad, live: live,
+                                   identifier: "tempo-field", change: { event(.tempoTyped($0)) },
+                                   submit: { event(.tempoOK) })
+                } footer: {
+                    Text(SongDefaultsTexts.tempoAbout)
+                }
+            }
+        }
+        .accessibilityIdentifier("tempo-dialog")
     }
 }
 
@@ -610,55 +573,60 @@ struct InsertSheet: View {
     var event: (SheetEvent) -> Void = { _ in }
 
     var body: some View {
-        BottomSheet(title: InsertTexts.title, colors: colors, live: live, dismiss: { event(.dismiss) }) {
-            ForEach(insertEntries, id: \.self) { entry in
-                SheetRow(label: entry.label, colors: colors, sub: entry.code, subMonospace: true,
-                         identifier: "insert-\(entry.kind.wire)", action: { event(.insert(entry.kind)) }) {
-                    MdiIcon(entry.icon, tint: IconTints.of(entry.kind).swiftUI)
+        SheetScaffold(title: InsertTexts.title,
+                      cancel: BarButton(title: InsertTexts.cancel, identifier: "sheet-\(InsertTexts.cancel)") {
+                          event(.dismiss)
+                      }) {
+            List {
+                ForEach(insertEntries, id: \.self) { entry in
+                    Button { event(.insert(entry.kind)) } label: {
+                        HStack(spacing: 12) {
+                            AppIcon(entry.icon, size: 18)
+                                .frame(width: 28)
+                            Text(entry.label)
+                                .foregroundColor(Color(uiColor: .label))
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                            Text(entry.code)
+                                .font(.callout.monospaced())
+                                .foregroundColor(Color(uiColor: .secondaryLabel))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .accessibilityIdentifier("insert-\(entry.kind.wire)")
                 }
             }
-        } actions: {
-            Spacer(minLength: 0)
-            SheetTextButton(label: InsertTexts.cancel, colors: colors) { event(.dismiss) }
+            .listStyle(.insetGrouped)
         }
         .accessibilityIdentifier("insert-sheet")
     }
 }
 
-/// The old sheet frame, for Examples (a system sheet with Done in its header).
-struct PlayerSheet<Content: View>: View {
-    let title: String
+/// Examples (Android's `ExamplesSheet`): the songs the app ships, by file
+/// name; a tap opens a copy of one.
+struct ExamplesSheet: View {
+    let names: [String]
     let colors: AppColors
-    /// False in the catalog (no ScrollView).
     var scrolls = true
+    var choose: (String) -> Void = { _ in }
     var done: () -> Void = {}
-    @ViewBuilder let content: () -> Content
 
     var body: some View {
-        VStack(spacing: 0) {
-            HStack {
-                Text(title)
-                    .font(.headline)
-                    .foregroundColor(colors.text.swiftUI)
-                Spacer(minLength: 8)
-                DialogButton(label: "Done", colors: colors, action: done)
+        SheetScaffold(title: "Examples", confirm: doneButton(done)) {
+            List {
+                ForEach(names, id: \.self) { name in
+                    Button { choose(name) } label: {
+                        Label {
+                            Text(name)
+                                .foregroundColor(Color(uiColor: .label))
+                                .lineLimit(1)
+                        } icon: {
+                            Image(systemName: AppSymbols.recent)
+                        }
+                    }
+                    .accessibilityIdentifier("example-\(name)")
+                }
             }
-            .padding(.leading, 20)
-            .padding(.trailing, 8)
-            .padding(.vertical, 8)
-            colors.line.swiftUI.frame(height: 1)
-            if scrolls {
-                ScrollView { rows }
-            } else {
-                rows.frame(maxHeight: .infinity, alignment: .top).clipped()
-            }
+            .listStyle(.insetGrouped)
         }
-        .background(colors.surfaceLow.swiftUI)
-    }
-
-    private var rows: some View {
-        VStack(alignment: .leading, spacing: 0, content: content)
-            .padding(.vertical, 8)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

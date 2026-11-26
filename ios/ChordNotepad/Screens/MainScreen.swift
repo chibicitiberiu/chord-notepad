@@ -71,6 +71,8 @@ struct MainScreen: View {
     /// The column's share while its handle is dragged.
     @State private var dragFraction: Double?
     @State private var sideDragStart: Double?
+    /// The sheet a swipe put away, until the state moves on (``sheetBinding``).
+    @State private var dismissedSheet: MainSheet?
 
     private var colors: AppColors { .forScheme(dark: scheme == .dark) }
     private var sheetVisible: Bool { snapshot.chordSheet?.visible ?? false }
@@ -94,7 +96,7 @@ struct MainScreen: View {
     private var launchView: some View {
         ProgressView()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(colors.surface.swiftUI.ignoresSafeArea())
+            .background(colors.background.ignoresSafeArea())
             .accessibilityLabel("Starting…")
             .accessibilityIdentifier("launch-state")
     }
@@ -112,12 +114,12 @@ struct MainScreen: View {
                     headerView(layout: layout, width: Double(size.width))
                 }
                 if starting {
-                    colors.primary.swiftUI.opacity(0.5).frame(height: 2)
+                    colors.accent.opacity(0.5).frame(height: 2)
                 }
                 if let failure {
                     Text("Chord Notepad couldn't start: \(failure)")
                         .font(.footnote)
-                        .foregroundColor(colors.error.swiftUI)
+                        .foregroundColor(colors.red)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.horizontal, 12)
                         .padding(.vertical, 6)
@@ -130,14 +132,20 @@ struct MainScreen: View {
             .overlay(alignment: .bottomTrailing) {
                 if collapsed { undoChip }
             }
-            .overlay(alignment: .bottom) {
-                if ui.route == .identify { snackbarView(layout) }
-            }
             .overlay { routeOverlay }
+            .overlay {
+                // The catalog's picture of the sheet the live screen presents.
+                if !scrolls, let shown = sheetShown { catalogSheet(shown) }
+            }
             .overlay(alignment: .bottom) {
-                // Over a sheet, so a greyed control's reason shows (Android: a Toast); under the
-                // identifier, which covers the screen as Android's dialog does.
-                if ui.route != .identify { snackbarView(layout) }
+                // Over the menu and the dialogs; a presented sheet shows it itself.
+                snackbarView(layout)
+            }
+            .overlay {
+                // The session's unsaved-changes question is over everything else.
+                if case .confirmDiscard? = snapshot.request {
+                    DiscardDialog(colors: colors, live: scrolls) { actions?.discard($0) }
+                }
             }
             .overlay {
                 if let exportDialog {
@@ -145,7 +153,36 @@ struct MainScreen: View {
                 }
             }
         }
-        .background(colors.surface.swiftUI)
+        .background(colors.background)
+        .sheet(item: sheetBinding) { shown in
+            sheetView(shown)
+                .overlay(alignment: .bottom) {
+                    if let snackbar {
+                        SnackbarView(snackbar: snackbar, colors: colors) { actions?.dismissSnackbar(snackbar.id) }
+                            .transition(.move(edge: .bottom).combined(with: .opacity))
+                    }
+                }
+                .animation(.easeOut(duration: 0.2), value: snackbar)
+                .presentationDetents(shown.height.detents)
+        }
+        .onChange(of: sheetShown) { _, _ in dismissedSheet = nil }
+        .task(id: pendingDirective) {
+            // The Insert dialog asks the session to check its first fields when it
+            // appears (a kind it doesn't know is cancelled then).
+            if pendingDirective != nil { sheet(.directiveShown) }
+        }
+        .alert(RenameFailedDialog.title, isPresented: Binding(get: { scrolls && renameFailure != nil }, set: { shown in
+            if !shown && renameFailure != nil { actions?.close() }
+        }), presenting: renameFailure) { failure in
+            if failure.canSaveAs {
+                Button("Cancel", role: .cancel) { actions?.close() }
+                Button("Save as…") { actions?.saveAs(failure.name) }
+            } else {
+                Button("OK") { actions?.close() }
+            }
+        } message: { failure in
+            Text(RenameFailedDialog.message(reason: failure.reason, canSaveAs: failure.canSaveAs))
+        }
     }
 
     @ViewBuilder
@@ -174,7 +211,7 @@ struct MainScreen: View {
                 AppBar(title: title, modified: snapshot.document?.isModified ?? false, mode: ui.mode, colors: colors,
                        tabLabels: tabLabels, titleMaxWidth: CGFloat(oneLineTitleMaxWidth(width)),
                        actions: actions?.appBar) {
-                    colors.line.swiftUI.frame(width: 1).frame(maxHeight: .infinity)
+                    colors.separator.frame(width: 0.5).frame(maxHeight: .infinity)
                     ribbon.frame(maxWidth: .infinity)
                 }
             } else {
@@ -184,7 +221,7 @@ struct MainScreen: View {
                     ribbon
                 }
             }
-            colors.line.swiftUI.frame(height: 1)
+            colors.separator.frame(height: 0.5).frame(height: 1, alignment: .bottom)
         }
         // The bar is a fixed 48 pt: its title follows the text size up to a point.
         .dynamicTypeSize(...DynamicTypeSize.accessibility2)
@@ -247,12 +284,12 @@ struct MainScreen: View {
 
     private func handle(row: Double, lower: Double) -> some View {
         ZStack {
-            colors.surface.swiftUI
+            colors.background
             HStack(spacing: 0) {
-                colors.line.swiftUI.frame(width: 1)
+                colors.separator.frame(width: 0.5)
                 Spacer(minLength: 0)
             }
-            Capsule().fill(colors.grip.swiftUI).frame(width: 4, height: 36)
+            Capsule().fill(Color(uiColor: .systemGray3)).frame(width: 4, height: 36)
         }
         .frame(width: CGFloat(MainMetrics.sideHandleWidth))
         .contentShape(Rectangle())
@@ -312,11 +349,12 @@ struct MainScreen: View {
     private var undoChip: some View {
         HStack(spacing: 0) {
             chipButton("arrow.uturn.backward", AccessibilityLabels.undo, enabled: editorModel.canUndo) { actions?.ribbon(.undo) }
-            colors.line.swiftUI.frame(width: 1, height: 22)
+            colors.separator.frame(width: 0.5, height: 22)
             chipButton("arrow.uturn.forward", AccessibilityLabels.redo, enabled: editorModel.canRedo) { actions?.ribbon(.redo) }
         }
-        .background(colors.surfaceHigh.swiftUI, in: Capsule())
-        .shadow(color: .black.opacity(0.2), radius: 3, y: 1)
+        .background(.regularMaterial, in: Capsule())
+        .overlay(Capsule().stroke(colors.separator, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.12), radius: 6, y: 2)
         .padding(.trailing, 10)
         .padding(.bottom, 8)
         .dynamicTypeSize(...DynamicTypeSize.xLarge)
@@ -327,54 +365,21 @@ struct MainScreen: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.body.weight(.medium))
-                .foregroundColor(RibbonTints.undo.opacity(enabled ? 1 : AppColors.disabledAlpha))
                 .frame(width: 44, height: 40)
                 .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderless)
         .disabled(!enabled)
         .accessibilityLabel(label)
     }
 
     // MARK: - Over the screen
 
+    /// What is drawn over the screen: the ☰ menu, Rename, the catalog's
+    /// picture of a refused rename (live it is the system's alert) and the
+    /// full-screen pages.
     @ViewBuilder
     private var routeOverlay: some View {
-        // The session's unsaved-changes question is over everything else.
-        if case .confirmDiscard? = snapshot.request {
-            DiscardDialog(colors: colors) { actions?.discard($0) }
-        } else {
-            ZStack {
-                routeView
-                if case .insertDirective(let request)? = snapshot.request {
-                    insertDialog(request)
-                }
-                if let advice = snapshot.capoAdvice, advice.active {
-                    CapoDialog(state: advice, chosen: ui.capoChosen(advice), canApply: ui.capoCanApplyNow(advice),
-                               colors: colors, live: scrolls, event: sheet)
-                }
-            }
-        }
-    }
-
-    /// The pending Insert request's dialog; it asks the session to check its
-    /// first fields when it appears (a kind it doesn't know is cancelled then).
-    @ViewBuilder
-    private func insertDialog(_ request: InsertDirectiveRequest) -> some View {
-        ZStack {
-            if let state = ui.directiveForm(for: request, snapshot: snapshot) {
-                let choices = snapshot.insertChoices(request)
-                InsertDirectiveDialog(request: request, state: state,
-                                      verdict: ui.directiveVerdict(for: request, snapshot: snapshot),
-                                      keys: choices.keys, units: choices.units, colors: colors, live: scrolls,
-                                      event: sheet)
-            }
-        }
-        .task(id: request.requestId) { sheet(.directiveShown) }
-    }
-
-    @ViewBuilder
-    private var routeView: some View {
         switch ui.route {
         case .menu:
             AppMenuPanel(recent: recentEntries(snapshot.recentDocuments, max: snapshot.settings?.values.maxRecentFiles),
@@ -385,45 +390,157 @@ struct MainScreen: View {
                          refusal: ui.renameRefusal, live: scrolls,
                          rename: { actions?.rename($0) }, cancel: { actions?.close() })
         case .renameFailed(let name, let reason, let canSaveAs):
-            RenameFailedDialog(name: name, reason: reason, canSaveAs: canSaveAs, colors: colors,
-                               saveAs: { actions?.saveAs($0) }, dismiss: { actions?.close() })
-        case .voicing:
-            VoicingPickerSheet(state: snapshot.voicingMenu, colors: colors, live: scrolls, event: sheet)
-        case .instrument(let family):
-            InstrumentPickerSheet(state: snapshot.instrumentMenu, family: family, colors: colors, live: scrolls,
-                                  event: sheet)
-        case .speed(let manual):
-            ZStack {
-                SpeedSheet(pct: snapshot.toolbar?.multiplierPct ?? 100, slider: ui.tools.speedSlider, colors: colors,
-                           live: scrolls, event: sheet)
-                if manual, let entry = ui.tools.speedEntry {
-                    SpeedDialog(entry: entry, colors: colors, live: scrolls, event: sheet)
-                }
+            if !scrolls {
+                RenameFailedDialog(name: name, reason: reason, canSaveAs: canSaveAs, colors: colors, live: false)
             }
-        case .songDefaults:
-            if let defaults = snapshot.songDefaults {
-                ZStack {
-                    SongDefaultsSheet(state: defaults, keys: snapshot.toolbar?.keyOptions ?? [], colors: colors,
-                                      directive: EditorPalette.forScheme(dark: scheme == .dark).directive.swiftUI,
-                                      live: scrolls, event: sheet)
-                    if let tempo = ui.tools.tempoEntry {
-                        TempoDialog(text: tempo, colors: colors, live: scrolls, event: sheet)
-                    }
-                }
-            }
-        case .insert:
-            InsertSheet(colors: colors, live: scrolls, event: sheet)
-        case .transpose(let selection):
-            TransposeDialog(hasSelection: selection, form: ui.tools.transpose, colors: colors, live: scrolls,
-                            event: sheet)
-        case .identify:
-            ChordIdentifierView(state: snapshot.identifier, model: ui.tools.identifier,
-                                expired: ui.tools.identifierExpired, status: snapshot.status?.text, colors: colors,
-                                live: scrolls, event: sheet)
         case .settings, .about, .licences, .licence, .userGuide, .quickStart:
             if let page { page }
         default:
             EmptyView()
+        }
+    }
+
+    /// A refused rename, for the system's alert.
+    struct RenameFailure: Equatable {
+        let name: String
+        let reason: String
+        let canSaveAs: Bool
+    }
+
+    private var renameFailure: RenameFailure? {
+        if case .renameFailed(let name, let reason, let canSaveAs) = ui.route {
+            return RenameFailure(name: name, reason: reason, canSaveAs: canSaveAs)
+        }
+        return nil
+    }
+
+    // MARK: - The sheets
+
+    /// The sheets the main screen presents: the player's and the ribbon's,
+    /// their tools and the session's Insert and Suggest Capo dialogs.
+    enum MainSheet: Hashable, Identifiable {
+        case voicing, instrument, speed, songDefaults, insert, transpose, identify, capo
+        /// The session's Insert request with this id.
+        case directive(Int)
+
+        var id: Self { self }
+
+        var height: SheetHeight {
+            switch self {
+            case .identify: return .large
+            default: return .medium
+            }
+        }
+    }
+
+    /// The sheet the state calls for: the session's Insert request and
+    /// Suggest Capo over the route's; none while the unsaved-changes question
+    /// is asked (it is drawn over the screen, and must be seen).
+    var sheetShown: MainSheet? {
+        if case .confirmDiscard? = snapshot.request { return nil }
+        if case .insertDirective(let request)? = snapshot.request { return .directive(request.requestId) }
+        if let advice = snapshot.capoAdvice, advice.active { return .capo }
+        switch ui.route {
+        case .voicing: return .voicing
+        case .instrument: return .instrument
+        case .speed: return .speed
+        case .songDefaults: return snapshot.songDefaults == nil ? nil : .songDefaults
+        case .insert: return .insert
+        case .transpose: return .transpose
+        case .identify: return .identify
+        default: return nil
+        }
+    }
+
+    /// The pending Insert request's id.
+    private var pendingDirective: Int? {
+        if case .insertDirective(let request)? = snapshot.request { return request.requestId }
+        return nil
+    }
+
+    /// The presented sheet (live only). A swipe down sends that sheet's own
+    /// way out; the sheet then stays down until the state moves on, since the
+    /// session answers some of them (Suggest Capo's close) a moment later.
+    private var sheetBinding: Binding<MainSheet?> {
+        Binding(get: {
+            guard scrolls, let shown = sheetShown, shown != dismissedSheet else { return nil }
+            return shown
+        }, set: { new in
+            guard new == nil, let shown = sheetShown, shown != dismissedSheet else { return }
+            dismissedSheet = shown
+            sheet(dismissal(shown))
+        })
+    }
+
+    /// What a swipe down on `shown` means.
+    private func dismissal(_ shown: MainSheet) -> SheetEvent {
+        switch shown {
+        case .voicing, .instrument, .speed, .songDefaults: return .done
+        case .insert, .transpose, .identify: return .dismiss
+        case .directive: return .directiveCancel
+        case .capo: return .capoCancel
+        }
+    }
+
+    @ViewBuilder
+    private func sheetView(_ shown: MainSheet) -> some View {
+        switch shown {
+        case .voicing:
+            VoicingPickerSheet(state: snapshot.voicingMenu, colors: colors, live: scrolls, event: sheet)
+        case .instrument:
+            InstrumentPickerSheet(state: snapshot.instrumentMenu, family: openFamily, colors: colors, live: scrolls,
+                                  event: sheet)
+        case .speed:
+            SpeedSheet(pct: snapshot.toolbar?.multiplierPct ?? 100, slider: ui.tools.speedSlider, colors: colors,
+                       entry: ui.route == .speed(manual: true) ? ui.tools.speedEntry : nil, live: scrolls, event: sheet)
+        case .songDefaults:
+            if let defaults = snapshot.songDefaults {
+                SongDefaultsSheet(state: defaults, keys: snapshot.toolbar?.keyOptions ?? [], colors: colors,
+                                  directive: EditorPalette.forScheme(dark: scheme == .dark).directive.swiftUI,
+                                  tempo: ui.tools.tempoEntry, live: scrolls, event: sheet)
+            }
+        case .insert:
+            InsertSheet(colors: colors, live: scrolls, event: sheet)
+        case .transpose:
+            TransposeDialog(hasSelection: ui.route == .transpose(selection: true), form: ui.tools.transpose,
+                            colors: colors, live: scrolls, event: sheet)
+        case .identify:
+            ChordIdentifierView(state: snapshot.identifier, model: ui.tools.identifier,
+                                expired: ui.tools.identifierExpired, status: snapshot.status?.text, colors: colors,
+                                live: scrolls, event: sheet)
+        case .directive:
+            if case .insertDirective(let request)? = snapshot.request,
+               let state = ui.directiveForm(for: request, snapshot: snapshot) {
+                let choices = snapshot.insertChoices(request)
+                InsertDirectiveDialog(request: request, state: state,
+                                      verdict: ui.directiveVerdict(for: request, snapshot: snapshot),
+                                      keys: choices.keys, units: choices.units, colors: colors, live: scrolls,
+                                      event: sheet)
+            }
+        case .capo:
+            if let advice = snapshot.capoAdvice {
+                CapoDialog(state: advice, chosen: ui.capoChosen(advice), canApply: ui.capoCanApplyNow(advice),
+                           colors: colors, live: scrolls, event: sheet)
+            }
+        }
+    }
+
+    /// The instrument sheet's open family.
+    private var openFamily: Int? {
+        if case .instrument(let family) = ui.route { return family }
+        return nil
+    }
+
+    /// The catalog's picture of `shown` presented (and of the small sheet over
+    /// it: Manual…, the tempo).
+    @ViewBuilder
+    private func catalogSheet(_ shown: MainSheet) -> some View {
+        CatalogSheetFrame(height: shown.height) { sheetView(shown) }
+        if shown == .speed, ui.route == .speed(manual: true), let entry = ui.tools.speedEntry {
+            CatalogSheetFrame(height: .medium) { SpeedEntrySheet(entry: entry, live: false, event: sheet) }
+        }
+        if shown == .songDefaults, let tempo = ui.tools.tempoEntry {
+            CatalogSheetFrame(height: .medium) { TempoSheet(text: tempo, live: false, event: sheet) }
         }
     }
 }

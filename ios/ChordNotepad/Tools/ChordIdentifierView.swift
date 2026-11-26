@@ -25,23 +25,33 @@ struct ChordIdentifierView: View {
     var live = true
     var event: (SheetEvent) -> Void = { _ in }
 
+    /// An iOS sheet (the main screen presents it; on an iPad a form sheet,
+    /// Android's dialog): Close and Insert in its navigation bar, the piano
+    /// and the typed notes beside the candidates when the sheet is wider than
+    /// tall (a phone on its side), else above them.
     var body: some View {
-        GeometryReader { geometry in
-            let layout = identifierLayout(width: Double(geometry.size.width), height: Double(geometry.size.height))
-            ZStack {
-                if layout == .dialog {
-                    Color.black.opacity(0.32).ignoresSafeArea()
-                    screen(sideBySide: false)
-                        .frame(maxWidth: 640, maxHeight: 720)
-                        .background(colors.surface.swiftUI, in: RoundedRectangle(cornerRadius: 28))
-                        .clipShape(RoundedRectangle(cornerRadius: 28))
-                        .padding(24)
-                } else {
-                    colors.surface.swiftUI.ignoresSafeArea()
-                    screen(sideBySide: layout == .sideBySide)
+        NavigationStack {
+            GeometryReader { geometry in
+                let layout = identifierLayout(width: Double(geometry.size.width), height: Double(geometry.size.height))
+                screen(sideBySide: layout == .sideBySide)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .background(colors.groupedBackground.ignoresSafeArea())
+            .navigationTitle(IdentifierTexts.title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(IdentifierTexts.close) { event(.dismiss) }
+                        .accessibilityIdentifier("identifier-close")
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    // Inserts the picked chord and closes the identifier (SheetController).
+                    Button(IdentifierTexts.insert) { event(.identifierInsert(nil)) }
+                        .fontWeight(.semibold)
+                        .disabled(model.picked == nil)
+                        .accessibilityIdentifier("identifier-insert")
                 }
             }
-            .frame(width: geometry.size.width, height: geometry.size.height)
         }
         .task(id: state?.soundingToken ?? 0) {
             // What played last stays lit for sounding_seconds; a new play restarts the wait.
@@ -57,7 +67,6 @@ struct ChordIdentifierView: View {
 
     private func screen(sideBySide: Bool) -> some View {
         VStack(spacing: 0) {
-            topBar
             if sideBySide {
                 HStack(alignment: .top, spacing: 24) {
                     scrolling { input }
@@ -78,29 +87,17 @@ struct ChordIdentifierView: View {
                 .padding(.horizontal, 16)
                 .frame(maxHeight: .infinity, alignment: .top)
             }
-            colors.line.swiftUI.frame(height: 1)
-            HStack(spacing: 12) {
-                Text(status ?? "")
-                    .font(.footnote)
-                    .foregroundColor(colors.text.swiftUI)
-                    .lineLimit(2)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                // Inserts the picked chord and closes the identifier (SheetController).
-                Button { event(.identifierInsert(nil)) } label: {
-                    Text(IdentifierTexts.insert)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundColor(colors.onPrimary.swiftUI)
-                        .padding(.horizontal, 24)
-                        .frame(minHeight: 40)
-                        .background(colors.primary.swiftUI.opacity(model.picked == nil ? AppColors.disabledAlpha : 1),
-                                    in: Capsule())
-                }
-                .buttonStyle(.plain)
-                .disabled(model.picked == nil)
-                .accessibilityIdentifier("identifier-insert")
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 8)
+            // The session's status line, so "Inserted chord: C" is seen while the editor is covered.
+            colors.separator.frame(height: 0.5)
+            Text(status ?? "")
+                .font(.footnote)
+                .foregroundColor(colors.secondaryLabel)
+                .lineLimit(2)
+                .frame(maxWidth: .infinity, minHeight: 20, alignment: .leading)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(colors.bar)
+                .accessibilityIdentifier("identifier-status")
         }
     }
 
@@ -113,35 +110,16 @@ struct ChordIdentifierView: View {
         }
     }
 
-    private var topBar: some View {
-        HStack(spacing: 8) {
-            Button { event(.dismiss) } label: {
-                MdiIcon("mdi_arrow_left", tint: colors.text.swiftUI)
-                    .frame(width: 48, height: 48)
-                    .contentShape(Circle())
-            }
-            .buttonStyle(.plain)
-            .accessibilityLabel(IdentifierTexts.close)
-            .accessibilityIdentifier("identifier-close")
-            Text(IdentifierTexts.title)
-                .font(.title2)
-                .foregroundColor(colors.text.swiftUI)
-                .accessibilityAddTraits(.isHeader)
-            Spacer(minLength: 0)
-        }
-        .padding(.horizontal, 4)
-        .frame(height: 64)
-    }
-
     /// The hint, the piano and the sounding notes it doesn't reach.
     private var input: some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(IdentifierTexts.hint(notation: state?.notation))
                 .font(.subheadline)
-                .foregroundColor(colors.text.swiftUI)
+                .foregroundColor(colors.secondaryLabel)
                 .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 8)
             PianoView(selected: Set(state?.notes.map(\.midi) ?? []), sounding: sounding,
-                      notation: state?.notation ?? "american", outline: colors.muted.swiftUI, live: live,
+                      notation: state?.notation ?? "american", outline: colors.secondaryLabel, live: live,
                       tap: { event(.identifierTap($0)) }, press: { event(.identifierPress($0)) })
                 .frame(height: 132)
                 .padding(.top, 12)
@@ -151,24 +129,40 @@ struct ChordIdentifierView: View {
                 Text(sounding.isEmpty ? "" : state?.soundingAbove ?? "")
             }
             .font(.caption2)
-            .foregroundColor(colors.muted.swiftUI)
+            .foregroundColor(colors.secondaryLabel)
             .frame(minHeight: 16)
         }
     }
 
-    /// The typed notes, Clear and Play.
+    /// The typed notes (a plain rounded field, its name as the placeholder),
+    /// Clear and Play.
     private var notesRow: some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 4) {
             HStack(spacing: 8) {
-                OutlinedField(label: IdentifierTexts.notes, text: model.typed, colors: colors, live: live,
-                              error: state?.typedTextError != nil, autofocus: false, identifier: "identifier-notes",
-                              change: { event(.identifierType($0)) })
-                pill(IdentifierTexts.clear, enabled: true, outline: colors.line.swiftUI.opacity(0.6),
-                     text: colors.muted.swiftUI, id: "identifier-clear") { event(.identifierClear) }
+                TextField(IdentifierTexts.notes, text: Binding(get: { model.typed },
+                                                              set: { event(.identifierType($0)) }))
+                    .textFieldStyle(.roundedBorder)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.done)
+                    .foregroundColor(state?.typedTextError != nil ? colors.red : nil)
+                    .accessibilityLabel(IdentifierTexts.notes)
+                    .accessibilityIdentifier("identifier-notes")
+                Button(IdentifierTexts.clear) { event(.identifierClear) }
+                    .buttonStyle(.bordered)
+                    .accessibilityIdentifier("identifier-clear")
                 let canPlay = !(state?.notes.isEmpty ?? true)
                 // Not a Button: a long press plays the keys rolled instead of as they are.
-                pillLabel(IdentifierTexts.play, enabled: canPlay, outline: colors.muted.swiftUI,
-                          text: colors.primary.swiftUI)
+                // Drawn as the system's bordered button.
+                Text(IdentifierTexts.play)
+                    .foregroundStyle(canPlay ? AnyShapeStyle(TintShapeStyle())
+                                     : AnyShapeStyle(HierarchicalShapeStyle.tertiary))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 7)
+                    .background(canPlay ? AnyShapeStyle(Color.accentColor.opacity(0.15))
+                                : AnyShapeStyle(Color(uiColor: .tertiarySystemFill)),
+                                in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                    .contentShape(Rectangle())
                     .onTapGesture { if canPlay { event(.identifierPlay(rolled: false)) } }
                     .onLongPressGesture(minimumDuration: 0.5) { if canPlay { event(.identifierPlay(rolled: true)) } }
                     .accessibilityAddTraits(.isButton)
@@ -178,68 +172,60 @@ struct ChordIdentifierView: View {
             }
             if let error = state?.typedTextError {
                 Text(error)
-                    .font(.caption)
-                    .foregroundColor(colors.error.swiftUI)
-                    .padding(.leading, 16)
+                    .font(.footnote)
+                    .foregroundColor(colors.red)
             }
         }
-        .padding(.top, 4)
-    }
-
-    private func pill(_ label: String, enabled: Bool, outline: Color, text: Color, id: String,
-                      action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            pillLabel(label, enabled: enabled, outline: outline, text: text)
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-        .accessibilityIdentifier(id)
-    }
-
-    private func pillLabel(_ label: String, enabled: Bool, outline: Color, text: Color) -> some View {
-        Text(label)
-            .font(.subheadline.weight(.medium))
-            .foregroundColor(enabled ? text : colors.text.swiftUI.opacity(AppColors.disabledAlpha))
-            .padding(.horizontal, 22)
-            .frame(minHeight: 44)
-            .overlay(Capsule().stroke(enabled ? outline : colors.line.swiftUI.opacity(0.5), lineWidth: 1))
-            .contentShape(Capsule())
-            .padding(.top, 6)
+        .padding(.top, 8)
     }
 
     /// The candidates (a tap picks and plays, a long press plays rolled;
     /// Insert inserts the picked one), or the session's message when there are none.
     @ViewBuilder
     private var candidates: some View {
-        Text(IdentifierTexts.candidates)
-            .font(.subheadline.weight(.medium))
-            .foregroundColor(colors.text.swiftUI)
-            .padding(.top, 4)
+        Text(IdentifierTexts.candidates.uppercased())
+            .font(.footnote)
+            .foregroundColor(colors.secondaryLabel)
+            .padding(.top, 12)
+            .padding(.bottom, 4)
+            .accessibilityAddTraits(.isHeader)
         let list = shownCandidates(state)
         if list.isEmpty {
             Text(state?.typedTextError != nil ? "" : state?.message ?? "")
                 .font(.subheadline)
-                .foregroundColor(colors.muted.swiftUI)
+                .foregroundColor(colors.secondaryLabel)
                 .padding(.vertical, 12)
                 .frame(maxWidth: .infinity, alignment: .leading)
         } else {
             scrolling {
-                ForEach(list, id: \.self) { chord in
-                    candidate(chord)
+                VStack(spacing: 0) {
+                    ForEach(Array(list.enumerated()), id: \.element) { index, chord in
+                        if index > 0 { colors.separator.frame(height: 0.5).padding(.leading, 16) }
+                        candidate(chord)
+                    }
                 }
+                .background(colors.cell, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
     }
 
     private func candidate(_ chord: String) -> some View {
         let selected = chord == model.picked
-        return Text(chord)
-            .font(.body)
-            .foregroundColor(colors.text.swiftUI)
-            .padding(.horizontal, 12)
-            .frame(maxWidth: .infinity, minHeight: 48, alignment: .leading)
-            .background(selected ? colors.primarySoft.swiftUI : .clear)
+        return HStack {
+            Text(chord)
+                .font(.body)
+                .foregroundColor(colors.label)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Image(systemName: AppSymbols.checkmark)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(.tint)
+                .opacity(selected ? 1 : 0)
+                .accessibilityHidden(true)
+        }
+            .padding(.horizontal, 16)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
             .contentShape(Rectangle())
+            .accessibilityElement(children: .combine)
             .onTapGesture { event(.identifierPick(chord, rolled: false)) }
             .onLongPressGesture(minimumDuration: 0.5) { event(.identifierPick(chord, rolled: true)) }
             .accessibilityAddTraits(selected ? [.isSelected, .isButton] : .isButton)

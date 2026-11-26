@@ -2,12 +2,14 @@ import ChordNotepadKit
 import SwiftUI
 
 /// The ☰ menu: a panel from the leading edge over a dimmed screen (Android's
-/// drawer, without its edge swipe), with Android's entries (``AppMenu``).
-/// An entry the app can't do (none now) is greyed with "Coming soon".
+/// drawer, without its edge swipe), drawn as an iPad's sidebar: the app's
+/// name, then Android's entries (``AppMenu``) in inset grouped sections with
+/// their symbols in the accent colour. It scrolls, and an entry's name wraps
+/// at the largest text sizes. An entry the app can't do (none now) is greyed
+/// with "Coming soon".
 struct AppMenuPanel: View {
     let recent: [DocumentRef]
     let colors: AppColors
-    /// False in the catalog: no ScrollView (ImageRenderer can't draw one).
     var scrolls = true
     var choose: (MenuAction) -> Void = { _ in }
     var close: () -> Void = {}
@@ -15,71 +17,60 @@ struct AppMenuPanel: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack(alignment: .leading) {
-                Color.black.opacity(0.32)
+                Color.black.opacity(0.25)
                     .ignoresSafeArea()
                     .onTapGesture { close() }
                     .accessibilityLabel("Close the menu")
                     .accessibilityAddTraits(.isButton)
-                Group {
-                    if scrolls {
-                        ScrollView { content }
-                    } else {
-                        content.frame(maxHeight: .infinity, alignment: .top).clipped()
+                list
+                    .frame(width: min(320, geometry.size.width * 0.85))
+                    .frame(maxHeight: .infinity)
+                    // The panel runs the screen's whole height, under the status
+                    // bar and the home indicator, as Android's drawer does; its
+                    // entries stay inside the safe area.
+                    .background(alignment: .leading) {
+                        UnevenRoundedRectangle(bottomTrailingRadius: 16, topTrailingRadius: 16, style: .continuous)
+                            .fill(colors.groupedBackground)
+                            .ignoresSafeArea()
+                            .shadow(color: .black.opacity(0.15), radius: 12)
                     }
-                }
-                .frame(width: min(300, geometry.size.width * 0.85))
-                .frame(maxHeight: .infinity)
-                // The panel runs the screen's whole height, under the status
-                // bar and the home indicator, as Android's drawer does; its
-                // entries stay inside the safe area.
-                .background(alignment: .leading) {
-                    UnevenRoundedRectangle(bottomTrailingRadius: 16, topTrailingRadius: 16)
-                        .fill(colors.surfaceLow.swiftUI)
-                        .ignoresSafeArea()
-                }
-                .accessibilityIdentifier("app-menu")
+                    .accessibilityIdentifier("app-menu")
             }
         }
     }
 
-    private var content: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text("Chord Notepad")
-                .font(.title3.weight(.medium))
-                .foregroundColor(colors.text.swiftUI)
-                .padding(.horizontal, 14)
-                .padding(.top, 4)
-                .padding(.bottom, 10)
+    private var list: some View {
+        List {
+            Section {
+            } header: {
+                Text("Chord Notepad")
+                    .font(.title2.weight(.bold))
+                    .foregroundColor(colors.label)
+                    .textCase(nil)
+                    .padding(.top, 8)
+                    .accessibilityAddTraits(.isHeader)
+            }
             ForEach(Array(AppMenu.sections(recent: recent).enumerated()), id: \.offset) { pair in
                 switch pair.element {
                 case .entries(let entries):
-                    ForEach(entries, id: \.self) { item($0) }
-                case .recent(let entries):
-                    Text("Recent".uppercased())
-                        .font(.caption.weight(.medium))
-                        .foregroundColor(colors.muted.swiftUI)
-                        .padding(.horizontal, 14)
-                        .padding(.top, 12)
-                        .padding(.bottom, 4)
-                    if entries.isEmpty {
-                        Text("No recent songs")
-                            .font(.footnote)
-                            .foregroundColor(colors.muted.swiftUI)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                    Section {
+                        ForEach(entries, id: \.self) { item($0) }
                     }
-                    ForEach(entries, id: \.self) { item($0) }
+                case .recent(let entries):
+                    Section("Recent") {
+                        if entries.isEmpty {
+                            Text("No recent songs")
+                                .foregroundColor(colors.secondaryLabel)
+                        }
+                        ForEach(entries, id: \.self) { item($0) }
+                    }
                 case .separator:
-                    colors.line.swiftUI
-                        .frame(height: 1)
-                        .padding(.horizontal, 10)
-                        .padding(.vertical, 8)
+                    EmptyView()
                 }
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.top, 24)
-        .padding(.bottom, 10)
+        .listStyle(.insetGrouped)
+        .scrollContentBackground(.hidden)
     }
 
     private func item(_ entry: MenuEntry) -> some View {
@@ -87,114 +78,61 @@ struct AppMenuPanel: View {
             close()
             choose(entry.action)
         } label: {
-            HStack(spacing: 14) {
-                MdiIcon(entry.icon, tint: entry.tint.swiftUI)
+            Label {
                 VStack(alignment: .leading, spacing: 1) {
                     Text(entry.label)
-                        .font(.subheadline)
-                        .foregroundColor(colors.text.swiftUI)
-                        .lineLimit(1)
+                        .foregroundColor(colors.label)
+                        .fixedSize(horizontal: false, vertical: true)
                     if !entry.enabled {
                         Text("Coming soon")
-                            .font(.caption2)
-                            .foregroundColor(colors.muted.swiftUI)
+                            .font(.caption)
+                            .foregroundColor(colors.secondaryLabel)
                     }
                 }
-                Spacer(minLength: 0)
+            } icon: {
+                Image(systemName: entry.icon)
+                    .foregroundStyle(.tint)
             }
-            .padding(.horizontal, 14)
-            .frame(minHeight: 46)
-            .contentShape(Capsule())
             .opacity(entry.enabled ? 1 : 0.45)
         }
-        .buttonStyle(.plain)
         .disabled(!entry.enabled)
         .accessibilityLabel(entry.enabled ? entry.label : "\(entry.label), coming soon")
         .accessibilityIdentifier("menu-\(entry.label)")
     }
 }
 
-/// A small dialog over a dimmed screen, in the app's colours (the catalog can
-/// draw it, unlike an alert).
-struct DialogCard<Content: View, Buttons: View>: View {
-    let title: String
-    let colors: AppColors
-    @ViewBuilder let content: () -> Content
-    @ViewBuilder let buttons: () -> Buttons
-
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.32).ignoresSafeArea()
-            VStack(alignment: .leading, spacing: 14) {
-                Text(title)
-                    .font(.title3)
-                    .foregroundColor(colors.text.swiftUI)
-                content()
-                HStack(spacing: 8) {
-                    Spacer(minLength: 0)
-                    buttons()
-                }
-            }
-            .padding(22)
-            .frame(maxWidth: 360)
-            .background(colors.surfaceHigh.swiftUI, in: RoundedRectangle(cornerRadius: 24))
-            .padding(24)
-        }
-    }
-}
-
-/// A dialog's text button in the primary colour.
-struct DialogButton: View {
-    let label: String
-    let colors: AppColors
-    var enabled = true
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Text(label)
-                .font(.subheadline.weight(.medium))
-                .foregroundColor(colors.primary.swiftUI.opacity(enabled ? 1 : AppColors.disabledAlpha))
-                .padding(.horizontal, 12)
-                .frame(minHeight: 40)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .disabled(!enabled)
-    }
-}
-
-/// Rename (tap the title; Android's `RenameDialog`): the name without its
-/// extension, and "Saved as “name.txt”" under it, or why the name can't be
-/// used; the session's refusal stays here until the name changes.
+/// Rename (tap the title; Android's `RenameDialog`), as an alert with a
+/// field: the name without its extension, and "Saved as “name.txt”" under
+/// it, or why the name can't be used; the session's refusal stays here until
+/// the name changes (so it is drawn: a system alert closes on any button).
 struct RenameDialog: View {
     let displayName: String
     let colors: AppColors
     @Binding var name: String
     var refusal: String?
-    /// False in the catalog: the field is drawn as text (ImageRenderer can't draw a TextField).
+    /// False in the catalog: no focus, no material.
     var live = true
     var rename: (String) -> Void = { _ in }
     var cancel: () -> Void = {}
 
-    @FocusState private var focused: Bool
-
     var body: some View {
         let problem = renameProblem(name, currentDisplayName: displayName)
         let hint = renameHint(name, currentDisplayName: displayName, refusal: refusal)
-        DialogCard(title: "Rename", colors: colors) {
+        AlertCard(title: "Rename",
+                  actions: [AlertAction(title: "Cancel", role: .cancel, action: cancel),
+                            AlertAction(title: "Rename", role: .preferred,
+                                        enabled: problem == nil || problem == .unchanged,
+                                        identifier: "rename-ok") { submit(problem) }],
+                  live: live, identifier: "rename-dialog") {
             VStack(alignment: .leading, spacing: 6) {
-                field(error: hint.error)
+                AlertTextField(placeholder: "Name", text: $name, live: live, identifier: "rename-field") {
+                    submit(renameProblem(name, currentDisplayName: displayName))
+                }
                 Text(hint.text)
                     .font(.caption)
-                    .foregroundColor((hint.error ? colors.error : colors.muted).swiftUI)
-                    .padding(.leading, 2)
+                    .foregroundColor(hint.error ? colors.red : colors.secondaryLabel)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("rename-hint")
-            }
-        } buttons: {
-            DialogButton(label: "Cancel", colors: colors, action: cancel)
-            DialogButton(label: "Rename", colors: colors, enabled: problem == nil || problem == .unchanged) {
-                submit(problem)
             }
         }
     }
@@ -206,66 +144,43 @@ struct RenameDialog: View {
             cancel()
         }
     }
-
-    @ViewBuilder
-    private func field(error: Bool) -> some View {
-        let border = (error ? colors.error : colors.primary).swiftUI
-        if live {
-            TextField("Name", text: $name)
-                .textInputAutocapitalization(.never)
-                .autocorrectionDisabled()
-                .submitLabel(.done)
-                .focused($focused)
-                .onSubmit { submit(renameProblem(name, currentDisplayName: displayName)) }
-                .padding(12)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(border, lineWidth: 2))
-                .onAppear { focused = true }
-                .accessibilityIdentifier("rename-field")
-        } else {
-            Text(name)
-                .foregroundColor(colors.text.swiftUI)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(12)
-                .overlay(RoundedRectangle(cornerRadius: 6).stroke(border, lineWidth: 2))
-        }
-    }
 }
 
 /// The storage couldn't rename (Android's `RenameFailedDialog`): why, and
-/// Save As under the new name when that's the way out.
+/// Save As under the new name when that's the way out. Live it is the
+/// system's alert (`MainScreen`); this is the catalog's picture of it.
 struct RenameFailedDialog: View {
     let name: String
     let reason: String
     let canSaveAs: Bool
     let colors: AppColors
+    var live = true
     var saveAs: (String) -> Void = { _ in }
     var dismiss: () -> Void = {}
 
+    static let title = "Couldn't rename"
+
+    static func message(reason: String, canSaveAs: Bool) -> String {
+        canSaveAs ? "\(reason)\n\nSave a copy under the new name instead?" : reason
+    }
+
     var body: some View {
-        DialogCard(title: "Couldn't rename", colors: colors) {
-            Text(canSaveAs ? "\(reason)\n\nSave a copy under the new name instead?" : reason)
-                .font(.subheadline)
-                .foregroundColor(colors.text.swiftUI)
-                .fixedSize(horizontal: false, vertical: true)
-        } buttons: {
-            if canSaveAs {
-                DialogButton(label: "Cancel", colors: colors, action: dismiss)
-                DialogButton(label: "Save as…", colors: colors) { saveAs(name) }
-            } else {
-                DialogButton(label: "OK", colors: colors, action: dismiss)
-            }
-        }
+        AlertCard(title: Self.title, message: Self.message(reason: reason, canSaveAs: canSaveAs),
+                  actions: canSaveAs
+                      ? [AlertAction(title: "Cancel", role: .cancel, action: dismiss),
+                         AlertAction(title: "Save as…", role: .preferred) { saveAs(name) }]
+                      : [AlertAction(title: "OK", role: .preferred, action: dismiss)],
+                  live: live)
     }
 }
 
 /// "Preparing export…" while an export renders and is written, until the
 /// export picker is up (docs/IOS.md "Files", Exports): drawn as iOS draws an
-/// alert, not as the app's Material cards. A system spinner, the audio
-/// export's percentage, Cancel; system fonts, the system material and tint.
+/// alert. A system spinner, the audio export's percentage, Cancel; system
+/// fonts, the system material and tint.
 struct ExportProgressDialog: View {
     let dialog: ExportDialog
-    /// False in the catalog: ImageRenderer can't draw a ProgressView or a
-    /// material, so a drawn spinner and the material's light or dark colour.
+    /// False in the catalog: a solid colour for the material.
     var live = true
     var cancel: () -> Void = {}
 
@@ -279,7 +194,9 @@ struct ExportProgressDialog: View {
                     Text(ExportDialog.title)
                         .font(.headline)
                         .multilineTextAlignment(.center)
-                    spinner
+                    ProgressView()
+                        .progressViewStyle(.circular)
+                        .controlSize(.large)
                     if let percent = dialog.percent {
                         Text(percent)
                             .font(.subheadline.monospacedDigit())
@@ -288,27 +205,22 @@ struct ExportProgressDialog: View {
                 }
                 .padding(.horizontal, 16)
                 .padding(.top, 20)
-                .padding(.bottom, Self.glassAlert ? 16 : 18)
+                .padding(.bottom, glassAlerts ? 16 : 18)
                 cancelButton
             }
-            .frame(width: Self.glassAlert ? 300 : 270)
+            .frame(width: glassAlerts ? 300 : 270)
             .background(background)
-            .clipShape(RoundedRectangle(cornerRadius: Self.glassAlert ? 34 : 14, style: .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: glassAlerts ? 34 : 14, style: .continuous))
             .accessibilityElement(children: .contain)
             .accessibilityIdentifier("export-dialog")
         }
     }
 
-    /// iOS 26's alerts: larger corners, a capsule button inside the card;
-    /// before it, a full-width text button under a hairline.
-    private static var glassAlert: Bool {
-        if #available(iOS 26, *) { return true }
-        return false
-    }
-
+    /// iOS 26's alerts: a capsule button inside the card; before it, a
+    /// full-width text button under a hairline.
     @ViewBuilder
     private var cancelButton: some View {
-        if Self.glassAlert {
+        if glassAlerts {
             Button(role: .cancel, action: cancel) {
                 Text(ExportDialog.cancel)
                     .font(.body.weight(.medium))
@@ -335,19 +247,6 @@ struct ExportProgressDialog: View {
     }
 
     @ViewBuilder
-    private var spinner: some View {
-        if live {
-            ProgressView()
-                .progressViewStyle(.circular)
-                .controlSize(.large)
-        } else {
-            DrawnSpinner()
-                .frame(width: 37, height: 37)
-                .accessibilityHidden(true)
-        }
-    }
-
-    @ViewBuilder
     private var background: some View {
         if live {
             Rectangle().fill(.regularMaterial)
@@ -358,99 +257,43 @@ struct ExportProgressDialog: View {
     }
 }
 
-/// UIActivityIndicatorView's large spinner, drawn (the catalog's stand-in).
-private struct DrawnSpinner: View {
-    var body: some View {
-        GeometryReader { box in
-            let side = min(box.size.width, box.size.height)
-            ZStack {
-                ForEach(0..<8, id: \.self) { index in
-                    Capsule()
-                        .fill(Color.secondary.opacity(0.25 + 0.75 * Double(index) / 7))
-                        .frame(width: side * 0.09, height: side * 0.28)
-                        .offset(y: -side * 0.32)
-                        .rotationEffect(.degrees(Double(index) * 45))
-                }
-            }
-            .frame(width: side, height: side)
-        }
-    }
-}
-
 /// The unsaved-changes question (Android's `ConfirmDiscardDialog`, the
-/// desktop's "Unsaved Changes"): Don't save, Cancel, Save. The buttons stack
-/// when they don't fit on one line (large text), as Android's flow row wraps.
+/// desktop's "Unsaved Changes"): Save, Don't save, Cancel, stacked as the
+/// system stacks three buttons. Drawn, not the system's alert: the session
+/// can ask while a sheet is up or going away (Examples, a song from Files),
+/// when the system can't present one.
 struct DiscardDialog: View {
     let colors: AppColors
+    var live = true
     var answer: (DiscardChoice) -> Void = { _ in }
 
     var body: some View {
-        DialogCard(title: DiscardQuestion.title, colors: colors) {
-            Text(DiscardQuestion.message)
-                .font(.subheadline)
-                .foregroundColor(colors.text.swiftUI)
-                .fixedSize(horizontal: false, vertical: true)
-        } buttons: {
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 8) { buttons }
-                VStack(alignment: .trailing, spacing: 0) { buttons }
-            }
-        }
-        .accessibilityIdentifier("discard-dialog")
-    }
-
-    @ViewBuilder
-    private var buttons: some View {
-        DialogButton(label: DiscardQuestion.discard, colors: colors) { answer(.discard) }
-        DialogButton(label: DiscardQuestion.cancel, colors: colors) { answer(.cancel) }
-        DialogButton(label: DiscardQuestion.save, colors: colors) { answer(.save) }
+        AlertCard(title: DiscardQuestion.title, message: DiscardQuestion.message,
+                  actions: [AlertAction(title: DiscardQuestion.save, role: .preferred) { answer(.save) },
+                            AlertAction(title: DiscardQuestion.discard, role: .destructive) { answer(.discard) },
+                            AlertAction(title: DiscardQuestion.cancel, role: .cancel) { answer(.cancel) }],
+                  live: live, identifier: "discard-dialog")
     }
 }
 
-/// Examples (Android's `ExamplesSheet`): the songs the app ships, by file
-/// name; a tap opens a copy of one.
-struct ExamplesSheet: View {
-    let names: [String]
-    let colors: AppColors
-    var scrolls = true
-    var choose: (String) -> Void = { _ in }
-    var done: () -> Void = {}
-
-    var body: some View {
-        PlayerSheet(title: "Examples", colors: colors, scrolls: scrolls, done: done) {
-            ForEach(names, id: \.self) { name in
-                Button { choose(name) } label: {
-                    HStack(spacing: 14) {
-                        MdiIcon("mdi_file_music", tint: MenuTint.examples.color.swiftUI)
-                        Text(name)
-                            .font(.body)
-                            .foregroundColor(colors.text.swiftUI)
-                            .lineLimit(1)
-                        Spacer(minLength: 0)
-                    }
-                    .padding(.horizontal, 20)
-                    .frame(minHeight: 48)
-                    .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("example-\(name)")
-            }
-        }
-    }
-}
-
-/// A snackbar at the bottom (Android's): the session's status in Edit, errors
-/// in both modes with a close button.
+/// A short message at the bottom (Android's snackbar), drawn as iOS draws a
+/// banner: the session's status in Edit, errors in both modes with a red mark
+/// and a close button, on the system material.
 struct SnackbarView: View {
     let snackbar: Snackbar
     let colors: AppColors
     var dismiss: () -> Void = {}
 
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            if snackbar.error {
+                Image(systemName: AppSymbols.error)
+                    .foregroundStyle(colors.red)
+                    .accessibilityHidden(true)
+            }
             Text(snackbar.text)
                 .font(.subheadline)
-                .foregroundColor(colors.snackText.swiftUI)
+                .foregroundColor(colors.label)
                 // An error's reason comes after its action and the document
                 // ("Failed to open file:", the location, then why): keep it.
                 .lineLimit(snackbar.error ? 12 : 3)
@@ -458,9 +301,9 @@ struct SnackbarView: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             if snackbar.error {
                 Button(action: dismiss) {
-                    Image(systemName: "xmark")
+                    Image(systemName: AppSymbols.close)
                         .font(.footnote.weight(.semibold))
-                        .foregroundColor(colors.snackText.swiftUI)
+                        .foregroundStyle(colors.secondaryLabel)
                         .frame(width: 32, height: 32)
                         .contentShape(Rectangle())
                 }
@@ -470,9 +313,11 @@ struct SnackbarView: View {
         }
         .padding(.leading, 16)
         .padding(.trailing, snackbar.error ? 6 : 16)
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
         .frame(maxWidth: 560)
-        .background(colors.snackBackground.swiftUI, in: RoundedRectangle(cornerRadius: 6))
+        .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(colors.separator, lineWidth: 0.5))
+        .shadow(color: .black.opacity(0.15), radius: 10, y: 3)
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
         .accessibilityElement(children: .combine)
