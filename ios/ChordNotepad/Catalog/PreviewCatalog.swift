@@ -399,17 +399,22 @@ enum CatalogRenderer {
         let scale: CGFloat
         /// The software keyboard's height there (with its suggestions bar).
         var keyboardHeight: CGFloat = 0
+        /// The window's size classes there (the catalog runs on the iPhone
+        /// simulator, so an iPad's window gets them as traits).
+        var horizontal: UIUserInterfaceSizeClass = .compact
+        var vertical: UIUserInterfaceSizeClass = .regular
     }
 
     /// iPhone 17 and iPad Air 11-inch (M4), upright, in points.
     static let devices = [
         Device(name: "iphone", size: CGSize(width: 402, height: 874), scale: 3, keyboardHeight: 336),
-        Device(name: "ipad", size: CGSize(width: 820, height: 1180), scale: 2, keyboardHeight: 398),
+        Device(name: "ipad", size: CGSize(width: 820, height: 1180), scale: 2, keyboardHeight: 398,
+               horizontal: .regular),
     ]
     static let iphoneLandscape = Device(name: "iphone-landscape", size: CGSize(width: 874, height: 402), scale: 3,
-                                        keyboardHeight: 209)
+                                        keyboardHeight: 209, vertical: .compact)
     static let ipadLandscape = Device(name: "ipad-landscape", size: CGSize(width: 1180, height: 820), scale: 2,
-                                      keyboardHeight: 398)
+                                      keyboardHeight: 398, horizontal: .regular)
     /// The iPad Air on its side in Split View: about a third (also Slide Over's
     /// width) and a half of its 1180 pt. The exact widths vary by model.
     static let ipadThird = Device(name: "ipad-third", size: CGSize(width: 375, height: 820), scale: 2,
@@ -421,6 +426,10 @@ enum CatalogRenderer {
     static var all: [Device] { devices + [iphoneLandscape, ipadLandscape] }
     static let schemes: [(String, ColorScheme)] = [("light", .light), ("dark", .dark)]
     static let textSizes: [(String, DynamicTypeSize)] = [("default", .large), ("large", .accessibility2)]
+
+    /// How a window is captured: its layers drawn into a context (works off
+    /// the screen, at any size), or the render server's snapshot of the window.
+    enum Capture { case layers, snapshot }
 
     /// How many images ``renderAll(to:)`` writes.
     @MainActor static var imageCount: Int {
@@ -442,14 +451,11 @@ enum CatalogRenderer {
                             // renderer drew only black once some 340 images were held.
                             let png: Data? = autoreleasepool {
                                 for _ in 0..<2 {
-                                    let view = screen.make(scene, device)
-                                        .frame(width: device.size.width, height: device.size.height)
-                                        .environment(\.colorScheme, scheme)
-                                        .environment(\.dynamicTypeSize, textSize)
-                                    let renderer = ImageRenderer(content: view)
-                                    renderer.scale = device.scale
-                                    renderer.proposedSize = ProposedViewSize(device.size)
-                                    if let image = renderer.uiImage, !isBlank(image) { return image.pngData() }
+                                    if let image = render(screen.make(scene, device), device: device, scheme: scheme,
+                                                          textSize: textSize),
+                                       !isBlank(image) {
+                                        return image.pngData()
+                                    }
                                 }
                                 return nil
                             }
@@ -467,6 +473,71 @@ enum CatalogRenderer {
             }
         }
         return written
+    }
+
+    /// `view` in a `device`-sized window of the app's scene, with the
+    /// device's size classes, `scheme` and `textSize`, captured. A window, not
+    /// ImageRenderer, so the system's controls (lists, navigation bars,
+    /// switches, segmented controls, text fields) draw as they do live; the
+    /// window lies off the screen with no safe area, as the catalog has always
+    /// drawn the screens (under the status bar's height of nothing).
+    @MainActor static func render(_ view: AnyView, device: Device, scheme: ColorScheme, textSize: DynamicTypeSize,
+                                  capture: Capture = .layers) -> UIImage? {
+        guard let scene = UIApplication.shared.connectedScenes.compactMap({ $0 as? UIWindowScene }).first else {
+            return nil
+        }
+        let window = UIWindow(windowScene: scene)
+        let root = view
+            .frame(width: device.size.width, height: device.size.height)
+            .environment(\.colorScheme, scheme)
+            .environment(\.dynamicTypeSize, textSize)
+        let host = UIHostingController(rootView: AnyView(root))
+        host.safeAreaRegions = []
+        host.overrideUserInterfaceStyle = scheme == .dark ? .dark : .light
+        host.traitOverrides.preferredContentSizeCategory = EditorAppearance.category(textSize)
+        host.traitOverrides.horizontalSizeClass = device.horizontal
+        host.traitOverrides.verticalSizeClass = device.vertical
+        window.frame = CGRect(origin: CGPoint(x: 0, y: scene.screen.bounds.height + 400), size: device.size)
+        window.overrideUserInterfaceStyle = host.overrideUserInterfaceStyle
+        window.rootViewController = host
+        window.isHidden = false
+        defer {
+            window.isHidden = true
+            window.rootViewController = nil
+        }
+        settle(window)
+        let insets = host.view.safeAreaInsets
+        if insets != .zero {
+            host.additionalSafeAreaInsets = UIEdgeInsets(top: -insets.top, left: -insets.left,
+                                                         bottom: -insets.bottom, right: -insets.right)
+            settle(window)
+        }
+        lastInsets = (window.safeAreaInsets, host.view.safeAreaInsets)
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = device.scale
+        format.opaque = true
+        let renderer = UIGraphicsImageRenderer(size: device.size, format: format)
+        return renderer.image { context in
+            switch capture {
+            case .layers:
+                window.layer.render(in: context.cgContext)
+            case .snapshot:
+                window.drawHierarchy(in: CGRect(origin: .zero, size: device.size), afterScreenUpdates: true)
+            }
+        }
+    }
+
+    /// The window's and the screen's safe area at the last render (the probe reports them).
+    @MainActor static var lastInsets: (window: UIEdgeInsets, host: UIEdgeInsets) = (.zero, .zero)
+
+    /// Layout, then a few turns of the run loop for what SwiftUI and UIKit
+    /// put off (a list's cells, a navigation bar's items).
+    @MainActor private static func settle(_ window: UIWindow) {
+        for _ in 0..<3 {
+            window.layoutIfNeeded()
+            RunLoop.main.run(until: Date().addingTimeInterval(0.02))
+        }
+        window.layoutIfNeeded()
     }
 }
 

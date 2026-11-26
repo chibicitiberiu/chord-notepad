@@ -1,4 +1,5 @@
 import ChordNotepadKit
+import SwiftUI
 import XCTest
 
 @testable import ChordNotepad
@@ -27,6 +28,45 @@ final class CatalogTests: XCTestCase {
             XCTAssertGreaterThan(size, 10_000, "\(url.lastPathComponent) is nearly empty")
         }
         print("Catalog: \(written.count) images in \(folder.path)")
+    }
+
+    /// The system's controls captured both ways the renderer can, on a
+    /// phone and a tablet, light and dark, into the catalog folder as
+    /// `probe-*.png`, with the safe areas the windows had (`probe.txt`): which
+    /// controls a window's layers draw, and which need the render server.
+    func testNativeControlsProbe() throws {
+        let environment = ProcessInfo.processInfo.environment
+        let folder = URL(fileURLWithPath: environment["CN_CATALOG_DIR"]
+                         ?? FileManager.default.temporaryDirectory.appendingPathComponent("catalog").path)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        var report: [String] = []
+        let devices = [CatalogRenderer.devices[0], CatalogRenderer.devices[1]]
+        let play = PreviewCatalog.screens.first { $0.name == "play" }
+        for device in devices {
+            for (schemeName, scheme) in CatalogRenderer.schemes {
+                for capture in [CatalogRenderer.Capture.layers, .snapshot] {
+                    let method = capture == .layers ? "layers" : "snapshot"
+                    for (name, view) in [("controls", AnyView(ControlsProbe())),
+                                         ("play", play.map { $0.make(PreviewCatalog.scene("scarborough_piano_roll"), device) }
+                                            ?? AnyView(EmptyView()))] {
+                        let image = autoreleasepool {
+                            CatalogRenderer.render(view, device: device, scheme: scheme, textSize: .large,
+                                                   capture: capture)
+                        }
+                        let insets = CatalogRenderer.lastInsets
+                        report.append("\(name)\t\(method)\t\(device.name)\t\(schemeName)\twindow \(insets.window)"
+                                      + "\thost \(insets.host)\tblank \(image.map(isBlank) ?? true)")
+                        if let png = image?.pngData() {
+                            try png.write(to: folder.appendingPathComponent(
+                                "probe-\(name)-\(method)-\(device.name)-\(schemeName).png"))
+                        }
+                    }
+                }
+            }
+        }
+        let text = report.joined(separator: "\n")
+        print("Probe:\n" + text)
+        try text.write(to: folder.appendingPathComponent("probe.txt"), atomically: true, encoding: .utf8)
     }
 
     func testEveryChordSheetSceneHasABufferAtEachDevicesHeight() throws {
@@ -60,6 +100,59 @@ final class CatalogTests: XCTestCase {
             for fixture in screen.fixtures {
                 let url = AppPaths.fixtures.appendingPathComponent("\(fixture).json")
                 XCTAssertTrue(FileManager.default.fileExists(atPath: url.path), "\(screen.name): \(fixture)")
+            }
+        }
+    }
+}
+
+/// One of each system control the iOS look uses, in a navigation stack.
+private struct ControlsProbe: View {
+    @State private var on = true
+    @State private var off = false
+    @State private var segment = 1
+    @State private var speed = 0.4
+    @State private var count = 2
+    @State private var text = "Monospace"
+    @State private var key = "C"
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Toggle("Word wrap", isOn: $off)
+                    Toggle("Show quick start at startup", isOn: $on)
+                    Picker("Mode", selection: $segment) {
+                        Text("Edit").tag(0)
+                        Text("Play").tag(1)
+                    }
+                    .pickerStyle(.segmented)
+                    Picker("Default key", selection: $key) {
+                        ForEach(["C", "G", "D"], id: \.self) { Text($0).tag($0) }
+                    }
+                    .pickerStyle(.menu)
+                    Stepper("Font size: \(count)", value: $count)
+                    TextField("Name", text: $text)
+                    Slider(value: $speed)
+                } header: {
+                    Text("General")
+                } footer: {
+                    Text("The editor's font. Pinching the text changes its size too.")
+                }
+                Section("Buttons") {
+                    Button("Bordered prominent") {}.buttonStyle(.borderedProminent)
+                    Button("Bordered") {}.buttonStyle(.bordered)
+                    Label("Settings", systemImage: "gear")
+                    ProgressView()
+                    RoundedRectangle(cornerRadius: 12).fill(.regularMaterial).frame(height: 40)
+                }
+            }
+            .navigationTitle("Probe")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button { } label: { Image(systemName: "chevron.backward") }
+                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") {} }
             }
         }
     }
