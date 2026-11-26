@@ -1640,6 +1640,18 @@ session's `pause`, `app_background` and `app_foreground` are all it takes.
   an image's name (`mdi_menu`, `chevron.right`), fails, and the main
   screens' known buttons must carry Android's words. Dynamic Type is the
   catalog's `accessibility2` images.
+- **Play's text for VoiceOver.** In Play the frozen text view is a
+  container of `PlayTextElement`s (`Editor/PlayText.swift`), built from the
+  kit's `playAccessibilityItems`: each chord its own button (its label the
+  chord as written; activating it does what a tap does, `tap_chord_at`; the
+  marker's chord is selected), and the other text of each line, before,
+  between and after its chords, as static text. The frames are the text's,
+  asked for when VoiceOver needs them, so they follow scrolling and
+  wrapping; the elements are made again only when the text or its spans
+  change, so VoiceOver's focus stays put while a song plays. Edit keeps the
+  text view's own text element. Before, UIKit made one element per line,
+  and activating it hit the line's middle chord (S0 issue 8). The
+  editor's session test checks the labels, the frames and an activation.
 - **The export status on iOS** is the desktop's "Exported MIDI: song.mid
   (iCloud Drive)" (audio and PDF the same), said only once the export
   picker saved the file, with the place picked; a cancelled picker says

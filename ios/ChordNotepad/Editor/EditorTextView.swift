@@ -53,6 +53,9 @@ final class EditorTextView: UITextView {
     let playTap = UITapGestureRecognizer()
     let playHold = UILongPressGestureRecognizer()
     var hintCard: HintCardView?
+    /// Play mode's VoiceOver elements, a chord each (PlayText.swift); nil in
+    /// Edit, where the text view is its usual text element.
+    var playElements: [PlayTextElement]?
     /// Play mode's touches, in the content's coordinates.
     var onPlayTap: ((CGPoint) -> Void)?
     var onScrub: ((UIGestureRecognizer.State, CGPoint) -> Void)?
@@ -117,6 +120,34 @@ final class EditorTextView: UITextView {
 
     @objc private func pinched(_ recognizer: UIPinchGestureRecognizer) {
         onPinch?(recognizer.state, Double(recognizer.scale))
+    }
+
+    // VoiceOver: in Play the text view is a container of ``playElements``.
+    override var isAccessibilityElement: Bool {
+        get { playElements == nil && super.isAccessibilityElement }
+        set { super.isAccessibilityElement = newValue }
+    }
+
+    override var accessibilityElements: [Any]? {
+        get { playElements ?? super.accessibilityElements }
+        set { super.accessibilityElements = newValue }
+    }
+
+    override func accessibilityElementCount() -> Int {
+        if let playElements { return playElements.count }
+        return super.accessibilityElementCount()
+    }
+
+    override func accessibilityElement(at index: Int) -> Any? {
+        if let playElements { return playElements.indices.contains(index) ? playElements[index] : nil }
+        return super.accessibilityElement(at: index)
+    }
+
+    override func index(ofAccessibilityElement element: Any) -> Int {
+        if let playElements {
+            return playElements.firstIndex { $0 === element as AnyObject } ?? NSNotFound
+        }
+        return super.index(ofAccessibilityElement: element)
     }
 
     @objc private func playTapped(_ recognizer: UITapGestureRecognizer) {

@@ -176,6 +176,27 @@ extension SessionTests {
         model.settingsAct { $0.requestClose() }
         XCTAssertEqual(model.ui.route, MainRoute.none)
 
+        // -- VoiceOver in Play: each chord its own element, activated as a tap (S0 issue 8) -----
+        model.selectMode(.play)
+        let elements = try XCTUnwrap(view.accessibilityElements as? [PlayTextElement], "Play's elements")
+        XCTAssertFalse(view.isAccessibilityElement, "the text view is their container in Play")
+        XCTAssertEqual(elements.map(\.accessibilityLabel),
+                       ["{key: C}", "Am", "C", "Am", "G", "la am la", "Am7", "F", "Am"])
+        let chordC = elements[2], chordG = elements[4]
+        XCTAssertTrue(chordG.accessibilityTraits.contains(.button))
+        XCTAssertEqual(elements[0].accessibilityTraits, .staticText)
+        XCTAssertGreaterThan(chordG.accessibilityFrame.minX, chordC.accessibilityFrame.maxX, "G is right of C")
+        XCTAssertEqual(chordG.accessibilityFrame.minY, chordC.accessibilityFrame.minY, accuracy: 1)
+        XCTAssertTrue(chordG.accessibilityActivate())
+        ok = await model.waitFor(timeout: .seconds(10)) { $0.playback?.playheadOffset == 17 }
+        XCTAssertTrue(ok, "the playhead on G: \(String(describing: model.snapshot.playback?.playheadOffset))")
+        ok = await model.waitFor(timeout: .seconds(5)) { _ in chordG.accessibilityTraits.contains(.selected) }
+        XCTAssertTrue(ok, "the marker's chord is the selected one")
+        XCTAssertFalse(elements[0].accessibilityActivate(), "text does nothing")
+        model.selectMode(.edit)
+        XCTAssertNil(view.playElements)
+        XCTAssertTrue(view.isAccessibilityElement, "Edit's text view is a text element again")
+
         // -- the side column's width, kept in UserDefaults across launches --------------------
         let key = UiPreferences.sideFractionKey
         let saved = UserDefaults.standard.object(forKey: key)

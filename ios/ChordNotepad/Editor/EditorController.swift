@@ -187,6 +187,13 @@ final class EditorController: ObservableObject {
     private var localHead: Int?
     /// Where a scrub has taken the marker; sent once, on release.
     private var scrubTo: Int?
+    /// The text and spans the Play elements were made for.
+    private var playElementsMadeFor: PlayElementsKey?
+
+    private struct PlayElementsKey: Equatable {
+        var text: String
+        var spans: [PaintedSpan]
+    }
 
     /// The playhead the marker shows (UTF-16).
     var playhead: Int? { localHead ?? sessionHead }
@@ -206,6 +213,7 @@ final class EditorController: ObservableObject {
             apply(model.findModeChanged(canReplace: !on))
             if let view = textView {
                 view.setPlayMode(on, editable: !model.readOnly)
+                refreshPlayElements(view)
                 if !on { scrubTo = nil }
                 // The frozen text let the keys go: its host takes them, so the system
                 // menu's Open… and find actions reach the app (``EditorHost/onCommand``).
@@ -357,6 +365,45 @@ final class EditorController: ObservableObject {
         let editable = !model.readOnly && !playMode
         if view.isEditable != editable { view.isEditable = editable }
         updateMarker()
+        refreshPlayElements(view)
+    }
+
+    /// Play mode's VoiceOver elements: one per chord, activated as a tap on
+    /// it, and the rest of each line as text (``playAccessibilityItems``).
+    /// Made again only when the text or its spans change, so VoiceOver's
+    /// focus stays put while a song plays; none in Edit.
+    private func refreshPlayElements(_ view: EditorTextView) {
+        guard playMode else {
+            playElementsMadeFor = nil
+            if view.playElements != nil {
+                view.playElements = nil
+                UIAccessibility.post(notification: .layoutChanged, argument: nil)
+            }
+            return
+        }
+        let key = PlayElementsKey(text: model.text, spans: model.spans)
+        guard key != playElementsMadeFor || view.playElements == nil else { return }
+        let changedMode = view.playElements == nil
+        playElementsMadeFor = key
+        view.playElements = playAccessibilityItems(text: model.text, spans: model.spans).map { item in
+            PlayTextElement(item, in: view, current: { [weak self] in self?.markerChordStart == item.start },
+                            activate: item.kind == .chord ? { [weak self] in self?.activateChord(item.start) } : nil)
+        }
+        if changedMode { UIAccessibility.post(notification: .layoutChanged, argument: nil) }
+    }
+
+    /// What VoiceOver's activation of a chord does: what a tap on it does.
+    func activateChord(_ start: Int) {
+        guard playMode else { return }
+        playHandlers?.touched()
+        localHead = start
+        updateMarker()
+        playHandlers?.tap(.onChord(start))
+    }
+
+    /// The chord the marker sits before (UTF-16 start).
+    private var markerChordStart: Int? {
+        markerChord(playableChords(model.spans), playhead: playhead)?.start
     }
 
     private func palette(_ view: UITextView) -> EditorPalette {

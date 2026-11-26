@@ -11,6 +11,24 @@ final class PlayheadGesturesTests: XCTestCase {
     private let em = ChordBox(20, 22, left: 5, top: 40, right: 25, bottom: 60)
     private var boxes: [ChordBox] { [g, c, em] }
 
+    func testVoiceOverReachesEachChordOnItsOwnAndReadsTheRestByLine() {
+        // S0 issue 8: "Dm    Am     G        C" was one element; now four chords.
+        let text = "{key: C}\nDm    Am  (x2)  G\n\nHow I wonder\nC♯m"
+        let spans = [PaintedSpan(0, 8, .directive), PaintedSpan(9, 11, .chord), PaintedSpan(15, 17, .chord),
+                     PaintedSpan(25, 26, .chord), PaintedSpan(41, 44, .chord), PaintedSpan(30, 30, .chord)]
+        let items = playAccessibilityItems(text: text, spans: spans)
+        XCTAssertEqual(items, [
+            PlayAccessibilityItem(.text, 0, 8, "{key: C}"),
+            PlayAccessibilityItem(.chord, 9, 11, "Dm"),
+            PlayAccessibilityItem(.chord, 15, 17, "Am"),
+            PlayAccessibilityItem(.text, 19, 23, "(x2)"),
+            PlayAccessibilityItem(.chord, 25, 26, "G"),
+            PlayAccessibilityItem(.text, 28, 40, "How I wonder"),
+            PlayAccessibilityItem(.chord, 41, 44, "C♯m"),
+        ], "an empty span is no chord; a blank line has nothing")
+        XCTAssertTrue(playAccessibilityItems(text: "", spans: []).isEmpty)
+    }
+
     func testATapOnAChordPlaysItATapElsewhereGoesToTheNearest() {
         XCTAssertEqual(resolveTap(boxes, 55, 10, slop: 4), .onChord(8))
         XCTAssertEqual(resolveTap(boxes, 62, 10, slop: 4), .onChord(8))

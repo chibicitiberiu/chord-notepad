@@ -89,6 +89,52 @@ final class HintCardView: UIView {
     }
 }
 
+/// One VoiceOver element of Play mode's text (``playAccessibilityItems``): a
+/// chord, a button that does what a tap on it does, or the other text of a
+/// line. Its frame is the text's, worked out when VoiceOver asks, so it
+/// follows scrolling, wrapping and the font size.
+final class PlayTextElement: UIAccessibilityElement {
+    let item: PlayAccessibilityItem
+    private weak var textView: EditorTextView?
+    /// A chord's activation (nil for text).
+    private let activate: (() -> Void)?
+    /// Whether the playhead marker sits before this chord.
+    private let current: () -> Bool
+
+    init(_ item: PlayAccessibilityItem, in textView: EditorTextView, current: @escaping () -> Bool,
+         activate: (() -> Void)?) {
+        self.item = item
+        self.textView = textView
+        self.current = current
+        self.activate = activate
+        super.init(accessibilityContainer: textView)
+        accessibilityLabel = item.label
+        if item.kind == .chord {
+            accessibilityHint = "Moves the playhead here and plays it"
+            accessibilityIdentifier = "play-chord-\(item.start)"
+        }
+    }
+
+    override var accessibilityTraits: UIAccessibilityTraits {
+        get {
+            guard item.kind == .chord else { return .staticText }
+            return current() ? [.button, .selected] : .button
+        }
+        set {}
+    }
+
+    override var accessibilityFrameInContainerSpace: CGRect {
+        get { textView?.rect(of: UTF16Range(item.start, item.end)) ?? .zero }
+        set {}
+    }
+
+    override func accessibilityActivate() -> Bool {
+        guard let activate else { return false }
+        activate()
+        return true
+    }
+}
+
 /// The handlers Play mode calls (the app model's commands); offsets UTF-16.
 struct PlayHandlers {
     /// A tap's result: play the chord, or move the playhead to the nearest.
