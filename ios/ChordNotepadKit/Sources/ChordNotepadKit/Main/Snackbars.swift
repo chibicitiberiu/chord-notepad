@@ -2,8 +2,11 @@ import Foundation
 
 // The main screen's snackbars (Android's StatusSnackbars in SongScreen.kt):
 // in Edit, which has no status line, each new status message shows briefly;
-// errors show in both modes with a close button. As plain state, fed the
-// session's snapshot and a clock, so the rules are tested on Linux.
+// errors show in both modes with a close button. A full page (Quick Start,
+// Settings, the guide, About) shows no status: Android's pages replace
+// SongScreen, which holds the status snackbars, while its errors are dialogs
+// over any page. As plain state, fed the session's snapshot and a clock, so
+// the rules are tested on Linux.
 
 /// One snackbar.
 public struct Snackbar: Sendable, Equatable {
@@ -45,8 +48,9 @@ public struct Snackbars: Sendable, Equatable {
 
     /// The session's output changed: show what's new. Call
     /// after a mode switch has settled (Android waits 150 ms), so a song that
-    /// opens in Play along with its status doesn't flash it.
-    public mutating func update(_ snapshot: SessionSnapshot, mode: AppMode, now: Double) {
+    /// opens in Play along with its status doesn't flash it. While `page`
+    /// (a full page covers the screen) a new status is passed over.
+    public mutating func update(_ snapshot: SessionSnapshot, mode: AppMode, now: Double, page: Bool = false) {
         let active = (snapshot.playback?.status ?? .idle) != .idle
         if wasActive && !active { stoppedAt = now }
         wasActive = active
@@ -70,7 +74,7 @@ public struct Snackbars: Sendable, Equatable {
         }
         if status != lastStatus {
             lastStatus = status
-            if let status, !status.trimmingCharacters(in: .whitespaces).isEmpty,
+            if let status, !status.trimmingCharacters(in: .whitespaces).isEmpty, !page,
                statusSnackbarAllowed(mode: mode, now: now, stoppedAt: stoppedAt), shown?.error != true {
                 show(status, error: false)
             }
@@ -80,6 +84,12 @@ public struct Snackbars: Sendable, Equatable {
     /// The mode changed: a status message still up from Edit goes (errors stay).
     public mutating func modeChanged(_ mode: AppMode) {
         if !statusSnackbarsShown(mode), shown?.error == false { shown = nil }
+    }
+
+    /// A full page opened over the screen: a status or notice still up goes
+    /// (an error stays, as Android's error dialogs show over its pages).
+    public mutating func pageOpened() {
+        if shown?.error == false { shown = nil }
     }
 
     /// A short notice in either mode (why a greyed button does nothing;

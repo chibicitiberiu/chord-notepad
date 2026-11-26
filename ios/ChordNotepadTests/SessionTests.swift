@@ -785,8 +785,13 @@ extension SessionTests {
     /// Settings' "Show quick start at startup"; a direct launch opens it
     /// (`app_started`), and closing it dismisses the startup screen.
     func checkQuickStart(_ model: AppModel) async throws {
+        // A snackbar that is up goes when the page opens (S0 issue 5: "Ready" over the tour's bar).
+        if let shown = model.snackbars.shown { model.dismissSnackbar(shown.id) }
+        model.notice("Pause first")
+        XCTAssertNotNil(model.snackbars.shown)
         model.choose(.quickStart)
         XCTAssertEqual(model.ui.route, .quickStart)
+        XCTAssertNil(model.snackbars.shown, "no snackbar over Quick Start")
         let tour = await model.waitFor(timeout: .seconds(30)) { $0.quickStart?.pages.count == 7 }
         XCTAssertTrue(tour, "\(String(describing: model.snapshot.quickStart?.pages.map(\.title)))")
         model.setShowQuickStart(false)

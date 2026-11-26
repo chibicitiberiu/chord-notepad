@@ -823,7 +823,13 @@ The third slice: the app's frame, a port of Android's `ui/main/`
   any more; the header collapses in Edit with the keyboard up when the text
   would get less than 170 pt (a phone on its side), and undo and redo then
   float by the keyboard, as on Android. Edit has no status line: the
-  session's status shows as a snackbar there, errors in both modes.
+  session's status shows as a snackbar there, errors in both modes. A full
+  page (Quick Start, Settings, the guide, About) shows no status snackbar:
+  one that is up goes when the page opens and a status that comes while it
+  is up is passed over (`Snackbars.pageOpened`, `update(page:)`), as
+  Android's pages replace `SongScreen` and its snackbar host. Errors and a
+  greyed control's reason still show over a page (Android's errors are
+  dialogs over its pages).
 - **Large text:** the bar is a fixed 48 pt; its title is body text, which
   follows Dynamic Type up to `accessibility2`, and on a phone at the
   accessibility sizes the tabs drop their captions (icons only) so the title
@@ -1190,7 +1196,8 @@ The session runs the settings edit (`begin_settings_edit`, `commit_settings`,
   (`openSettings`, `settingsAct`: the commands go out, a typed number is
   saved 400 ms after the last change, the screen goes once the edit ends)
   and the parsed schema; `MainScreen` draws the page over itself, under the
-  snackbar.
+  snackbar (errors and notices only: no status over a page, "The main
+  screen").
 - **Licences.** Android's list is its own (`assets/licenses/components.json`),
   not the core's: `core/chordnotepad/services/licence_catalog.py` and
   `resources/licenses/components.json` are the desktop builds' inventory

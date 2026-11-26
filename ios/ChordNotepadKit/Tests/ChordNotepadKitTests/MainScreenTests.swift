@@ -356,6 +356,28 @@ final class MainScreenTests: XCTestCase {
         XCTAssertNil(bars.shown)
     }
 
+    func testAFullPageShowsNoStatusButKeepsAnError() {
+        // CI's first launch: "Ready" came up in Edit, then Quick Start opened over it.
+        var bars = Snackbars()
+        var s = snapshot([.statusState(StatusState(text: "Ready"))])
+        bars.update(s, mode: .edit, now: 1)
+        XCTAssertEqual(bars.shown?.text, "Ready")
+        bars.pageOpened()
+        XCTAssertNil(bars.shown, "the status goes when the page opens")
+        s.apply(.statusState(StatusState(text: "Saved")))
+        bars.update(s, mode: .edit, now: 2, page: true)
+        XCTAssertNil(bars.shown, "a status while the page is up is passed over")
+        bars.update(s, mode: .edit, now: 3)
+        XCTAssertNil(bars.shown, "and doesn't come back once the page is gone")
+        bars.notice("Pause first")
+        XCTAssertEqual(bars.shown?.text, "Pause first", "a notice on the page still shows")
+        s.apply(.userError(UserError(message: "File not found: x", title: "")))
+        bars.update(s, mode: .edit, now: 4, page: true)
+        XCTAssertEqual(bars.shown?.error, true, "an error shows over a page")
+        bars.pageOpened()
+        XCTAssertEqual(bars.shown?.text, "File not found: x", "and stays when one opens")
+    }
+
     func testANoticeShowsInEitherModeButNotOverAnError() {
         var bars = Snackbars()
         bars.notice("Pause to change the voicing")

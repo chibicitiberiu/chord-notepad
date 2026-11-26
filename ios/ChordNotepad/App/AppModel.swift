@@ -34,7 +34,12 @@ final class AppModel: ObservableObject {
     @Published private(set) var snapshot = SessionSnapshot()
     @Published private(set) var timings = LaunchTimings()
     /// The main screen's own state: the tab, what is open over it, the keyboard.
-    @Published var ui = MainUiState()
+    @Published var ui = MainUiState() {
+        didSet {
+            // A full page (Quick Start, Settings…) covers the screen: a status snackbar goes.
+            if ui.route.isFullPage && !oldValue.route.isFullPage { snackbars.pageOpened() }
+        }
+    }
     /// The snackbar on screen.
     @Published private(set) var snackbars = Snackbars()
     /// Play mode's long-press explanation.
@@ -826,7 +831,8 @@ final class AppModel: ObservableObject {
         Task { [weak self] in
             try? await Task.sleep(for: .milliseconds(150))
             guard let self else { return }
-            self.snackbars.update(self.snapshot, mode: self.ui.mode, now: ContinuousClock.now.seconds)
+            self.snackbars.update(self.snapshot, mode: self.ui.mode, now: ContinuousClock.now.seconds,
+                                  page: self.ui.route.isFullPage)
             self.timeSnackbar()
         }
     }
