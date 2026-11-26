@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,10 +39,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -150,24 +154,37 @@ fun QuickStartScreen(
 
 /**
  * An example song as the editor draws it in the current theme (ChordEditor's
- * background, text and span colours): monospace, chords highlighted, not editable.
+ * background, text and span colours): monospace, chords highlighted, not
+ * editable. Lines never wrap (a chord stays over its lyric): the font shrinks
+ * so the longest line fits the box ([snippetFontSize]), and below the
+ * smallest size the box scrolls sideways.
  */
 @Composable
 private fun Snippet(block: QuickStartBlock) {
     val colors = appColors
+    val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
     Surface(
         shape = RoundedCornerShape(6.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         color = colors.surface,
     ) {
-        Text(
-            remember(block, colors) { snippetText(block, spanStylesFor(colors)) },
-            color = colors.editorText,
-            fontFamily = FontFamily.Monospace,
-            fontSize = 15.sp,
-            softWrap = false,
-            modifier = Modifier.background(colors.surface).horizontalScroll(rememberScrollState()).padding(12.dp),
-        )
+        BoxWithConstraints {
+            // One column's width per sp of the monospace font, in pixels.
+            val advance = remember(measurer, density) {
+                measurer.measure("0", TextStyle(fontFamily = FontFamily.Monospace, fontSize = 100.sp)).size.width / 100f
+            }
+            val padding = with(density) { 24.dp.toPx() }
+            val size = snippetFontSize(block.text, constraints.maxWidth - padding, advance)
+            Text(
+                remember(block, colors) { snippetText(block, spanStylesFor(colors)) },
+                color = colors.editorText,
+                fontFamily = FontFamily.Monospace,
+                fontSize = size.sp,
+                softWrap = false,
+                modifier = Modifier.background(colors.surface).horizontalScroll(rememberScrollState()).padding(12.dp),
+            )
+        }
     }
 }
 

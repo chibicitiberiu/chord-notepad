@@ -1308,7 +1308,7 @@ The session runs each (`request_quick_start`, `set_show_quick_start_on_startup`,
   Android's bar, `GuideWebView`, `HelpSchemeHandler`),
   `Screens/QuickStartView.swift` (the tour as Android draws it: ✕ and the
   title, the page's title, paragraphs and snippets in the editor's colours
-  and monospace, scrolling sideways when wide, the divider, the "Show at
+  and monospace, the divider, the "Show at
   startup" checkbox in Material's shape, Previous, "1 of 7", Next or Done) and
   `App/PdfPainter.swift` (`UIKitPdfCanvas`: the pages collected, then
   `UIGraphicsPDFRenderer`; text drawn with Core Text on the layout's
@@ -1697,6 +1697,7 @@ iPad Air 11-inch (820×1180 pt, @2x), and on their sides (874×402,
 | `settings_builtin`, `settings_rename` | the standard guitar read-only with Copy; My 7-String's rename dialog | iPhone, iPad on its side; iPhone |
 | `about`, `licences`, `licence` | About (a sample build), the licences from the bundle's list, FluidSynth's page with its text | iPhone, iPad; iPhone, iPad; iPhone |
 | `quick_start` | `quick_start_tour`: the tour's first page | iPhone, iPad |
+| `quick_start_chords` | `quick_start_tour`: the second page, its 41-column example shrunk to fit the box | iPhone |
 | `help_play`, `help_play_phone`, `help_edit`, `help_voicing`, `help_rename` | the guide's scenes (`ios/tools/help_shots.json`): `grace_playing` in every window; the four views, the metronome at 125 % and the playhead on Em; `grace_edit` and `colours_edit` in Edit; the Voicing sheet over `grace_play` (My 7-String made by then); Rename over `grace_edit` | all four; iPhone; iPhone, iPad, iPhone on its side; iPhone; iPhone |
 | `find`, `find_play`, `find_replaced` | `scarborough_edit` with the find bar and its Replace row (Am, match case and whole words, the second of the matches selected, Em to replace with); `scarborough_piano_roll` in Play finding "parsley" (no Replace row; beside the chord sheet on the phone on its side); `find_replaced` after Replace all, its status as a snackbar | iPhone, iPad; iPhone, iPad, iPhone on its side; iPhone, iPad |
 | `split_play`, `split_edit`, `split_settings`, `split_identify` | `scarborough_piano_roll` in Play (the sheet below the text), `scarborough_edit`, `settings_open` (one pane), `identifier_cmaj7` (full screen): the iPad's Split View windows, laid out as a phone's | the iPad's third and half |

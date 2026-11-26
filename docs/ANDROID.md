@@ -1386,7 +1386,9 @@ older versions show the light guide). How to write for both editions:
 `QuickStartContent` page by page in Compose (`QuickStartPager` holds the page;
 snippets are `snippetRuns`: the session's code-point spans converted to UTF-16
 and styled with the editor's `SpanStyles`, on the editor's white background in
-monospace, read only). Previous/Next/Done, an X in the top bar that closes it
+monospace, read only; lines never wrap, so a chord stays over its lyric: the
+font shrinks from 15 sp, in half steps down to 11 sp, until the longest line
+fits the box (`snippetFontSize`), and below that the box scrolls sideways). Previous/Next/Done, an X in the top bar that closes it
 from any page (a tour, so a close button rather than a back arrow), and a "Show
 at startup" checkbox that sends `set_show_quick_start_on_startup` as soon as it
 changes, so closing early keeps it. ☰ → Quick start opens it. Whether it

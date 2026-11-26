@@ -67,6 +67,25 @@ public func snippetStyleRuns(_ block: QuickStartBlock, palette: EditorPalette) -
               length: block.text.utf16.count, palette: palette)
 }
 
+/// The sizes a tour snippet is drawn at, in points: the editor's 15, and the
+/// smallest it shrinks to so its longest line fits the box.
+public enum SnippetFont {
+    public static let preferred = 15.0
+    public static let smallest = 11.0
+}
+
+/// The font size that fits `text`'s longest line in `width` points, in a
+/// monospaced font whose characters are `advance` × the size wide: the
+/// preferred size when it fits, else smaller in half-point steps, never below
+/// ``SnippetFont/smallest`` (wider than that, the box scrolls sideways). Lines
+/// never wrap: a wrapped chord line no longer sits over its lyric.
+public func snippetFontSize(_ text: String, width: Double, advance: Double) -> Double {
+    let columns = text.split(separator: "\n", omittingEmptySubsequences: false).map(\.count).max() ?? 0
+    guard columns > 0, advance > 0, width > 0 else { return SnippetFont.preferred }
+    let fits = (width / (Double(columns) * advance) * 2).rounded(.down) / 2
+    return min(SnippetFont.preferred, max(SnippetFont.smallest, fits))
+}
+
 /// The "Show at startup" checkbox: the value the user just picked until the
 /// session's settings echo it, then the settings' value, else the tour's own
 /// (Android's `QuickStartRoute`).

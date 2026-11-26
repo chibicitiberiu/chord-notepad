@@ -54,6 +54,22 @@ final class HelpTests: XCTestCase {
                        [StyleRun(0, 1, palette.style(.chord)), StyleRun(3, 5, palette.style(.chord))])
     }
 
+    func testASnippetShrinksToFitItsLongestLineButNotBelowItsSmallestSize() {
+        // Page 2's example, 41 columns: on an iPhone 17 the box's text has about 338 pt, and
+        // the system's monospaced font is 0.6 of its size wide (S0 issue 9: "F#m7b5 E" clipped).
+        let page2 = "G              D/F#        Em          C\n"
+            + "A song for you, a melody I made\n"
+            + "Am7   Dsus4   Cmaj7   G/B   F#m7b5   E7#9"
+        let size = snippetFontSize(page2, width: 338, advance: 0.6)
+        XCTAssertEqual(size, 13.5)
+        XCTAssertLessThanOrEqual(41 * 0.6 * size, 338, "the longest line fits")
+        XCTAssertEqual(snippetFontSize("C  G\nShort", width: 338, advance: 0.6), SnippetFont.preferred,
+                       "a short example keeps the editor's size")
+        XCTAssertEqual(snippetFontSize(String(repeating: "C ", count: 60), width: 338, advance: 0.6),
+                       SnippetFont.smallest, "a very long line stops shrinking and scrolls")
+        XCTAssertEqual(snippetFontSize("", width: 338, advance: 0.6), SnippetFont.preferred)
+    }
+
     func testGuideLinksStayInsideTheBundledGuideOrLeaveForTheBrowser() {
         XCTAssertTrue(HelpLinks.isInternal(HelpLinks.startURL))
         XCTAssertTrue(HelpLinks.isInternal("cnhelp://guide/settings.html#voicings"))

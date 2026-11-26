@@ -23,6 +23,20 @@ class QuickStartModelTest {
     }
 
     @Test
+    fun `a snippet shrinks to fit its longest line but not below its smallest size`() {
+        // Page 2's example, 41 columns, in about 338 units at 0.6 a column per sp.
+        val page2 = "G              D/F#        Em          C\n" +
+            "A song for you, a melody I made\n" +
+            "Am7   Dsus4   Cmaj7   G/B   F#m7b5   E7#9"
+        val size = snippetFontSize(page2, 338f, 0.6f)
+        assertEquals(13.5f, size)
+        assertTrue(41 * 0.6f * size <= 338f)
+        assertEquals(SNIPPET_FONT_SP, snippetFontSize("C  G\nShort", 338f, 0.6f))
+        assertEquals(SNIPPET_FONT_MIN_SP, snippetFontSize("C ".repeat(60), 338f, 0.6f))
+        assertEquals(SNIPPET_FONT_SP, snippetFontSize("", 338f, 0.6f))
+    }
+
+    @Test
     fun `a restored index outside the tour is clamped`() {
         assertEquals(1, QuickStartPager(2, index = 9).current)
         assertEquals(0, QuickStartPager(2, index = -3).current)

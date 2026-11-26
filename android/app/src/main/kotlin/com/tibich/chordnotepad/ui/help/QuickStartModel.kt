@@ -33,6 +33,25 @@ data class QuickStartPager(val pageCount: Int, val index: Int = 0) {
     fun previous(): QuickStartPager = copy(index = (current - 1).coerceAtLeast(0))
 }
 
+/** A snippet's font size (sp): the editor's 15, and the smallest it shrinks to so its longest line fits. */
+const val SNIPPET_FONT_SP = 15f
+const val SNIPPET_FONT_MIN_SP = 11f
+
+/**
+ * The font size (sp) that fits [text]'s longest line in [width], in a
+ * monospaced font whose characters are [advance] wide per sp (both in the
+ * same unit, pixels say): [SNIPPET_FONT_SP] when it fits, else smaller in
+ * half steps, never below [SNIPPET_FONT_MIN_SP] (wider than that, the box
+ * scrolls sideways). Lines never wrap: a wrapped chord line no longer sits
+ * over its lyric. iOS has the same rule (`snippetFontSize`).
+ */
+fun snippetFontSize(text: String, width: Float, advance: Float): Float {
+    val columns = text.split('\n').maxOfOrNull { it.codePointCount(0, it.length) } ?: 0
+    if (columns == 0 || advance <= 0f || width <= 0f) return SNIPPET_FONT_SP
+    val fits = kotlin.math.floor(width / (columns * advance) * 2f) / 2f
+    return fits.coerceIn(SNIPPET_FONT_MIN_SP, SNIPPET_FONT_SP)
+}
+
 /** A highlighted run of a snippet in UTF-16 units, ready for an `AnnotatedString`. */
 data class SnippetRun(val start: Int, val end: Int, val kind: SpanKind)
 

@@ -262,6 +262,10 @@ enum PreviewCatalog {
                                                                      content: scene.snapshot.quickStart),
                              page: .constant(0), live: false)
         },
+        // ... and its second page on the phone: the 41-column example shrinks to fit the box.
+        CatalogScreen("quick_start_chords", fixtures: ["quick_start_tour"], devices: [CatalogRenderer.devices[0]]) { scene, _ in
+            QuickStartScreen(content: scene.snapshot.quickStart, showAtStartup: true, page: .constant(1), live: false)
+        },
         // The guide's screenshots (ios/tools/help_shots.json), set up as Android's
         // (android/tools/help_shots.json): Amazing Grace playing, frozen on Em, in every window ...
         CatalogScreen("help_play", fixtures: ["grace_playing"], devices: CatalogRenderer.all) { scene, _ in

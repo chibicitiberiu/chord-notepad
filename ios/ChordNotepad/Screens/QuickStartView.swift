@@ -19,15 +19,30 @@ struct QuickStartScreen: View {
 
     @Environment(\.colorScheme) private var scheme
     @State private var ownPage = 0
+    private static let snippetPadding = 12.0
+    /// The page column's widest and its side margins (`pageView`).
+    private static let columnMaxWidth = 640.0
+    private static let columnMargin = 20.0
+    /// The system monospaced font's character width per point of its size.
+    private static let monospacedAdvance: Double = {
+        let font = UIFont.monospacedSystemFont(ofSize: 100, weight: .regular)
+        return Double(("0" as NSString).size(withAttributes: [.font: font]).width) / 100
+    }()
     private var colors: AppColors { .forScheme(dark: scheme == .dark) }
     private var palette: EditorPalette { .forScheme(dark: scheme == .dark) }
 
     var body: some View {
+        GeometryReader { window in
+            screen(columnWidth: min(Double(window.size.width) - 2 * Self.columnMargin, Self.columnMaxWidth))
+        }
+    }
+
+    private func screen(columnWidth: Double) -> some View {
         VStack(spacing: 0) {
             bar
             if let content, !content.pages.isEmpty {
                 let pager = QuickStartPager(pageCount: content.pages.count, index: page?.wrappedValue ?? ownPage)
-                pageView(content.pages[pager.current])
+                pageView(content.pages[pager.current], columnWidth: columnWidth)
                 colors.line.swiftUI.frame(height: 1)
                 checkbox
                 buttons(pager)
@@ -69,7 +84,7 @@ struct QuickStartScreen: View {
     }
 
     @ViewBuilder
-    private func pageView(_ page: QuickStartPage) -> some View {
+    private func pageView(_ page: QuickStartPage, columnWidth: Double) -> some View {
         let column = VStack(alignment: .leading, spacing: 12) {
             Text(page.title)
                 .font(.title2)
@@ -78,7 +93,7 @@ struct QuickStartScreen: View {
                 .accessibilityAddTraits(.isHeader)
             ForEach(Array(page.blocks.enumerated()), id: \.offset) { _, block in
                 switch block.kind {
-                case "snippet": snippet(block)
+                case "snippet": snippet(block, width: columnWidth)
                 case "text":
                     Text(block.text)
                         .font(.body)
@@ -89,8 +104,8 @@ struct QuickStartScreen: View {
                 }
             }
         }
-        .frame(maxWidth: 640, alignment: .leading)
-        .padding(.horizontal, 20)
+        .frame(maxWidth: Self.columnMaxWidth, alignment: .leading)
+        .padding(.horizontal, Self.columnMargin)
         .padding(.vertical, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         if live {
@@ -103,16 +118,20 @@ struct QuickStartScreen: View {
     }
 
     /// An example song as the editor draws it in the current theme: monospaced,
-    /// chords highlighted, not editable; it scrolls sideways when wide.
-    private func snippet(_ block: QuickStartBlock) -> some View {
+    /// chords highlighted, not editable. Lines never wrap (a chord stays over
+    /// its lyric): the font shrinks so the longest line fits the box
+    /// (`snippetFontSize`), and below the smallest size the box scrolls sideways.
+    private func snippet(_ block: QuickStartBlock, width: Double) -> some View {
+        let size = snippetFontSize(block.text, width: width - 2 * Self.snippetPadding,
+                                   advance: Self.monospacedAdvance)
         let text = Text(styled(block))
-            .font(.system(size: 15, design: .monospaced))
+            .font(.system(size: size, design: .monospaced))
             .foregroundColor(palette.text.swiftUI)
             .fixedSize()
-            .padding(12)
+            .padding(Self.snippetPadding)
         return Group {
             if live {
-                ScrollView(.horizontal, showsIndicators: false) { text }
+                ScrollView(.horizontal) { text }
             } else {
                 text.frame(maxWidth: .infinity, alignment: .leading).clipped()
             }
