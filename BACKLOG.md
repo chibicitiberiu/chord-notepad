@@ -45,6 +45,7 @@ it's done (git history keeps it); release mechanics live in `docs/RELEASE.md`.
   - Hardware-keyboard shortcuts beyond files, zoom, help and undo (`ui/Shortcuts.kt`): play/pause and stop, metronome, speed, transpose, Edit/Play, the chord sheet and its views, Settings, find.
   - Strings: "Resize the chord sheet" and the voicing editor's "Move up", "Move down" and "Duplicate" labels are hard-coded in Kotlin instead of string resources (found by the iOS accessibility pass).
   - To check: whether Edit mode shows a directive's hint as the cursor enters it, as the desktop's status bar does (Android explains a red or faded directive on a long press in Play).
+- Go to line, the same-word tint on a selected word, and a Find button in Play, on iOS and Android together (Tibi, 2026-11-26: both platforms at once, later). The desktop has all three. iOS has find and replace in Edit (docs/IOS.md "Find, the font, the pinch and the keys") but none of these. Android has none of them, nor find (the item above).
 - CONTRIBUTING.md: a Development section (setup, `make help`, `make check`, the core/desktop rule, `docs/ANDROID.md`).
 - `.gitignore` backstop for `*.p12`, `*.jks`, `*.keystore`, `*.pem`, `*.env`.
 
