@@ -1169,8 +1169,10 @@ state's binder transaction).
   arrive while the last song is being put back wait for it.
 - **Quick Start's tour** is unchanged: the session shows it at a direct
   launch while "Show quick start at startup" is on ("The user guide, Quick
-  Start and Export PDF"), over whichever song opened. The first launch
-  shows the quick-start song with the tour over it, as before.
+  Start and Export PDF"), over whichever song opened (Tibi, 2026-11-26:
+  the setting keeps its meaning; only the quick-start song stops opening
+  after the first launch). The first launch shows the quick-start song with
+  the tour over it, as before.
 - **CI's hooks** (`-CNScreen …`) and XCTest's session neither read nor
   write the last song: they always open the quick-start song, so their
   screenshots and checks don't depend on the launches before them. Only
