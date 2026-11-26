@@ -47,6 +47,11 @@ XCODEGEN_VERSION=$(pin XCODEGEN_VERSION)
 XCODEGEN_SHA256=$(pin XCODEGEN_SHA256)
 problems=0
 
+# sha256sum on Linux, shasum on a Mac (no sha256sum in /usr/bin there).
+sha256() {
+    if command -v sha256sum >/dev/null 2>&1; then sha256sum "$@"; else shasum -a 256 "$@"; fi
+}
+
 if [ -z "$RUN" ]; then
     for candidate in $(gh run list --workflow ios.yml --branch main --event push --status success --limit 10 \
             --json databaseId -q '.[].databaseId'); do
@@ -73,12 +78,12 @@ trap 'rm -rf "$TMP"' EXIT
 gh run download "$RUN" -n ios-build-inputs -D "$TMP/inputs"
 mv -f "$TMP/inputs/ios-build-inputs.tar.gz" "$SSD/ios-build-inputs.tar.gz"
 
-if [ -f "$SSD/xcodegen.zip" ] && [ "$(sha256sum "$SSD/xcodegen.zip" | cut -d' ' -f1)" = "$XCODEGEN_SHA256" ]; then
+if [ -f "$SSD/xcodegen.zip" ] && [ "$(sha256 "$SSD/xcodegen.zip" | cut -d' ' -f1)" = "$XCODEGEN_SHA256" ]; then
     echo "xcodegen.zip $XCODEGEN_VERSION is already there"
 else
     curl -fsSL --retry 3 -o "$TMP/xcodegen.zip" \
         "https://github.com/yonaskolb/XcodeGen/releases/download/$XCODEGEN_VERSION/xcodegen.zip"
-    echo "$XCODEGEN_SHA256  $TMP/xcodegen.zip" | sha256sum -c - >/dev/null \
+    echo "$XCODEGEN_SHA256  $TMP/xcodegen.zip" | sha256 -c - >/dev/null \
         || { echo "error: the downloaded xcodegen.zip doesn't match the pin" >&2; exit 1; }
     mv -f "$TMP/xcodegen.zip" "$SSD/xcodegen.zip"
 fi
@@ -87,7 +92,7 @@ echo "$XCODE_VERSION" > "$SSD/xcode-version"
 cp "$HERE/mac_bootstrap.sh" "$SSD/mac_bootstrap.sh"
 chmod +x "$SSD/mac_bootstrap.sh"
 
-(cd "$SSD" && sha256sum chord-notepad.bundle chord-notepad.ref ios-build-inputs.tar.gz xcodegen.zip \
+(cd "$SSD" && sha256 chord-notepad.bundle chord-notepad.ref ios-build-inputs.tar.gz xcodegen.zip \
     xcode-version mac_bootstrap.sh > SHA256SUMS)
 
 # The names mac_bootstrap.sh looks for (xip_file, runtime_file).

@@ -1,8 +1,10 @@
 """ios/tools/mac_bootstrap.sh and prepare_ssd.sh on Linux.
 
 The macOS tools (sw_vers, xcrun, xcodebuild, xip, gh for prepare_ssd) are
-stubs on PATH that log their arguments; git, tar, unzip and sha256sum are
-the real ones. ios.yml runs mac_bootstrap.sh --verify for real on a macOS
+stubs on PATH that log their arguments; git, tar, unzip and sha256sum (or
+shasum on a Mac) are the real ones. PATH is the stubs, /usr/bin and /bin, so
+on a Mac a Homebrew Python or coreutils isn't on it: the xcrun stub answers
+--find python3 with the Python running the tests. ios.yml runs mac_bootstrap.sh --verify for real on a macOS
 runner (bash 3.2, the BSD tools); this covers the dry run, the refusals and
 the idempotent steps.
 """
@@ -12,6 +14,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import zipfile
 
 import pytest
@@ -43,7 +46,8 @@ def mac(tmp_path):
                         'echo "/dev/disk3s1 500000000 1 ${DF_FREE_KB:-104857600} 50% /"')
     stub(bin_dir, "xcrun", f'''
 if [ "$1" = git ]; then shift; exec git "$@"; fi
-if [ "$1" = python3 ]; then shift; exec python3 "$@"; fi
+if [ "$1" = python3 ]; then shift; exec {sys.executable} "$@"; fi
+if [ "$*" = "--find python3" ]; then echo {sys.executable}; exit 0; fi
 echo "xcrun $*" >> {log}
 case "$*" in
   "--sdk iphonesimulator --show-sdk-version") echo 26.5 ;;
@@ -207,7 +211,8 @@ def test_xcodegen_zip_with_the_wrong_hash_is_refused(mac):
     assert result.returncode == 1 and "ios.yml pins 0000" in result.stderr
 
 
-@pytest.mark.skipif(shutil.which("sha256sum") is None, reason="needs sha256sum")
+@pytest.mark.skipif(shutil.which("sha256sum", path="/usr/bin:/bin") is None
+                    and shutil.which("shasum", path="/usr/bin:/bin") is None, reason="needs sha256sum or shasum")
 def test_prepare_ssd_fills_the_ssd(mac):
     tmp = mac["tmp"]
     bin_dir = mac["bin"]
@@ -239,8 +244,11 @@ esac''')
     assert (ssd / "ios-build-inputs.tar.gz").read_bytes() == b"tarball"
     assert (ssd / "xcode-version").read_text().strip() == "26.5"
     assert os.access(ssd / "mac_bootstrap.sh", os.X_OK)
-    sums = subprocess.run(["sha256sum", "-c", "SHA256SUMS"], cwd=ssd, capture_output=True, text=True)
-    assert sums.returncode == 0, sums.stdout
+    sums = (ssd / "SHA256SUMS").read_text().splitlines()
+    assert len(sums) == 6
+    for line in sums:
+        digest, name = line.split("  ", 1)
+        assert hashlib.sha256((ssd / name).read_bytes()).hexdigest() == digest, line
     clone = tmp / "clone"  # as mac_bootstrap.sh's repo step takes it
     subprocess.run(["git", "init", "-q", str(clone)], check=True)
     subprocess.run(["git", "-C", str(clone), "fetch", "-q", str(ssd / "chord-notepad.bundle"),
