@@ -33,6 +33,9 @@ public struct SessionSnapshot: Sendable, Equatable {
     public private(set) var voicingEditorSchema: VoicingEditorSchema?
     /// Suggest Capo's dialog, while `active` (the session holds it, not a request).
     public private(set) var capoAdvice: CapoAdviceState?
+    /// The export being prepared or saved (iOS: from the picked file until
+    /// `export_finished` or a failure); nil before the first export.
+    public private(set) var export: ExportState?
     /// The chord identifier's notes and candidates.
     public private(set) var identifier: IdentifierState?
     /// The newest live check of an Insert dialog's fields (`check_directive`).
@@ -99,6 +102,8 @@ public struct SessionSnapshot: Sendable, Equatable {
             voicingEditorSchema = schema
         case .capoAdviceState(let state):
             capoAdvice = state
+        case .exportState(let state):
+            export = state
         case .identifierState(let state):
             identifier = state
         case .directiveCheck(let check):

@@ -31,6 +31,8 @@ public struct Snackbars: Sendable, Equatable {
     private var messagesSeen: Int
     private var stoppedAt: Double?
     private var wasActive = false
+    /// An export was being prepared or saved at the last update (iOS's ExportState).
+    private var wasExporting = false
     private var count = 0
 
     /// Start from what `snapshot` already holds: nothing old pops up.
@@ -38,6 +40,7 @@ public struct Snackbars: Sendable, Equatable {
         lastStatus = snapshot.status?.text
         messagesSeen = snapshot.messageCount
         wasActive = (snapshot.playback?.status ?? .idle) != .idle
+        wasExporting = snapshot.export?.documentId != nil
     }
 
     /// The session's output changed: show what's new. Call
@@ -47,6 +50,17 @@ public struct Snackbars: Sendable, Equatable {
         let active = (snapshot.playback?.status ?? .idle) != .idle
         if wasActive && !active { stoppedAt = now }
         wasActive = active
+        let status = snapshot.status?.text
+        // While an export is prepared and saved, "Preparing export…" and the
+        // picker say what happens (no "Exporting audio… 42%" under them); once
+        // it ends, only a save is news ("Exported audio: …"), not the status
+        // going back to rest after a cancel.
+        let exporting = snapshot.export?.documentId != nil
+        let exportEnded = wasExporting && !exporting
+        wasExporting = exporting
+        if exporting || (exportEnded && status?.hasPrefix("Exported ") != true) {
+            lastStatus = status
+        }
         if snapshot.messageCount > messagesSeen {
             messagesSeen = snapshot.messageCount
             if let message = snapshot.messages.last {
@@ -54,7 +68,6 @@ public struct Snackbars: Sendable, Equatable {
                 return
             }
         }
-        let status = snapshot.status?.text
         if status != lastStatus {
             lastStatus = status
             if let status, !status.trimmingCharacters(in: .whitespaces).isEmpty,

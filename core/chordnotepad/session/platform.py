@@ -13,13 +13,11 @@ falls back to them) except where those name a Tk menu or control, and it has
 a playhead like Android's (:data:`TRACKS_PLAYHEAD`).
 
 ``IOS`` is the SwiftUI app. It behaves like Android in every flag below except
-:data:`PICKER_CREATES_FILE`, so
+:data:`PICKER_CREATES_FILE` and :data:`SAVES_EXPORT_AFTER_WRITE`, so
 :func:`pick` falls back ios -> android -> desktop: a text with no iOS variant
 uses Android's, and one with neither uses the desktop's. Only a text that
 names something Android-only (Android's Back button, say) or says something
-that isn't so on iOS needs an iOS variant of its own: the status after an
-export (``formatting.exported_midi_status``), since iOS's export picker
-opens after the file is written.
+that isn't so on iOS needs an iOS variant of its own.
 """
 
 from typing import Mapping, TypeVar
@@ -89,3 +87,11 @@ POSITION_STATUS = {DESKTOP: False, ANDROID: True, DESKTOP_QT: False, IOS: True}
 #: file to exist first, so the iOS store owns that file and no note is added
 #: (revisit with the iOS document store).
 PICKER_CREATES_FILE = {DESKTOP: False, ANDROID: True, DESKTOP_QT: False, IOS: False}
+
+#: Whether the user picks where an export goes after its file is written.
+#: iOS's export picker needs the file first: the session publishes the
+#: export in ``ExportState`` while it is prepared and saved, and says
+#: "Exported MIDI: …" only once the app reports the save
+#: (``AppSession.export_finished``); a cancelled picker says nothing. The
+#: desktop's and Android's pickers choose the place before the export runs.
+SAVES_EXPORT_AFTER_WRITE = {DESKTOP: False, ANDROID: False, DESKTOP_QT: False, IOS: True}

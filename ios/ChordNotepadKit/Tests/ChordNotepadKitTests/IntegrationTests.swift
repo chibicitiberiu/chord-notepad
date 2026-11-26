@@ -390,9 +390,20 @@ final class IntegrationTests: XCTestCase {
                                     location: "Lullaby (2).mid")
         session.submit(.respondToPickDocumentRequest(requestId: export.requestId, value: exportRef))
         try await log.wait("the MIDI bytes") { store.contents(exportRef.id)?.prefix(4) == Data("MThd".utf8) }
-        try await log.wait("the exported status") {
-            (try? log.decodeLatest(StatusState.self, "StatusState"))?.text == "MIDI ready to save: Lullaby (2).mid"
+        // Written: the export picker's turn ("Preparing export…" until then).
+        try await log.wait("the written export") {
+            (try? log.decodeLatest(ExportState.self, "ExportState")) == ExportState(
+                documentId: exportRef.id, kind: "midi", progress: nil, written: true)
         }
+        XCTAssertEqual(try log.decodeLatest(StatusState.self, "StatusState").text, "Exporting MIDI: Lullaby (2).mid...")
+        // The picker saved it: the desktop's words, with the place.
+        session.submit(.exportFinished(documentId: exportRef.id, location: "Lullaby (2).mid (iCloud Drive)",
+                                       saved: true))
+        try await log.wait("the exported status") {
+            (try? log.decodeLatest(StatusState.self, "StatusState"))?.text
+                == "Exported MIDI: Lullaby (2).mid (iCloud Drive)"
+        }
+        XCTAssertNil(try log.decodeLatest(ExportState.self, "ExportState").documentId)
         let statuses = log.events(since: asked, type: "StatusState").compactMap {
             try? log.decode(StatusState.self, $0).text
         }

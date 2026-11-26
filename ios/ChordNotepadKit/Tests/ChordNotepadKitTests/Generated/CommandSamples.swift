@@ -37,6 +37,8 @@ let commandSamples: [BridgeCommand] = [
     .duplicateLines(anchor: 1, cursor: 1),
     .duplicateVoicingRecord(fieldId: "text", index: 1),
     .exportAudio(),
+    .exportFinished(documentId: "text", location: nil, saved: true),
+    .exportFinished(documentId: "text", location: "text", saved: true),
     .exportMidi(),
     .exportPdf(page: "text"),
     .identifierClear(),

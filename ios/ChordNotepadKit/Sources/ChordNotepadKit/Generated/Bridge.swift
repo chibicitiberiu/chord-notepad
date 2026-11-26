@@ -231,6 +231,37 @@ public struct EditorState: Codable, Sendable, Equatable {
     }
 }
 
+/// `ExportState` (state).
+public struct ExportState: Codable, Sendable, Equatable {
+    public var documentId: String?
+    public var kind: String
+    public var progress: Double?
+    public var written: Bool
+
+    public init(documentId: String?, kind: String, progress: Double?, written: Bool) {
+        self.documentId = documentId
+        self.kind = kind
+        self.progress = progress
+        self.written = written
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case documentId = "document_id"
+        case kind
+        case progress
+        case written
+    }
+
+    /// Every key, nil as null (the core's decoders want them all).
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(documentId, forKey: .documentId)
+        try container.encode(kind, forKey: .kind)
+        try container.encode(progress, forKey: .progress)
+        try container.encode(written, forKey: .written)
+    }
+}
+
 /// `HighlightState` (state).
 public struct HighlightState: Codable, Sendable, Equatable {
     public var clientToken: Int
@@ -1726,6 +1757,7 @@ public enum SessionOutput: Sendable, Equatable {
     case chordSheetState(ChordSheetState)
     case documentState(DocumentState)
     case editorState(EditorState)
+    case exportState(ExportState)
     case highlightState(HighlightState)
     case identifierState(IdentifierState)
     case instrumentMenuState(InstrumentMenuState)
@@ -1761,6 +1793,7 @@ public enum SessionOutput: Sendable, Equatable {
         case .chordSheetState: return "ChordSheetState"
         case .documentState: return "DocumentState"
         case .editorState: return "EditorState"
+        case .exportState: return "ExportState"
         case .highlightState: return "HighlightState"
         case .identifierState: return "IdentifierState"
         case .instrumentMenuState: return "InstrumentMenuState"
@@ -1797,6 +1830,7 @@ public enum SessionOutput: Sendable, Equatable {
         case .chordSheetState: return .state
         case .documentState: return .state
         case .editorState: return .state
+        case .exportState: return .state
         case .highlightState: return .state
         case .identifierState: return .state
         case .instrumentMenuState: return .state
@@ -1839,6 +1873,7 @@ public enum SessionOutput: Sendable, Equatable {
             case "ChordSheetState": return .chordSheetState(try BridgeJSON.decoder.decode(ChordSheetState.self, from: data))
             case "DocumentState": return .documentState(try BridgeJSON.decoder.decode(DocumentState.self, from: data))
             case "EditorState": return .editorState(try BridgeJSON.decoder.decode(EditorState.self, from: data))
+            case "ExportState": return .exportState(try BridgeJSON.decoder.decode(ExportState.self, from: data))
             case "HighlightState": return .highlightState(try BridgeJSON.decoder.decode(HighlightState.self, from: data))
             case "IdentifierState": return .identifierState(try BridgeJSON.decoder.decode(IdentifierState.self, from: data))
             case "InstrumentMenuState": return .instrumentMenuState(try BridgeJSON.decoder.decode(InstrumentMenuState.self, from: data))
@@ -2204,6 +2239,27 @@ extension BridgeCommand {
     /// `export_audio {}`.
     public static func exportAudio() -> BridgeCommand {
         BridgeCommand(name: "export_audio", args: EmptyArgs())
+    }
+
+    /// `export_finished {document_id, location, saved}`.
+    public static func exportFinished(documentId: String, location: String?, saved: Bool) -> BridgeCommand {
+        struct ExportFinishedArgs: Encodable, Sendable {
+            let documentId: String
+            let location: String?
+            let saved: Bool
+            enum CodingKeys: String, CodingKey {
+                case documentId = "document_id"
+                case location
+                case saved
+            }
+            func encode(to encoder: Encoder) throws {
+                var container = encoder.container(keyedBy: CodingKeys.self)
+                try container.encode(documentId, forKey: .documentId)
+                try container.encode(location, forKey: .location)
+                try container.encode(saved, forKey: .saved)
+            }
+        }
+        return BridgeCommand(name: "export_finished", args: ExportFinishedArgs(documentId: documentId, location: location, saved: saved))
     }
 
     /// `export_midi {}`.
@@ -3480,6 +3536,7 @@ public enum BridgeSchema {
         "duplicate_lines",
         "duplicate_voicing_record",
         "export_audio",
+        "export_finished",
         "export_midi",
         "export_pdf",
         "identifier_clear",
@@ -3580,6 +3637,7 @@ public enum BridgeSchema {
         "DocumentState": ["display_name", "document_id", "is_modified", "location", "read_only", "title"],
         "EditRefused": ["message"],
         "EditorState": ["font_family", "font_size", "notation", "read_only", "word_wrap"],
+        "ExportState": ["document_id", "kind", "progress", "written"],
         "HighlightState": ["client_token", "spans", "text_revision"],
         "IdentifierNote": ["midi", "name", "octave"],
         "IdentifierState": ["candidates", "message", "notation", "notes", "notes_text", "sounding", "sounding_above", "sounding_below", "sounding_seconds", "sounding_token", "typed_text_error"],

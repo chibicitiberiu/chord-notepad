@@ -19,7 +19,7 @@ from chordnotepad.session import formatting
 from chordnotepad.session.events import PickDocumentRequest, PickMode, UserError
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
-from chordnotepad.session.state import StatusState
+from chordnotepad.session.state import ExportState, StatusState
 from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.session.workers import BackgroundWorker
 from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -356,12 +356,78 @@ def test_startup_removes_only_stale_temp_files(tmp_path):
     env.session.shutdown()
 
 
-def test_on_ios_written_says_ready_to_save(tmp_path):
-    # iOS's export picker opens after the write: the file isn't saved anywhere yet.
+def export_state(env):
+    return env.session._emitter.state(ExportState)
+
+
+def test_on_ios_the_export_state_follows_the_render_and_the_save_names_the_place(tmp_path):
+    # iOS's export picker opens after the write: "Exported" only once it saved.
     env = Env(tmp_path, platform="ios")
     env.session.export_audio()
     env.answer(env.store.ref("out.wav"))
+    assert export_state(env) == ExportState("memory:out.wav", "audio", 0.0, False)
     env.settle()
-    assert env.status() == "Audio ready to save: out.wav"
+    progress = [s.progress for s in env.recorder.of_type(ExportState)]
+    assert 0.5 in progress and 0.95 in progress
+    assert export_state(env) == ExportState("memory:out.wav", "audio", 1.0, True)
+    assert env.status() == "Exporting audio… 100%"
     assert env.errors() == []
+    env.session.export_finished("memory:out.wav", True, "out.wav (Downloads)")
+    assert env.status() == "Exported audio: out.wav (Downloads)"
+    assert export_state(env) == ExportState()
+    env.session.shutdown()
+
+
+def test_on_ios_a_save_reported_before_the_outcome_arrives_stays(tmp_path):
+    # The store's write wakes the app's picker before the job's outcome is
+    # delivered here; a quick save can come first.
+    env = Env(tmp_path, platform="ios")
+    env.session.export_audio()
+    env.answer(env.store.ref("out.wav"))
+    assert env.audio_worker.wait_idle(timeout=30)
+    env.session.export_finished("memory:out.wav", True, "out.wav (Downloads)")
+    env.host.run_pending()
+    assert env.status() == "Exported audio: out.wav (Downloads)"
+    assert export_state(env) == ExportState()
+    assert env.session._audio_job is None
+    env.session.shutdown()
+
+
+def test_on_ios_cancel_stops_the_render_and_the_next_export_may_start(tmp_path):
+    env = Env(tmp_path, platform="ios")
+    idle = env.status()
+    FakeSynth.gate = threading.Event()
+    env.session.export_audio()
+    env.answer(env.store.ref("out.wav"))
+    for _ in range(200):
+        if env.temp_files():
+            break
+        threading.Event().wait(0.01)
+    assert len(env.temp_files()) == 1
+    env.session.export_finished("memory:out.wav", False, None)
+    assert env.session._audio_job is None
+    assert export_state(env) == ExportState()
+    assert env.status() == idle
+    FakeSynth.gate.set()
+    env.settle()
+    # Stopped at its next block: no file, no temp file, nothing said.
+    assert "memory:out.wav" not in env.store.contents
+    assert env.temp_files() == []
+    assert env.errors() == []
+    assert env.status() == idle
+    # Not busy any more.
+    env.recorder.clear()
+    env.session.export_audio()
+    assert env.request().mode == PickMode.EXPORT_AUDIO
+    env.session.shutdown()
+
+
+def test_on_ios_a_failure_ends_the_export_with_the_same_error(tmp_path):
+    env = Env(tmp_path, platform="ios")
+    env.store.write_error = "disk full"
+    env.session.export_audio()
+    env.answer(env.store.ref("out.wav"))
+    env.settle()
+    assert env.errors() == [("Error", "Failed to export audio file:\nout.wav\n\ndisk full")]
+    assert export_state(env) == ExportState()
     env.session.shutdown()

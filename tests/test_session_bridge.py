@@ -32,8 +32,8 @@ from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
 from chordnotepad.session.settings import SettingsValues
 from chordnotepad.session.state import (
-    DocumentState, HighlightState, MenuItem, PlaybackState, PlaybackStatus, Span, SpanKind,
-    VoicingMenuState,
+    DocumentState, ExportState, HighlightState, MenuItem, PlaybackState, PlaybackStatus, Span,
+    SpanKind, VoicingMenuState,
 )
 from chordnotepad.session.testing import FakePlayer, InMemoryDocumentStore
 from chordnotepad.session.threaded_host import ThreadedHost
@@ -785,7 +785,8 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
         env.expect("CloseApproved")
         env.settle()
 
-        outputs = set(bridge.STATE_TYPES + bridge.EVENT_TYPES + bridge.REQUEST_TYPES)
+        # ExportState is iOS's only: the test below.
+        outputs = set(bridge.STATE_TYPES + bridge.EVENT_TYPES + bridge.REQUEST_TYPES) - {ExportState}
         seen = {type(dto) for dto in env.dtos}
         assert seen == outputs, f"never emitted: {outputs - seen}"
         assert {name for name, _ in env.out} == {t.__name__ for t in outputs}
@@ -793,6 +794,30 @@ def test_every_output_type_crosses_the_bridge_as_plain_values(tmp_path):
             _assert_plain(dto)
         unexpected = [d for name, d in env.out if name == "UnexpectedError"]
         assert [d["context"] for d in unexpected] == ["bridge"]
+    finally:
+        env.close()
+
+
+def test_ios_export_state_and_export_finished_cross_the_bridge(tmp_path):
+    env = BridgeEnv(tmp_path, platform="ios")
+    try:
+        env.send("export_pdf", page="a4")
+        request = env.expect("PickDocumentRequest", lambda d: d["mode"] == "export_pdf")
+        env.send("respond", request_id=request["request_id"], value=ref_json("a.pdf"))
+        state = env.expect("ExportState", lambda d: d["document_id"] is not None)
+        assert state == {"document_id": "memory:a.pdf", "kind": "pdf", "progress": None,
+                         "written": False}
+        request = env.expect("PaintPdfRequest")
+        env.send("respond", request_id=request["request_id"], value="")
+        env.expect("ExportState", lambda d: d["written"])
+        env.send("export_finished", document_id="memory:a.pdf", saved=True,
+                 location="a.pdf (Downloads)")
+        env.expect("StatusState", lambda d: d["text"] == "Exported PDF: a.pdf (Downloads)")
+        assert env.latest("ExportState") == {
+            "document_id": None, "kind": "", "progress": None, "written": False}
+        for dto in env.dtos:
+            _assert_plain(dto)
+        assert [d for name, d in env.out if name == "UnexpectedError"] == []
     finally:
         env.close()
 

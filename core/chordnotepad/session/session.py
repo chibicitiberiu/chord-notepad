@@ -49,8 +49,8 @@ from chordnotepad.models.notation import Notation
 from chordnotepad.models.playback_event import PlaybackEventArgs, PlaybackEventType
 from chordnotepad.session import directives, formatting, quick_start, song_defaults, support, toolbar
 from chordnotepad.session.platform import (
-    COUNTS_SONG_BARS, DESKTOP, PICKER_CREATES_FILE, POSITION_STATUS, STOP_REWINDS, TRACKS_PLAYHEAD,
-    check_platform, pick,
+    COUNTS_SONG_BARS, DESKTOP, PICKER_CREATES_FILE, POSITION_STATUS, SAVES_EXPORT_AFTER_WRITE,
+    STOP_REWINDS, TRACKS_PLAYHEAD, check_platform, pick,
 )
 from chordnotepad.session.audio_policy import AudioFailurePolicy
 from chordnotepad.session.emitter import Emitter, Listener
@@ -79,7 +79,7 @@ from chordnotepad.session.settings_staging import SettingsStaging
 from chordnotepad.session.workers import BackgroundWorker, Job, Outcome
 from chordnotepad.session.state import (
     CAPO_COMPUTING, CAPO_ERROR, CAPO_READY, INACTIVE_CAPO_ADVICE, CapoAdviceState, CapoRow,
-    ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
+    ChordSheetState, ChordSheetView, DocumentState, EditorState, ExportState, HighlightState,
     IdentifierNote, IdentifierState, InstrumentMenuState, MenuItem, PlayAction, PlaybackState,
     INACTIVE_VOICING_EDITOR, PlaybackStatus, RecentDocumentsState, SettingsState,
     SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
@@ -234,6 +234,20 @@ def _command(method: F) -> F:
     return wrapper  # type: ignore[return-value]
 
 
+class _PendingExport:
+    """An export whose file the app saves after it is written (iOS): from the
+    picked file until ``export_finished`` or a failure."""
+
+    def __init__(self, ref: DocumentRef, kind: str) -> None:
+        self.ref = ref
+        self.kind = kind
+        # The render's job, while it runs (MIDI and audio).
+        self.job: Optional[Job] = None
+        # Audio: the fraction rendered so far.
+        self.progress: Optional[float] = 0.0 if kind == "audio" else None
+        self.written = False
+
+
 class _CapoAdvice:
     """The open Suggest Capo dialog: what it scores and what it shows."""
 
@@ -308,6 +322,7 @@ class AppSession:
         self._platform = check_platform(platform)
         self._position_status_texts = POSITION_STATUS[self._platform]
         self._picker_creates_file = PICKER_CREATES_FILE[self._platform]
+        self._saves_export_after_write = SAVES_EXPORT_AFTER_WRITE[self._platform]
         self._settings_type = values_type(self._platform)
         self._host = host
         self._emitter = Emitter()
@@ -352,6 +367,10 @@ class AppSession:
         self._audio_worker = (audio_export_worker if audio_export_worker is not None
                               else BackgroundWorker(host, name="AudioExport"))
         self._audio_job: Optional[Job] = None
+        # Where the app saves an export after it is written (iOS): the
+        # exports it hasn't finished with, by store id, oldest first
+        # (ExportState shows the newest).
+        self._exports: Dict[str, _PendingExport] = {}
         if export_temp_dir is None:
             export_temp_dir = (str(services.appdata.get_cache_dir()) if services is not None
                                else tempfile.gettempdir())
@@ -1457,6 +1476,49 @@ class AppSession:
         if page not in print_layout.PAGE_SIZES:
             raise ValueError(f"Unknown page size {page!r}")
         self._flows.start(self._pdf_export_flow(page))
+
+    @_command
+    def export_finished(self, document_id: str, saved: bool, location: Optional[str]) -> None:
+        """The app is done with the export whose file is ``document_id``
+        (iOS: its export picker saved the file or was cancelled, or the user
+        cancelled "Preparing export…"). An id that isn't a pending export (an
+        old one, or a platform whose picker comes before the export) is
+        ignored.
+
+        Saved: the status says where it went ("Exported MIDI: song.mid
+        (iCloud Drive)"; the file's name when the app knows no place). Not
+        saved: nothing is said and the status goes back to Ready; an export
+        still rendering stops (its job is cancelled, so it writes nothing).
+
+        Args:
+            document_id: The store id the export was written to.
+            saved: Whether the user saved it.
+            location: Where, as the store names places (``describe``), or None.
+        """
+        export = self._exports.pop(document_id, None)
+        if export is None:
+            logger.info("export_finished for an export that isn't pending: %s", document_id)
+            return
+        self._publish_export()
+        if saved:
+            # The app saves only a written file; the write's own outcome may
+            # still be on its way here (the audio job's, the PDF's answer),
+            # and then says nothing.
+            status = {"midi": formatting.exported_midi_status,
+                      "audio": formatting.exported_audio_status,
+                      "pdf": formatting.exported_pdf_status}[export.kind]
+            self._set_status(status(location or export.ref.display_name, self._platform))
+            return
+        if export.job is not None:
+            # Still rendering (or its outcome not delivered yet): stop it. A
+            # cancelled job's outcome is never delivered, so the audio
+            # export's busy flag is cleared here.
+            export.job.cancel()
+            if export.job is self._audio_job:
+                self._audio_job = None
+        if not self._exports:
+            # Back to what the status line shows at rest (iOS: the playhead's bar).
+            self._set_idle_status()
 
     @_command
     def request_close(self) -> None:
@@ -3534,15 +3596,20 @@ class AppSession:
             return
         # Rendered off the session thread from a snapshot of the song now.
         job = self._main.midi_export_job()
+        export = self._begin_export(ref, "midi")
         self._set_status(formatting.exporting_midi_status(ref.location))
-        self._worker.submit(job, self._entry(functools.partial(self._on_midi_rendered, ref)))
+        handle = self._worker.submit(job, self._entry(functools.partial(self._on_midi_rendered, ref)))
+        if export is not None:
+            export.job = handle
 
     def _on_midi_rendered(self, ref: DocumentRef, outcome: Outcome) -> None:
         """The worker rendered (or failed to render) a MIDI export: write it."""
         # Not remembered as recent: exports aren't documents to reopen here.
         if self._main.finish_midi_export(ref, outcome.value, outcome.error):
-            self._set_status(formatting.exported_midi_status(ref.location, self._platform))
+            if not self._export_written(ref):
+                self._set_status(formatting.exported_midi_status(ref.location, self._platform))
         else:
+            self._export_ended(ref)
             self._set_status(formatting.READY)
             self._file_error(formatting.EXPORT_FAILED, ref)
 
@@ -3578,15 +3645,24 @@ class AppSession:
                     functools.partial(self._on_audio_progress, handle, fraction)))
 
         job = self._main.audio_export_job(ref, self._export_temp_dir, progress)
+        export = self._begin_export(ref, "audio")
         self._set_status(formatting.exporting_audio_status(0.0))
         self._audio_job = worker.submit(
             job, self._entry(functools.partial(self._on_audio_exported, ref)), pass_abort=True)
         handle.append(self._audio_job)
+        if export is not None:
+            export.job = self._audio_job
 
     def _on_audio_progress(self, handle: List[Job], fraction: float) -> None:
         """The audio export rendered ``fraction`` of the song (it's still running)."""
         if not handle or handle[0] is not self._audio_job or fraction >= 1.0:
             return      # another export's, or the end (its own status follows)
+        if self._saves_export_after_write:
+            export = next((e for e in self._exports.values() if e.job is handle[0]), None)
+            if export is None:
+                return  # the app finished with it already (saved or cancelled)
+            export.progress = fraction
+            self._publish_export()
         self._set_status(formatting.exporting_audio_status(fraction))
 
     def _on_audio_exported(self, ref: DocumentRef, outcome: Outcome) -> None:
@@ -3594,8 +3670,10 @@ class AppSession:
         self._audio_job = None
         # Not remembered as recent: exports aren't documents to reopen here.
         if self._main.finish_audio_export(ref, outcome.error):
-            self._set_status(formatting.exported_audio_status(ref.location, self._platform))
+            if not self._export_written(ref):
+                self._set_status(formatting.exported_audio_status(ref.location, self._platform))
             return
+        self._export_ended(ref)
         self._set_status(formatting.READY)
         message = formatting.file_error_message(
             formatting.AUDIO_EXPORT_FAILED, ref.location, self._main.last_error)
@@ -3612,11 +3690,16 @@ class AppSession:
             return
         layout = print_layout.layout_song(
             self._text, self._main.notation.value, stem or formatting.UNTITLED, page)
+        self._begin_export(ref, "pdf")
         answer = yield PaintPdfRequest(0, ref, layout)
         # Not remembered as recent: exports aren't documents to reopen here.
         if answer == "":
-            self._set_status(formatting.exported_pdf_status(ref.location, self._platform))
+            if not self._export_written(ref):
+                self._set_status(formatting.exported_pdf_status(ref.location, self._platform))
             return
+        if self._saves_export_after_write and ref.id not in self._exports:
+            return      # the app called the export off (export_finished) meanwhile
+        self._export_ended(ref)
         reason = answer if isinstance(answer, str) else None
         message = formatting.file_error_message(
             formatting.PDF_EXPORT_FAILED, ref.location, reason)
@@ -3624,6 +3707,54 @@ class AppSession:
             # The picker made the file, and the store can't delete it.
             message += "\n\n" + formatting.export_left_file_note(ref.display_name)
         self._emitter.emit(UserError(formatting.FILE_ERROR_TITLE, message))
+
+    # -- exports the app saves after they are written (iOS) -----------------------
+
+    def _begin_export(self, ref: DocumentRef, kind: str) -> Optional[_PendingExport]:
+        """Remember an export whose file the app saves once it is written
+        (``SAVES_EXPORT_AFTER_WRITE``) and publish it; None elsewhere."""
+        if not self._saves_export_after_write:
+            return None
+        export = _PendingExport(ref, kind)
+        self._exports.pop(ref.id, None)
+        self._exports[ref.id] = export
+        self._publish_export()
+        return export
+
+    def _export_written(self, ref: DocumentRef) -> bool:
+        """``ref``'s file is written. Where the app saves it afterwards, it
+        now waits for the export picker: True, and the status says nothing
+        yet. False where the export is done."""
+        if not self._saves_export_after_write:
+            return False
+        export = self._exports.get(ref.id)
+        if export is not None:
+            export.written = True
+            export.job = None
+            if export.progress is not None:
+                export.progress = 1.0
+                # Rendered and written; the status still says it isn't saved.
+                self._set_status(formatting.exporting_audio_status(1.0))
+            self._publish_export()
+        # An export the app already finished with (it can report a save
+        # before the write's outcome reaches this thread) says nothing more.
+        return True
+
+    def _export_ended(self, ref: DocumentRef) -> None:
+        """``ref``'s export failed: it is no longer pending."""
+        if self._exports.pop(ref.id, None) is not None:
+            self._publish_export()
+
+    def _publish_export(self) -> None:
+        if not self._saves_export_after_write:
+            return
+        if not self._exports:
+            self._emitter.set_state(ExportState())
+            return
+        export = next(reversed(self._exports.values()))
+        self._emitter.set_state(ExportState(
+            document_id=export.ref.id, kind=export.kind, progress=export.progress,
+            written=export.written))
 
     def _close_flow(self) -> Flow:
         if not (yield from self._confirm_discard()):

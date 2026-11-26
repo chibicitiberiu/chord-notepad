@@ -13,7 +13,7 @@ from chordnotepad.session import formatting, print_layout
 from chordnotepad.session.events import PaintPdfRequest, PickDocumentRequest, PickMode, UserError
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
-from chordnotepad.session.state import StatusState
+from chordnotepad.session.state import ExportState, StatusState
 from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.session.workers import BackgroundWorker
 from chordnotepad.viewmodels.main_window_viewmodel import MainWindowViewModel
@@ -201,10 +201,56 @@ def test_an_unknown_page_size_is_refused(env):
     assert env.session.pending_request is None
 
 
-def test_on_ios_written_says_ready_to_save(tmp_path):
-    # iOS's export picker opens after the write: the file isn't saved anywhere yet.
+def export_state(env):
+    return env.session._emitter.state(ExportState)
+
+
+def test_on_ios_the_save_comes_after_the_write_and_names_the_place(tmp_path):
+    # iOS's export picker opens after the write: "Exported" only once it saved.
+    env = Env(tmp_path, platform="ios")
+    before = env.status()
+    env.session.export_pdf("a4")
+    paint = env.pick()
+    assert export_state(env) == ExportState("memory:out.pdf", "pdf", None, False)
+    env.session.respond(paint.request_id, "")
+    assert export_state(env) == ExportState("memory:out.pdf", "pdf", None, True)
+    assert env.status() == before
+    env.session.export_finished("memory:out.pdf", True, "out.pdf (iCloud Drive)")
+    assert env.status() == "Exported PDF: out.pdf (iCloud Drive)"
+    assert export_state(env) == ExportState()
+    env.session.shutdown()
+
+
+def test_on_ios_a_save_before_the_paint_answer_stays(tmp_path):
+    # The app's write wakes its picker before the paint's answer gets here.
     env = Env(tmp_path, platform="ios")
     env.session.export_pdf("a4")
-    env.session.respond(env.pick().request_id, "")
-    assert env.status() == "PDF ready to save: " + env.store.ref("out.pdf").location
+    paint = env.pick()
+    env.session.export_finished("memory:out.pdf", True, "out.pdf (iCloud Drive)")
+    env.session.respond(paint.request_id, "")
+    assert env.status() == "Exported PDF: out.pdf (iCloud Drive)"
+    assert export_state(env) == ExportState()
+    env.session.shutdown()
+
+
+@pytest.mark.parametrize("answer", ["", "disk full"])
+def test_on_ios_cancelled_while_painting_says_nothing(tmp_path, answer):
+    env = Env(tmp_path, platform="ios")
+    idle = env.status()
+    env.session.export_pdf("a4")
+    paint = env.pick()
+    env.session.export_finished("memory:out.pdf", False, None)
+    env.session.respond(paint.request_id, answer)
+    assert env.status() == idle
+    assert env.errors() == []
+    assert export_state(env) == ExportState()
+    env.session.shutdown()
+
+
+def test_on_ios_a_failed_paint_is_the_same_error_and_ends_the_export(tmp_path):
+    env = Env(tmp_path, platform="ios")
+    env.session.export_pdf("a4")
+    env.session.respond(env.pick().request_id, "disk full")
+    assert env.errors() == [("Error", "Failed to export PDF file:\nout.pdf\n\ndisk full")]
+    assert export_state(env) == ExportState()
     env.session.shutdown()

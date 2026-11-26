@@ -22,7 +22,7 @@ from chordnotepad.session.events import (
 from chordnotepad.session.host import HostDispatch
 from chordnotepad.session.session import AppSession
 from chordnotepad.session.state import (
-    DocumentState, HighlightState, RecentDocumentsState, StatusState, ToolbarState,
+    DocumentState, ExportState, HighlightState, RecentDocumentsState, StatusState, ToolbarState,
 )
 from chordnotepad.session.testing import EventRecorder, FakePlayer, InMemoryDocumentStore, ManualHost
 from chordnotepad.session.workers import BackgroundWorker
@@ -48,7 +48,7 @@ class FakeConfig:
 class Env:
     """A started session over an in-memory store holding ``song.txt``."""
 
-    def __init__(self, text="", documents=None, max_recent=10):
+    def __init__(self, text="", documents=None, max_recent=10, platform="desktop"):
         self.host = ManualHost()
         dispatch = HostDispatch(self.host)
         self.config = FakeConfig()
@@ -62,7 +62,7 @@ class Env:
         self.session = AppSession(
             self.host, main_window_viewmodel=self.main,
             text_editor_viewmodel=TextEditorViewModel(SongParserService()),
-            worker=self.worker)
+            worker=self.worker, platform=platform)
         self.recorder = EventRecorder()
         self.session.subscribe(self.recorder)
         self.session.start()
@@ -529,6 +529,97 @@ def test_cancelled_export_writes_nothing():
     env.answer(None)
     assert env.store.contents == {}
     assert env.recorder.items == []
+
+
+# -- export MIDI on iOS: the file is saved after it is written ------------------------
+
+
+def export_state(env):
+    return env.session._emitter.state(ExportState)
+
+
+def test_ios_export_waits_for_the_save_and_names_the_place():
+    env = Env(platform="ios")
+    open_song(env)
+    env.session.export_midi()
+    env.answer(env.ref("song.mid"))
+    song_id = env.ref("song.mid").id
+    assert export_state(env) == ExportState(song_id, "midi", None, False)
+    assert env.status() == "Exporting MIDI: song.mid..."
+    env.settle()
+    assert env.store.contents[song_id].startswith(b"MThd")
+    # Written, not saved yet: the status doesn't say "Exported".
+    assert export_state(env) == ExportState(song_id, "midi", None, True)
+    assert env.status() == "Exporting MIDI: song.mid..."
+    env.session.export_finished(song_id, True, "song.mid (iCloud Drive)")
+    assert env.status() == "Exported MIDI: song.mid (iCloud Drive)"
+    assert export_state(env) == ExportState()
+    assert env.errors() == []
+    # Said once: a repeat, or an id that was never an export, is ignored.
+    env.recorder.clear()
+    env.session.export_finished(song_id, False, None)
+    env.session.export_finished("memory:other.mid", True, "other.mid")
+    assert env.recorder.items == []
+
+
+def test_ios_saved_without_a_place_names_the_file():
+    env = Env("C G", documents={}, platform="ios")
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.settle()
+    env.session.export_finished(env.ref("out.mid").id, True, None)
+    assert env.status() == "Exported MIDI: out.mid"
+
+
+def test_ios_a_cancelled_save_says_nothing():
+    env = Env("C G", documents={}, platform="ios")
+    idle = env.status()
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.settle()
+    env.recorder.clear()
+    env.session.export_finished(env.ref("out.mid").id, False, None)
+    # Back to the status at rest, with no message.
+    assert env.status() == idle
+    assert env.recorder.of_type(UserError) == []
+    assert export_state(env) == ExportState()
+
+
+def test_ios_cancelled_while_rendering_writes_nothing():
+    env = Env("C G", documents={}, platform="ios")
+    idle = env.status()
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.session.export_finished(env.ref("out.mid").id, False, None)
+    env.settle()
+    assert env.store.contents == {}
+    assert env.status() == idle
+    assert export_state(env) == ExportState()
+    assert env.errors() == []
+
+
+def test_ios_a_failed_export_is_the_same_error_and_ends_the_export():
+    env = Env("C G", documents={}, platform="ios")
+    env.store.write_error = "disk full"
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.settle()
+    assert env.errors() == [("Error", "Failed to export MIDI file:\nout.mid\n\ndisk full")]
+    assert export_state(env) == ExportState()
+    assert env.status() == formatting.READY
+
+
+@pytest.mark.parametrize("platform", ["desktop", "android", "desktop_qt"])
+def test_elsewhere_the_written_export_is_exported_and_no_export_state(platform):
+    env = Env("C G", documents={}, platform=platform)
+    env.session.export_midi()
+    env.answer(env.ref("out.mid"))
+    env.settle()
+    assert env.status() == "Exported MIDI: out.mid"
+    assert env.recorder.of_type(ExportState) == []
+    # export_finished means nothing there.
+    env.session.export_finished(env.ref("out.mid").id, False, None)
+    assert env.status() == "Exported MIDI: out.mid"
 
 
 # -- close -------------------------------------------------------------------------

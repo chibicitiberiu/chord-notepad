@@ -47,7 +47,8 @@ from chordnotepad.session.host import Host
 from chordnotepad.session.print_layout import PdfLayout, PdfLine, PdfPage, PdfRun
 from chordnotepad.session.settings import DesktopSettingsValues, SettingsValues
 from chordnotepad.session.state import (
-    CapoAdviceState, CapoRow, ChordSheetState, ChordSheetView, DocumentState, EditorState, HighlightState,
+    CapoAdviceState, CapoRow, ChordSheetState, ChordSheetView, DocumentState, EditorState, ExportState,
+    HighlightState,
     IdentifierNote, IdentifierState, InstrumentFamily, InstrumentMenuState, MenuItem, PlayAction,
     PlaybackState, PlaybackStatus, RecentDocumentsState, SettingsProblem, SettingsState,
     SongDefault, SongDefaultsState, Span, SpanKind, StartupScreen, StartupState, StatusState,
@@ -68,7 +69,7 @@ STATE_TYPES: Tuple[type, ...] = (
     DocumentState, EditorState, HighlightState, PlaybackState, ToolbarState, StatusState,
     VoicingMenuState, InstrumentMenuState, RecentDocumentsState, ChordSheetState,
     IdentifierState, SettingsState, VoicingEditorState, SongDefaultsState, StartupState,
-    CapoAdviceState,
+    CapoAdviceState, ExportState,
 )
 EVENT_TYPES: Tuple[type, ...] = (
     TextEdited, UserError, AudioUnavailable, UnexpectedError, CloseApproved,
@@ -328,6 +329,9 @@ SESSION_COMMANDS: Dict[str, Dict[str, str]] = {
     "export_midi": {},
     "export_audio": {},
     "export_pdf": {"page": "str"},
+    # iOS: the export picker saved the export's file (where) or was cancelled,
+    # or "Preparing export…" was (Android and the desktop never send it)
+    "export_finished": {"document_id": "str", "saved": "bool", "location": "str|null"},
     "request_close": {},
     "respond": {"request_id": "int", "value": "any"},
     "restore_draft": {"text": "str", "document": "DocumentRef|null", "modified": "bool",

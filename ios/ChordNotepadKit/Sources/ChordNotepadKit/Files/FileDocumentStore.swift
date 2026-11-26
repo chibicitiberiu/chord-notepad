@@ -135,6 +135,14 @@ public final class FileDocumentStore: DocumentStore, @unchecked Sendable {
         return appDir.appendingPathComponent(path)
     }
 
+    /// Where the export picker saved a file, as the store names places in
+    /// its messages ("song.wav (iCloud Drive)", "song.wav (Chord Notepad)");
+    /// the name alone when the place can't be read. Does provider I/O; call
+    /// it off the main thread.
+    public func savedLocation(_ url: URL) -> String {
+        access.facts(url)?.location ?? url.lastPathComponent
+    }
+
     /// Delete an export's file once the export picker is done with it.
     public func discardExport(_ id: String) {
         guard let file = exportFile(id) else { return }

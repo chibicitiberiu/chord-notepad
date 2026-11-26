@@ -27,6 +27,7 @@ object BridgeCodec {
         "PlaybackState" to PlaybackState.serializer(),
         "ToolbarState" to ToolbarState.serializer(),
         "StatusState" to StatusState.serializer(),
+        "ExportState" to ExportState.serializer(),
         "EditorState" to EditorState.serializer(),
         "VoicingMenuState" to VoicingMenuState.serializer(),
         "InstrumentMenuState" to InstrumentMenuState.serializer(),

@@ -9,7 +9,7 @@ from typing import Any, Iterable, Mapping, Optional, Sequence, Tuple, Union
 
 from chordnotepad.models.ensemble_spec import BUILTIN_ENSEMBLES
 from chordnotepad.models.fretboard_spec import BUILTIN_FRETBOARDS
-from chordnotepad.session.platform import ANDROID, DESKTOP, IOS, pick
+from chordnotepad.session.platform import ANDROID, DESKTOP, pick
 from chordnotepad.session.state import InstrumentFamily, MenuItem
 
 READY = "Ready"
@@ -346,19 +346,16 @@ def exporting_midi_status(location: str) -> str:
     return f"Exporting MIDI: {location}..."
 
 
-#: The status after an export wrote its file, by platform: the desktop's and
-#: Android's pickers chose the place before the export ran; iOS's export
-#: picker opens after it, so the file isn't saved anywhere yet (and isn't
-#: if the picker is cancelled).
+#: The status after an export was saved. On iOS it comes once the export
+#: picker saved the file (``AppSession.export_finished``), with the place the
+#: user picked; elsewhere once the file is written where the picker chose.
 _EXPORTED = {
     DESKTOP: {"midi": "Exported MIDI: {}", "audio": "Exported audio: {}", "pdf": "Exported PDF: {}"},
-    IOS: {"midi": "MIDI ready to save: {}", "audio": "Audio ready to save: {}", "pdf": "PDF ready to save: {}"},
 }
 
 
 def exported_midi_status(location: str, platform: str = DESKTOP) -> str:
-    """The status after a MIDI file was exported (iOS: written, waiting for
-    the export picker)."""
+    """The status after a MIDI file was exported."""
     return pick(_EXPORTED, platform)["midi"].format(location)
 
 
@@ -368,8 +365,7 @@ def exporting_audio_status(fraction: float) -> str:
 
 
 def exported_audio_status(location: str, platform: str = DESKTOP) -> str:
-    """The status after an audio file was exported (iOS: written, waiting
-    for the export picker)."""
+    """The status after an audio file was exported."""
     return pick(_EXPORTED, platform)["audio"].format(location)
 
 
@@ -379,8 +375,7 @@ def pdf_export_name(stem: Optional[str]) -> str:
 
 
 def exported_pdf_status(location: str, platform: str = DESKTOP) -> str:
-    """The status after a PDF file was exported (iOS: written, waiting for
-    the export picker)."""
+    """The status after a PDF file was exported."""
     return pick(_EXPORTED, platform)["pdf"].format(location)
 
 

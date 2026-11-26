@@ -1408,6 +1408,12 @@
    "read_only": false,
    "word_wrap": false
   },
+  "ExportState": {
+   "document_id": null,
+   "kind": "",
+   "progress": null,
+   "written": false
+  },
   "HighlightState": {
    "client_token": 0,
    "spans": [

@@ -101,6 +101,12 @@
    "read_only": false,
    "word_wrap": false
   },
+  "ExportState": {
+   "document_id": null,
+   "kind": "",
+   "progress": null,
+   "written": false
+  },
   "HighlightState": {
    "client_token": 0,
    "spans": [
@@ -402,7 +408,7 @@
    }
   },
   "StatusState": {
-   "text": "MIDI ready to save: Lullaby (2).mid"
+   "text": "Exported MIDI: Lullaby (2).mid (iCloud Drive)"
   },
   "ToolbarState": {
    "beats": 3,

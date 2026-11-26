@@ -487,6 +487,16 @@ final class FileDocumentStoreTests: XCTestCase {
         XCTAssertNil(store.exportFile(song.id))
     }
 
+    func testWhereAnExportWasSavedIsNamedAsTheStoreNamesPlaces() throws {
+        let folder = root.appendingPathComponent("Downloads", isDirectory: true)
+        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+        let saved = folder.appendingPathComponent("Song 2.wav")
+        try Data("RIFF".utf8).write(to: saved)
+        XCTAssertEqual(store.savedLocation(saved), "Song 2.wav (Downloads)")
+        // A place the app can't read: the name the user gave it.
+        XCTAssertEqual(store.savedLocation(folder.appendingPathComponent("gone.wav")), "gone.wav")
+    }
+
     func testAnExportNameThatIsNoFileNameIsReplaced() throws {
         let export = try store.prepareExport(named: "a/b.mid")
         XCTAssertEqual(export.displayName, "Export")

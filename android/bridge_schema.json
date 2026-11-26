@@ -76,6 +76,11 @@
       "index": "int"
     },
     "export_audio": {},
+    "export_finished": {
+      "document_id": "str",
+      "location": "str|null",
+      "saved": "bool"
+    },
     "export_midi": {},
     "export_pdf": {
       "page": "str"
@@ -365,6 +370,7 @@
     "duplicate_lines",
     "duplicate_voicing_record",
     "export_audio",
+    "export_finished",
     "export_midi",
     "export_pdf",
     "identifier_clear",
@@ -610,6 +616,15 @@
         "notation": "str",
         "read_only": "bool",
         "word_wrap": "bool"
+      },
+      "kind": "state"
+    },
+    "ExportState": {
+      "fields": {
+        "document_id": "str|null",
+        "kind": "str",
+        "progress": "float|null",
+        "written": "bool"
       },
       "kind": "state"
     },

@@ -99,6 +99,19 @@ data class ToolbarState(
 @Serializable
 data class StatusState(val text: String) : SessionState
 
+/**
+ * The export being prepared or saved where the export picker opens after the
+ * file is written (iOS). The session never publishes it on Android; it is here
+ * so every output in the schema decodes.
+ */
+@Serializable
+data class ExportState(
+    @SerialName("document_id") val documentId: String? = null,
+    val kind: String = "",
+    val progress: Double? = null,
+    val written: Boolean = false,
+) : SessionState
+
 /** How the editor looks and behaves. */
 @Serializable
 data class EditorState(

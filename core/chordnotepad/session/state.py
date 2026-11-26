@@ -222,6 +222,36 @@ class StatusState:
     text: str
 
 
+#: :attr:`ExportState.kind` values.
+EXPORT_KINDS = ("midi", "audio", "pdf")
+
+
+@dataclass(frozen=True)
+class ExportState:
+    """The export the app is preparing or saving, on a platform whose export
+    picker opens after the file is written (iOS, ``platform.SAVES_EXPORT_AFTER_WRITE``;
+    never published elsewhere).
+
+    An export is in it from the moment its file is picked (the store's own
+    file on iOS) until the app says the picker is done (``export_finished``)
+    or the export fails. The app shows "Preparing export…" while it isn't
+    ``written``, then saves the file with its export picker.
+
+    Attributes:
+        document_id: The store id of the export's file; None while no export
+            runs (the other fields are then empty).
+        kind: ``midi``, ``audio`` or ``pdf`` (:data:`EXPORT_KINDS`); "" with no export.
+        progress: How much of an audio export is rendered, 0 to 1; None for
+            MIDI and PDF, which report none.
+        written: The file is written and waits for the export picker.
+    """
+
+    document_id: Optional[str] = None
+    kind: str = ""
+    progress: Optional[float] = None
+    written: bool = False
+
+
 @dataclass(frozen=True)
 class EditorState:
     """How the editor looks and behaves.

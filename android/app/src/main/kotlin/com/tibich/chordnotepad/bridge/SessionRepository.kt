@@ -169,6 +169,8 @@ class SessionRepository {
             is PlaybackState -> _playback.value = output
             is ToolbarState -> _toolbar.value = output
             is StatusState -> _status.value = output
+            // iOS only (its export picker opens after the write): never sent here.
+            is ExportState -> Unit
             is VoicingMenuState -> _voicingMenu.value = output
             is InstrumentMenuState -> _instrumentMenu.value = output
             is RecentDocumentsState -> _recentDocuments.value = output
