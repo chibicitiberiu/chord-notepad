@@ -44,6 +44,11 @@ struct AlertCard<Field: View>: View {
     @Environment(\.colorScheme) private var scheme
     /// The title, message and field's height, for the scroll view around them.
     @State private var textHeight: CGFloat = 0
+    @Environment(\.dynamicTypeSize) private var textSize
+
+    /// Two buttons side by side, as the system lays them out; stacked at the
+    /// accessibility text sizes, as the system does there.
+    private var sideBySide: Bool { actions.count == 2 && !textSize.isAccessibilitySize }
 
     var body: some View {
         GeometryReader { window in
@@ -96,7 +101,7 @@ struct AlertCard<Field: View>: View {
     private var buttons: some View {
         if glassAlerts {
             // iOS 26: capsules inside the card, side by side for two, else stacked.
-            let stacked = actions.count != 2
+            let stacked = !sideBySide
             let layout = stacked ? AnyLayout(VStackLayout(spacing: 8)) : AnyLayout(HStackLayout(spacing: 8))
             layout {
                 ForEach(Array(ordered.enumerated()), id: \.offset) { _, action in
@@ -121,7 +126,7 @@ struct AlertCard<Field: View>: View {
             // Up to iOS 18: full-width text buttons under hairlines, two side by side.
             VStack(spacing: 0) {
                 Divider()
-                if actions.count == 2 {
+                if sideBySide {
                     HStack(spacing: 0) {
                         textButton(ordered[0])
                         Divider().frame(height: 44)
@@ -137,11 +142,11 @@ struct AlertCard<Field: View>: View {
         }
     }
 
-    /// The system's order: Cancel on the left of two, last of three or more.
+    /// The system's order: Cancel on the left of two side by side, else last.
     private var ordered: [AlertAction] {
         let cancel = actions.filter { $0.role == .cancel }
         let others = actions.filter { $0.role != .cancel }
-        return actions.count == 2 ? cancel + others : others + cancel
+        return sideBySide ? cancel + others : others + cancel
     }
 
     private func tint(_ action: AlertAction) -> Color {

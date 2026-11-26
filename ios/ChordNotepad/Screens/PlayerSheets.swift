@@ -89,15 +89,13 @@ struct CatalogSheetFrame<Content: View>: View {
             ZStack(alignment: sizeClass == .regular ? .center : .bottom) {
                 Color.black.opacity(0.25)
                 if sizeClass == .regular {
-                    content()
+                    elevated
                         .frame(width: min(540, size.width - 40), height: min(620, size.height - 80))
-                        .background(Color(uiColor: .systemGroupedBackground))
                         .clipShape(RoundedRectangle(cornerRadius: glassAlerts ? 30 : 12, style: .continuous))
                 } else {
-                    content()
+                    elevated
                         .frame(width: glassAlerts ? size.width - 16 : size.width,
                                height: height == .medium ? size.height * 0.52 : size.height - 44)
-                        .background(Color(uiColor: .systemGroupedBackground))
                         .clipShape(UnevenRoundedRectangle(topLeadingRadius: glassAlerts ? 30 : 12,
                                                           bottomLeadingRadius: glassAlerts ? 30 : 0,
                                                           bottomTrailingRadius: glassAlerts ? 30 : 0,
@@ -108,6 +106,29 @@ struct CatalogSheetFrame<Content: View>: View {
             }
             .frame(width: size.width, height: size.height)
         }
+    }
+
+    /// The content with the elevated trait a presented sheet has (in dark
+    /// mode its backgrounds are the raised greys, not black).
+    private var elevated: some View {
+        ElevatedHost(content: AnyView(content().background(Color(uiColor: .systemGroupedBackground))))
+    }
+}
+
+/// `content` hosted with the elevated user interface level.
+private struct ElevatedHost: UIViewControllerRepresentable {
+    let content: AnyView
+
+    func makeUIViewController(context: Context) -> UIHostingController<AnyView> {
+        let host = UIHostingController(rootView: content)
+        host.traitOverrides.userInterfaceLevel = .elevated
+        host.safeAreaRegions = []
+        host.view.backgroundColor = .clear
+        return host
+    }
+
+    func updateUIViewController(_ host: UIHostingController<AnyView>, context: Context) {
+        host.rootView = content
     }
 }
 
