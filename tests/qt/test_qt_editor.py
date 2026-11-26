@@ -291,6 +291,24 @@ def test_opening_a_document_shows_it_at_the_start(editor, tmp_path):
     assert editor.window.title() == "song.txt - Chord Notepad"
 
 
+def test_new_after_open_leaves_nothing_to_undo(editor, tmp_path):
+    # Undo right after New brought the previous song's text back into the
+    # untitled one (iOS issue 11: the session sent New's clear as a plain edit).
+    song_file = tmp_path / "song.txt"
+    song_file.write_text(SONG, encoding="utf-8")
+    editor.store.submit("open_document", {"ref": {"id": str(song_file), "display_name": "song.txt",
+                                                  "location": str(song_file)}, "read_only": False})
+    editor.qtbot.waitUntil(lambda: editor.text() == SONG, timeout=2000)
+    editor.store.submit("new_document", {})
+    editor.qtbot.waitUntil(lambda: editor.text() == "", timeout=2000)
+    editor.settle()
+    assert editor.area.property("canUndo") is False
+    editor.action("undoAction").trigger()
+    editor.run()
+    assert editor.text() == "" and editor.session.text == ""
+    assert editor.window.title() == "Untitled - Chord Notepad"
+
+
 def test_a_long_document_opens_at_its_first_line(editor, tmp_path):
     # The session puts the cursor after the text (as for Tk, whose view stays
     # at the top); the Qt view must not follow it to the end.

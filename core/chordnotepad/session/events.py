@@ -79,7 +79,7 @@ class UndoPolicy(str, Enum):
     PLAIN = "plain"
     """Like any edit (convert notation, inserts)."""
     RESET = "reset"
-    """The history starts over (a document was opened)."""
+    """The history starts over (a document was opened, or New)."""
 
 
 @dataclass(frozen=True)

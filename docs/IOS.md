@@ -650,9 +650,10 @@ Android's `ui/editor/` with the Edit ribbon (`ui/main/EditRibbon.kt`).
     desktop `QTextDocument`'s). Typing merges into one step per run
     (insertions that continue where the last one ended, a run of Backspace
     or Delete; a new line or a caret move starts a new step), a `group` or
-    `plain` session edit is a step of its own, `reset` clears the history,
-    and each step puts back its selection. The text an undo or redo leaves
-    goes to the session as a user edit;
+    `plain` session edit is a step of its own, `reset` (Open, Recent, an
+    example, New, a restored draft) clears the history, and each step puts
+    back its selection. The text an undo or redo leaves goes to the session
+    as a user edit;
   - `perform(_:)` runs the ribbon's and the key commands' actions (undo,
     redo, the font steps, the notation, Convert, the desktop's line
     commands), with the text synced first and offsets in code points.

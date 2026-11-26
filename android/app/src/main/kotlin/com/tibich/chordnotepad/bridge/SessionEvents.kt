@@ -32,9 +32,9 @@ data class EditRefused(val message: String) : SessionEvent
 enum class UndoPolicy {
     /** One undo step on its own (transpose, capo). */
     @SerialName("group") GROUP,
-    /** Like any edit (convert notation, inserts, New). */
+    /** Like any edit (convert notation, inserts). */
     @SerialName("plain") PLAIN,
-    /** The history starts over (a document was opened). */
+    /** The history starts over (a document was opened, or New). */
     @SerialName("reset") RESET,
 }
 

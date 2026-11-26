@@ -376,7 +376,7 @@ def test_unsaved_changes_question_answered_with_a_string(env):
     request = env.expect("ConfirmDiscardRequest")
     env.send("respond", request_id=request["request_id"], value="discard")
     edit = env.expect("TextEdited")
-    assert (edit["replacement"], edit["undo"]) == ("", "plain")
+    assert (edit["replacement"], edit["undo"]) == ("", "reset")  # a new undo history
     env.settle()
     assert env.latest("DocumentState")["is_modified"] is False
 

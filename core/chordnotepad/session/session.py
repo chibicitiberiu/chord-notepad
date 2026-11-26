@@ -3291,6 +3291,7 @@ class AppSession:
         (an offset into the new text) says otherwise; with ``anchor`` the
         view selects from it to the cursor.
         """
+        dropped_playhead = undo is UndoPolicy.RESET and self._playhead is not None
         if undo is UndoPolicy.RESET:
             # Another document (or a restored draft): its playhead starts over.
             self._playhead = None
@@ -3300,6 +3301,9 @@ class AppSession:
             self._emitter.emit(TextEdited(
                 self._revision, start, end, replacement, undo,
                 start + len(replacement) if cursor is None else cursor, anchor))
+        if dropped_playhead:
+            # The views hear it too (New's empty text has no chord to snap to).
+            self._publish_playback(self._playback)
         self._detect_now()
 
     def _on_text_replaced(self, text: str) -> None:
@@ -3523,9 +3527,15 @@ class AppSession:
             return
         self._pending_name = None
         self._close_capo_advice()
-        with self._undo_policy(UndoPolicy.PLAIN):
+        # Another document: the views start a new undo history, so Undo
+        # can't bring the old song's text into the new one.
+        revision = self._revision
+        with self._undo_policy(UndoPolicy.RESET):
             self._main.new_file()
         self._publish_document()
+        if self._revision == revision:
+            # The text was already empty: still a new undo history.
+            self._splice(0, len(self._text), self._text, UndoPolicy.RESET)
         self._set_status(formatting.NEW_DOCUMENT_STATUS)
 
     def _open_flow(self, ref: Optional[DocumentRef], read_only: bool = False) -> Flow:

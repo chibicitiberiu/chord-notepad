@@ -305,17 +305,26 @@ def test_a_new_flow_closes_the_pending_one():
 # -- new ---------------------------------------------------------------------------
 
 
-def test_new_discarding_changes_clears_the_text_as_a_plain_edit():
+def test_new_discarding_changes_clears_the_text_as_a_reset_edit():
+    # Another document: the views start a new undo history, so Undo can't
+    # bring the old song's text into the untitled one (iOS issue 11).
     env = Env()
     open_song(env)
     env.type("C G")
     env.session.new_document()
     env.answer("discard")
     edit = env.recorder.last(TextEdited)
-    assert (edit.start, edit.end, edit.replacement, edit.undo) == (0, 3, "", UndoPolicy.PLAIN)
+    assert (edit.start, edit.end, edit.replacement, edit.undo) == (0, 3, "", UndoPolicy.RESET)
     assert env.document() == DocumentState("Untitled", None, False, "Untitled - Chord Notepad")
     assert env.status() == "New file created"
     assert env.recent() == ["song.txt"]
+
+
+def test_new_over_an_empty_text_still_starts_a_new_undo_history():
+    env = Env()                                # an untitled, empty song
+    env.session.new_document()
+    edits = env.recorder.of_type(TextEdited)
+    assert [(e.start, e.end, e.replacement, e.undo) for e in edits] == [(0, 0, "", UndoPolicy.RESET)]
 
 
 def test_new_without_changes_asks_nothing():

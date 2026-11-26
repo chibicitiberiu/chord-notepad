@@ -11,7 +11,7 @@ import Foundation
 ///   other edit starts a new step.
 /// - A session edit with `group` or `plain` is one step of its own, never
 ///   merged (Android: `plain` is "close enough" to `group`); `reset` clears
-///   the history (a document was opened).
+///   the history (a document was opened, or New).
 /// - Each step restores the selection it had before (undo) or after (redo).
 public struct EditHistory: Sendable, Equatable {
     /// How many steps undo keeps.
